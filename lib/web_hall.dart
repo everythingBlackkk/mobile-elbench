@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart' show NumberFormat;
 import 'api.dart';
+import 'image_cache.dart';
 import 'screens.dart';
 
 /// Mobile Hall of Fame presentation; ranking data and refresh stay unchanged.
@@ -194,7 +195,7 @@ class _HallAvatar extends StatelessWidget {
     final innerSize = size - borderWidth * 2;
     final dpr = MediaQuery.devicePixelRatioOf(context);
     final cachePx = (innerSize * dpr).round().clamp(32, 256);
-    final photo = Image.network(
+    final photo = networkImage(
       _avatarUrl(page, person),
       width: innerSize,
       height: innerSize,

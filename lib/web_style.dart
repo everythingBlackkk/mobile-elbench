@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'api.dart';
+import 'image_cache.dart';
 
 // Paths are shared with Laravel components/ui-icon.blade.php.
 const _paths = <String, String>{
@@ -113,7 +114,7 @@ class UserBadge extends StatelessWidget {
     if ('$badge' == '1') {
       final cacheExtent = (size * MediaQuery.devicePixelRatioOf(context))
           .ceil();
-      return Image.network(
+      return networkImage(
         api.media('/Picture/blur-ver.png'),
         width: size,
         height: size,

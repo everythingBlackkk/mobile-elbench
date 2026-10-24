@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart' show DateFormat;
 import 'api.dart';
+import 'image_cache.dart';
 import 'app_menus.dart';
 import 'screens.dart';
 import 'text_direction.dart';
@@ -348,7 +349,7 @@ class AdminContent extends StatelessWidget {
                 children: [
                   ClipRRect(
                     borderRadius: BorderRadius.circular(6),
-                    child: Image.network(
+                    child: networkImage(
                       _communityImage(p, community),
                       width: 60,
                       height: 36,
@@ -2483,7 +2484,7 @@ class _AdminCommunityEditorState extends State<_AdminCommunityEditor> {
                         fit: BoxFit.cover,
                         semanticLabel: t('community_image_preview'),
                       )
-                    : Image.network(
+                    : networkImage(
                         _communityImage(
                           widget.page,
                           widget.community,

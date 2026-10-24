@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'api.dart';
+import 'image_cache.dart';
 import 'app_menus.dart';
 import 'screens.dart';
 import 'text_direction.dart';
@@ -87,7 +88,7 @@ Widget _avatar(NativePageState page, Json person, double diameter) {
     final cacheExtent = (diameter * MediaQuery.devicePixelRatioOf(page.context))
         .ceil();
     return ClipOval(
-      child: Image.network(
+      child: networkImage(
         page.c.api.media('/avatars/jko.webp'),
         width: diameter,
         height: diameter,

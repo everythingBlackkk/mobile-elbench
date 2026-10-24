@@ -1,6 +1,7 @@
-import 'dart:async' show unawaited;
+import 'dart:async' show Timer, unawaited;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_svg/flutter_svg.dart' show svg;
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'api.dart';
@@ -10,15 +11,21 @@ import 'push.dart';
 import 'screens.dart';
 import 'web_motion.dart';
 import 'launch_experience.dart';
+import 'page_store.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Icons, reactions and post actions use more distinct SVGs than the
+  // default 100-entry compiled-picture cache holds, so scrolling evicted and
+  // recompiled them (each recompile is an isolate hop and a late pop-in).
+  svg.cache.maximumSize = 400;
   final settings = AppSettings();
   final api = LaravelApi();
   runApp(
     ElBenchApp(
       api: api,
       settings: settings,
+      pageStore: PageStore(),
       initialize: () => Future.wait<void>([
         settings.load(),
         api.warmUp(),
@@ -36,7 +43,9 @@ class ElBenchApp extends StatefulWidget {
     this.enablePush = true,
     this.enableLaunchExperience = true,
     this.initialize,
+    this.pageStore,
   });
+  final PageStore? pageStore;
   final MobileApi api;
   final AppSettings settings;
   final bool enablePush;
@@ -64,6 +73,7 @@ class _ElBenchAppState extends State<ElBenchApp> with WidgetsBindingObserver {
       navigator,
       enablePush: widget.enablePush,
       rootNavigator: rootNavigator,
+      pageStore: widget.pageStore,
     );
     _appState = _currentAppState;
     widget.settings.addListener(_changed);
@@ -243,6 +253,7 @@ class AppController extends ChangeNotifier {
     this.navigator, {
     this.enablePush = true,
     this.rootNavigator,
+    this.pageStore,
   }) {
     push = PushService(api, open);
     _language = settings.language;
@@ -252,6 +263,7 @@ class AppController extends ChangeNotifier {
   final AppSettings settings;
   final GlobalKey<NavigatorState> navigator;
   final GlobalKey<NavigatorState>? rootNavigator;
+  final PageStore? pageStore;
   final bool enablePush;
   late final PushService push;
   Json? user;
@@ -337,8 +349,7 @@ class AppController extends ChangeNotifier {
     final kept = _pages.remove(key);
     if (kept == null ||
         kept.viewerId != user?['id'] ||
-        DateTime.now().difference(kept.storedAt) >
-            const Duration(minutes: 10)) {
+        DateTime.now().difference(kept.storedAt) > keptPageLifetime) {
       return null;
     }
     _pages[key] = kept;
@@ -357,7 +368,12 @@ class AppController extends ChangeNotifier {
     }
   }
 
-  void rememberPage(String path, Json envelope, {double offset = 0}) {
+  void rememberPage(
+    String path,
+    Json envelope, {
+    double offset = 0,
+    DateTime? fetchedAt,
+  }) {
     final screen = value(envelope['screen']);
     if (user == null ||
         screen.isEmpty ||
@@ -386,10 +402,19 @@ class AppController extends ChangeNotifier {
     ].contains(Uri.parse(path).path)) {
       _dockAliases[Uri.parse(path).path] = api.safePath(path);
     }
-    _pages.remove(key);
-    _pages[key] = KeptNativePage(kept, user?['id']);
+    final previous = _pages.remove(key);
+    _pages[key] = KeptNativePage(
+      kept,
+      user?['id'],
+      fetchedAt: fetchedAt ?? previous?.fetchedAt,
+    );
+    final route = Uri.parse(path);
+    if (PageStore.persistedPaths.contains(route.path) &&
+        route.queryParameters.keys.every((name) => name == 'lang')) {
+      _persistPages();
+    }
     rememberScroll(path, offset);
-    while (_pages.length > 8) {
+    while (_pages.length > maxKeptPages) {
       _pages.remove(_pages.keys.first);
     }
   }
@@ -398,6 +423,7 @@ class AppController extends ChangeNotifier {
   int refreshEpoch = 0;
   void markAllStale() {
     _pages.clear();
+    _inflight.clear();
     refreshEpoch++;
   }
 
@@ -422,8 +448,177 @@ class AppController extends ChangeNotifier {
     } catch (_) {}
   }
 
+  /// Retained screens are shown instantly and revalidated in the background
+  /// (stale-while-revalidate). Documents are sanitized JSON of a few KB each.
+  static const maxKeptPages = 32;
+  static const keptPageLifetime = Duration(minutes: 30);
+
+  /// A retained document this recent is shown without a network request.
+  static const freshPageAge = Duration(seconds: 20);
+
+  // Provisional documents for the next visit of a path (a tapped post renders
+  // from its feed row while the full page loads).
+  final _seeds = <String, Json>{};
+  Json? takeSeed(String path) => _seeds.remove(_pageKey(path));
+
+  // One network request per page document at a time, shared by prefetches
+  // and the visit that follows them.
+  final _inflight = <String, Future<Json>>{};
+  Future<Json> fetchPage(String path) {
+    final key = _pageKey(path);
+    final existing = _inflight[key];
+    if (existing != null) return existing;
+    final request = api.get(localized(path));
+    _inflight[key] = request;
+    void release() {
+      if (identical(_inflight[key], request)) _inflight.remove(key);
+    }
+
+    request.then<void>((_) => release(), onError: (Object _) => release());
+    return request;
+  }
+
+  /// Warm the cache for a likely next visit (e.g. on touch-down). Only
+  /// side-effect-free documents may be prefetched.
+  void prefetch(String path) {
+    if (user == null || _disposed) return;
+    final String safe;
+    try {
+      safe = api.safePath(path);
+    } catch (_) {
+      return;
+    }
+    final key = _pageKey(safe);
+    final kept = _pages[key];
+    if (_inflight.containsKey(key) ||
+        (kept != null &&
+            DateTime.now().difference(kept.fetchedAt) < freshPageAge)) {
+      return;
+    }
+    final session = _sessionGeneration, viewer = user?['id'];
+    final language = settings.language, mutation = mutationEpoch;
+    final generation = cacheGeneration;
+    fetchPage(safe).then<void>((response) {
+      if (_disposed ||
+          mutation != mutationEpoch ||
+          generation != cacheGeneration ||
+          session != _sessionGeneration ||
+          viewer != user?['id'] ||
+          language != settings.language) {
+        return;
+      }
+      absorb(response);
+      final canonical = response['canonical_url'];
+      if (canonical is String && _pageKey(canonical) != key) return;
+      rememberPage(safe, response, fetchedAt: DateTime.now());
+    }, onError: (Object _, StackTrace _) {});
+  }
+
+  void _restoreStored(Map<String, dynamic> stored) {
+    final pages = stored['pages'];
+    if (pages is! Map) return;
+    for (final entry in pages.entries) {
+      final page = entry.value;
+      if (page is! Map || page['envelope'] is! Map) continue;
+      final key = _pageKey('${entry.key}');
+      _pages[key] = KeptNativePage(
+        object(page['envelope']),
+        user?['id'],
+        fetchedAt: DateTime.fromMillisecondsSinceEpoch(
+          page['fetchedAt'] is int ? page['fetchedAt'] as int : 0,
+        ),
+      );
+    }
+  }
+
+  /// Share an already-started request with the visit that follows it.
+  void _adopt(String path, Future<Json> request) {
+    final key = _pageKey(path);
+    _inflight[key] = request;
+    void release() {
+      // A completed result stays shareable briefly: the page that will use
+      // it is created on the next frame.
+      Timer(const Duration(seconds: 2), () {
+        if (identical(_inflight[key], request)) _inflight.remove(key);
+      });
+    }
+
+    request.then<void>((_) => release(), onError: (Object _) => release());
+  }
+
+  void _persistPages() {
+    final store = pageStore, viewer = user?['id'];
+    if (store == null || viewer == null) return;
+    final pages = <String, ({Json envelope, DateTime fetchedAt})>{};
+    for (final path in PageStore.persistedPaths) {
+      final kept = _pages[_pageKey(path)];
+      if (kept != null && kept.viewerId == viewer) {
+        pages[path] = (envelope: kept.envelope, fetchedAt: kept.fetchedAt);
+      }
+    }
+    if (pages.isNotEmpty) store.write('$viewer', settings.language, pages);
+  }
+
+  /// Record that a retained document was revalidated unchanged.
+  void markFetched(String path, DateTime at) {
+    final key = _pageKey(path);
+    final kept = _pages[key];
+    if (kept != null) {
+      _pages[key] = KeptNativePage(kept.envelope, kept.viewerId, fetchedAt: at);
+    }
+  }
+
+  int? _warmedSession;
+
+  /// Once per session, after Home has loaded and the network is idle, fetch
+  /// the viewer's own Profile so the first dock visit is instant. Profile
+  /// GETs have no side effects (unlike Inbox, which marks messages read).
+  void warmLikelyPages() {
+    if (_warmedSession == _sessionGeneration || user == null) return;
+    _warmedSession = _sessionGeneration;
+    final session = _sessionGeneration;
+    // After the Home frame is on screen, and only while nothing else is
+    // loading, so it never competes with what the viewer is waiting for.
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (!_disposed && session == _sessionGeneration && _inflight.isEmpty) {
+        prefetch('/profile');
+      }
+    });
+  }
+
+  /// Age of a retained document, or null when none is kept.
+  Duration? keptPageAge(String path) {
+    final kept = _pages[_pageKey(retainedPath(path))];
+    return kept == null ? null : DateTime.now().difference(kept.fetchedAt);
+  }
+
+  /// Keep retained documents for instant display but require every one of
+  /// them to be revalidated before it counts as fresh again.
+  void markStale() {
+    final epoch = DateTime.fromMillisecondsSinceEpoch(0);
+    for (final entry in _pages.entries.toList()) {
+      _pages[entry.key] = KeptNativePage(
+        entry.value.envelope,
+        entry.value.viewerId,
+        fetchedAt: epoch,
+      );
+    }
+    _inflight.clear();
+    _seeds.clear();
+    _persistPages();
+  }
+
   void invalidatePages({bool authorization = false}) {
-    _pages.clear();
+    _inflight.clear();
+    _seeds.clear();
+    if (authorization) {
+      _pages.clear();
+      unawaited(pageStore?.clear());
+    } else {
+      // After a write, retained screens are still shown instantly and then
+      // revalidated (stale-while-revalidate) instead of starting empty.
+      markStale();
+    }
     cacheGeneration++;
     if (authorization) {
       _positions.clear();
@@ -459,8 +654,28 @@ class AppController extends ChangeNotifier {
     starting = true;
     notifyListeners();
     try {
-      absorb(await api.get(localized('/mobile/session')));
+      final session = api.get(localized('/mobile/session'));
+      // Observed below; this keeps a failure during the disk read handled.
+      unawaited(session.then<void>((_) {}, onError: (Object _) {}));
+      final stored = await pageStore?.read();
+      // A returning viewer's Home is requested alongside the session check
+      // instead of after it, saving a full round trip on every cold start.
+      Future<Json>? home;
+      if (stored != null && stored['locale'] == settings.language) {
+        home = api.get(localized('/community'));
+        unawaited(home.then<void>((_) {}, onError: (Object _) {}));
+      }
+      absorb(await session);
       startError = null;
+      // Signed out on the server: drop the previous viewer's saved pages.
+      if (user == null && stored != null) unawaited(pageStore?.clear());
+      if (stored != null &&
+          user != null &&
+          value(stored['viewer']) == value(user!['id']) &&
+          stored['locale'] == settings.language) {
+        _restoreStored(stored);
+        if (home != null) _adopt('/community', home);
+      }
     } catch (e) {
       startError = e;
     }
@@ -486,7 +701,14 @@ class AppController extends ChangeNotifier {
     }
     if (previousId != user?['id']) _sessionGeneration++;
     if (envelope['features'] is Map) features = object(envelope['features']);
-    if (envelope['counts'] is Map) counts = object(envelope['counts']);
+    // Reaction endpoints also answer with a `counts` map (like/love/funny);
+    // only the session's badge counts may replace the dock badges.
+    final nextCounts = envelope['counts'];
+    if (nextCounts is Map &&
+        (nextCounts.containsKey('notifications') ||
+            nextCounts.containsKey('inbox'))) {
+      counts = object(nextCounts);
+    }
     final identityChanged =
         !deepJsonEquals(oldUser, user) ||
         !deepJsonEquals(oldFeatures, features);
@@ -540,17 +762,28 @@ class AppController extends ChangeNotifier {
     }
   }
 
+  /// Bumped by every write, so a GET that started before it cannot
+  /// overwrite what the write changed.
+  int mutationEpoch = 0;
+
   Future<Json> action(
     String method,
     String path, [
     Json data = const {},
+    bool invalidate = true,
   ]) async {
     final session = _sessionGeneration, viewer = user?['id'];
+    mutationEpoch++;
     try {
       final response = await api.send(method, localized(path), data);
+      mutationEpoch++;
       if (session == _sessionGeneration && viewer == user?['id']) {
-        invalidatePages();
-        absorb(response, forceNotify: true);
+        if (invalidate) {
+          invalidatePages();
+        } else {
+          markStale();
+        }
+        absorb(response, forceNotify: invalidate);
       }
       return response;
     } on ApiFailure catch (e) {
@@ -564,6 +797,7 @@ class AppController extends ChangeNotifier {
   }
 
   Future<void> expired() async {
+    unawaited(pageStore?.clear());
     // Stop showing the previous account's notifications on this device.
     if (enablePush && user != null) unawaited(push.unbind().catchError((_) {}));
     _sessionGeneration++;
@@ -619,11 +853,17 @@ class AppController extends ChangeNotifier {
     String path, {
     int tabDirection = 0,
     PageRoute<dynamic>? replacing,
+    Json? seed,
   }) async {
     try {
       path = retainedPath(api.safePath(path));
     } catch (_) {
       return;
+    }
+    if (seed != null && user != null) {
+      _seeds
+        ..clear()
+        ..[_pageKey(path)] = seed;
     }
     if (user == null || _preparingVisit) return;
     if (activePage != null && _pageKey(activePage!.path) == _pageKey(path)) {
@@ -708,10 +948,16 @@ class AppController extends ChangeNotifier {
 }
 
 class KeptNativePage {
-  KeptNativePage(this.envelope, this.viewerId) : storedAt = DateTime.now();
+  KeptNativePage(this.envelope, this.viewerId, {DateTime? fetchedAt})
+    : storedAt = DateTime.now(),
+      // Documents of unknown age are treated as old, never as fresh.
+      fetchedAt = fetchedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
   final dynamic viewerId;
   final Json envelope;
   final DateTime storedAt;
+
+  /// When the server produced this document (not when it was last kept).
+  final DateTime fetchedAt;
 }
 
 final _credentialKeyPattern = RegExp(

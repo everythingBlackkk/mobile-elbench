@@ -231,6 +231,25 @@ class _PostSkeletonState extends State<PostSkeleton>
   }
 }
 
+/// Rows to show after reloading a first page that the reader had scrolled
+/// past: the fresh rows, then the kept rows that followed the last row the
+/// fresh page still contains. Kept rows inside the fresh page's span that
+/// are missing were deleted and are dropped. Null when nothing is kept.
+List<Json>? continueRows(List<Json> fresh, List<Json> kept) {
+  if (kept.length <= fresh.length) return null;
+  final ids = {for (final row in fresh) value(row['id'])};
+  var last = -1;
+  for (var i = 0; i < kept.length; i++) {
+    if (ids.contains(value(kept[i]['id']))) last = i;
+  }
+  if (last < 0) return null;
+  return [
+    ...fresh,
+    for (final row in kept.skip(last + 1))
+      if (!ids.contains(value(row['id']))) row,
+  ];
+}
+
 /// Merge a newly fetched page into the rows already shown, skipping rows
 /// that shifted into the next page because content was posted meanwhile.
 List<Json> mergeRows(List<Json> existing, List<Json> incoming) {
@@ -240,4 +259,41 @@ List<Json> mergeRows(List<Json> existing, List<Json> incoming) {
     for (final row in incoming)
       if (value(row['id']).isEmpty || seen.add(value(row['id']))) row,
   ];
+}
+
+/// Placeholder for a page whose document has not arrived yet. The page can
+/// slide in immediately instead of keeping the previous page on screen for
+/// the whole network round trip.
+class PageSkeleton extends StatelessWidget {
+  const PageSkeleton({super.key});
+  @override
+  Widget build(BuildContext context) => ListView(
+    key: const ValueKey('page.skeleton'),
+    physics: const NeverScrollableScrollPhysics(),
+    padding: const EdgeInsets.fromLTRB(10, 22, 10, 0),
+    children: const [
+      PostSkeleton(),
+      SizedBox(height: 8),
+      PostSkeleton(),
+      SizedBox(height: 8),
+      PostSkeleton(compact: true),
+    ],
+  );
+}
+
+/// Skeleton rows for comments or answers still loading under a seeded post.
+class CommentsSkeleton extends StatelessWidget {
+  const CommentsSkeleton({super.key, this.count = 3});
+  final int count;
+  @override
+  Widget build(BuildContext context) => Column(
+    key: const ValueKey('comments.skeleton'),
+    children: [
+      for (var i = 0; i < count; i++)
+        const Padding(
+          padding: EdgeInsets.only(bottom: 8),
+          child: PostSkeleton(compact: true),
+        ),
+    ],
+  );
 }

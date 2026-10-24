@@ -45,6 +45,31 @@ Only HTTPS is accepted, except for loopback and private LAN addresses.
   showing skeleton cards while it loads. Rows survive reactions and other
   actions; pull to refresh starts again from the top.
 
+## Performance
+
+- **Instant navigation:** tapping a post or community question renders it
+  immediately from the row already on screen; comments/answers stream in when
+  the full document arrives. Uncached screens slide in at once with skeleton
+  placeholders instead of freezing on the previous screen during the request.
+- **Caching:** up to 32 screens are kept for 30 minutes and shown instantly,
+  then revalidated in the background (stale-while-revalidate). A screen
+  fetched less than 20 s ago is reused without a request. Writes mark cached
+  screens stale instead of discarding them. Home and Profile are persisted to
+  disk per viewer, so a cold start shows them at once; Home is requested in
+  parallel with the session check.
+- **Fewer requests:** concurrent requests for the same screen are shared, a
+  post is prefetched on touch-down, Profile is prefetched once after Home, and
+  reactions update the row in place instead of reloading the page.
+- **Network and images:** HTTPS connections are kept alive for 90 s (a new
+  TLS handshake to sahbak.site costs ~0.2 s). Images use a 7-day disk cache
+  (`lib/image_cache.dart`) and decode at display size.
+- **Rendering:** comment lists build lazily, and persisted JSON is encoded and
+  decoded off the UI thread.
+
+Measured on an iPhone 11 (profile mode, 450 ms simulated server latency):
+opening a post went from 500 ms to 23 ms to first content, the first Profile
+visit from 501 ms to 66 ms, and the workload's API requests from 18 to 10.
+
 ## Secrets (never committed)
 
 These files are git-ignored and must be supplied locally:

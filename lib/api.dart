@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:dio/dio.dart';
+import 'package:dio/io.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 typedef Json = Map<String, dynamic>;
@@ -95,7 +96,7 @@ class LaravelApi extends MobileApi {
                       ? const String.fromEnvironment('API_URL')
                       : 'https://sahbak.site')),
       ),
-      _dio = client ?? Dio(),
+      _dio = client ?? _keepAliveClient(),
       _storage = storage ?? const FlutterSecureStorage() {
     final loopback = [
       'localhost',
@@ -130,6 +131,19 @@ class LaravelApi extends MobileApi {
       validateStatus: (_) => true,
     );
   }
+
+  /// Reuse TLS connections across taps. Dart closes idle sockets after 15 s
+  /// by default, so a tap after a short pause paid a new TCP and TLS
+  /// handshake (about 0.2 s to sahbak.site) before every page.
+  static Dio _keepAliveClient() =>
+      Dio()
+        ..httpClientAdapter = IOHttpClientAdapter(
+          createHttpClient: () => HttpClient()
+            ..idleTimeout = const Duration(seconds: 90)
+            ..maxConnectionsPerHost = 6
+            ..autoUncompress = true,
+        );
+
   @override
   final Uri baseUri;
   final Dio _dio;

@@ -2,6 +2,7 @@ import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'api.dart';
+import 'image_cache.dart';
 import 'screens.dart';
 import 'text_direction.dart';
 import 'web_style.dart' show svgColorFilter;
@@ -380,7 +381,9 @@ class _WebCommentEditorState extends State<WebCommentEditor> {
                                 Navigator.pop(context, value(sticker['id'])),
                             child: Padding(
                               padding: const EdgeInsets.all(4),
-                              child: Image.network(
+                              child: networkImage(
+                                // Picker cells are small; never decode full size.
+                                cacheWidth: 200,
                                 value(sticker['url']).isEmpty
                                     ? stickerUrl(value(sticker['id']))
                                     : page.c.api.media(value(sticker['url'])),
@@ -580,7 +583,7 @@ class _WebCommentEditorState extends State<WebCommentEditor> {
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Image.network(
+                                networkImage(
                                   stickerUrl(stickerId),
                                   width: 64,
                                   height: 64,

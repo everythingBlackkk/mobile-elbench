@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart' show DateFormat;
 import 'api.dart';
+import 'image_cache.dart';
 import 'app_menus.dart';
 import 'screens.dart';
 import 'text_direction.dart';
@@ -14,6 +15,7 @@ import 'web_comments.dart';
 import 'web_reactions.dart';
 import 'comment_thread_rails.dart';
 import 'floating_add.dart';
+import 'infinite_feed.dart';
 
 Color webMuted(BuildContext context) =>
     Theme.of(context).brightness == Brightness.dark
@@ -415,12 +417,12 @@ class _WebHomeState extends State<WebHome> {
 
   Widget photo(String url, {BoxFit fit = BoxFit.cover}) {
     final cacheWidth = (280 * MediaQuery.devicePixelRatioOf(context)).ceil();
-    return Image.network(
+    return networkImage(
       p.c.api.media(url),
       fit: fit,
       width: double.infinity,
       cacheWidth: cacheWidth,
-      errorBuilder: (_, _, _) => Image.network(
+      errorBuilder: (_, _, _) => networkImage(
         p.c.api.media('/Picture/banner-1517694712202-14dd9538aa97.jpg'),
         fit: fit,
         width: double.infinity,
@@ -833,7 +835,9 @@ class _WebPostDetailState extends State<WebPostDetail> {
                               borderRadius: BorderRadius.circular(12),
                             ),
                             padding: const EdgeInsets.all(4),
-                            child: Image.network(
+                            child: networkImage(
+                              // Picker cells are small; never decode full size.
+                              cacheWidth: 200,
                               p.c.api.media(value(s['url'])),
                               errorBuilder: (_, _, _) => const SizedBox(),
                             ),
@@ -880,73 +884,81 @@ class _WebPostDetailState extends State<WebPostDetail> {
         Expanded(
           child: RefreshIndicator.adaptive(
             onRefresh: p.pullRefresh,
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(10, 12, 10, 24),
-              physics: const AlwaysScrollableScrollPhysics(),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  WebPostCard(
-                    page: p,
-                    post: object(p.data['post']),
-                    detail: true,
+            child: () {
+              final items = <Widget>[
+                WebPostCard(
+                  page: p,
+                  post: object(p.data['post']),
+                  detail: true,
+                ),
+                const SizedBox(height: 16),
+                if (root.isNotEmpty) ...[
+                  TextButton(
+                    onPressed: () => p.load(
+                      '/community/posts/${object(p.data['post'])['id']}',
+                    ),
+                    child: Text(p.c.t('All comments', 'كل التعليقات')),
                   ),
-                  const SizedBox(height: 16),
-                  if (root.isNotEmpty) ...[
-                    TextButton(
-                      onPressed: () => p.load(
-                        '/community/posts/${object(p.data['post'])['id']}',
-                      ),
-                      child: Text(p.c.t('All comments', 'كل التعليقات')),
-                    ),
-                    commentNode({
-                      ...root,
-                      'thread_replies': comments,
-                    }, connectNext: detached.isNotEmpty),
-                  ],
-                  for (final (index, comment) in detached.indexed)
-                    if (root.isEmpty)
-                      commentNode(
-                        comment,
-                        connectNext: index < detached.length - 1,
-                      )
-                    else
-                      CommentReplyBranch(
-                        continues: index < detached.length - 1,
-                        color: webBorder(context),
-                        child: commentNode({
-                          ...comment,
-                          'thread_replies': comments,
-                        }),
-                      ),
-                  if (comments.isEmpty && root.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 40),
-                      child: Column(
-                        children: [
-                          WebIcon(
-                            'message',
-                            size: 32,
-                            color: webMuted(context),
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            p.c.t(
-                              'No comments yet',
-                              'لا توجد تعليقات حتى الآن',
-                            ),
-                            style: TextStyle(
-                              color: webMuted(context),
-                              fontSize: 15,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  p.more('comments', compact: true),
+                  commentNode({
+                    ...root,
+                    'thread_replies': comments,
+                  }, connectNext: detached.isNotEmpty),
                 ],
-              ),
-            ),
+                for (final (index, comment) in detached.indexed)
+                  if (root.isEmpty)
+                    commentNode(
+                      comment,
+                      connectNext: index < detached.length - 1,
+                    )
+                  else
+                    CommentReplyBranch(
+                      continues: index < detached.length - 1,
+                      color: webBorder(context),
+                      child: commentNode({
+                        ...comment,
+                        'thread_replies': comments,
+                      }),
+                    ),
+                if (p.provisional && p.data['comments'] == null)
+                  const CommentsSkeleton()
+                else if (comments.isEmpty && root.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 40),
+                    child: Column(
+                      children: [
+                        WebIcon('message', size: 32, color: webMuted(context)),
+                        const SizedBox(height: 16),
+                        Text(
+                          p.c.t('No comments yet', 'لا توجد تعليقات حتى الآن'),
+                          style: TextStyle(
+                            color: webMuted(context),
+                            fontSize: 15,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                p.more('comments', compact: true),
+              ];
+              const padding = EdgeInsets.fromLTRB(10, 12, 10, 24);
+              const physics = AlwaysScrollableScrollPhysics();
+              // A deep link to one comment needs it built to scroll to it;
+              // otherwise only the visible comments are built and laid out.
+              return focusedCommentId == null
+                  ? ListView(
+                      padding: padding,
+                      physics: physics,
+                      children: items,
+                    )
+                  : SingleChildScrollView(
+                      padding: padding,
+                      physics: physics,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: items,
+                      ),
+                    );
+            }(),
           ),
         ),
         SafeArea(
@@ -967,7 +979,7 @@ class _WebPostDetailState extends State<WebPostDetail> {
                 if (sticker != null)
                   Row(
                     children: [
-                      Image.network(
+                      networkImage(
                         p.c.api.media(value(sticker!['url'])),
                         width: 64,
                         height: 64,
@@ -1219,7 +1231,7 @@ class WebThreadComment extends StatelessWidget {
                       if (value(comment['sticker_id']).isNotEmpty)
                         Padding(
                           padding: const EdgeInsets.only(top: 6),
-                          child: Image.network(
+                          child: networkImage(
                             c.api.media(
                               '/comment-stickers/${comment['sticker_id']}.webp',
                             ),
@@ -1335,6 +1347,20 @@ class _WebPostCardState extends State<WebPostCard> {
           'avatar': post['avatar'],
         };
   static final _postSvgCache = <String, String>{};
+
+  /// Open the post detail, rendering this row immediately while the full
+  /// document (with comments) loads.
+  void openPost([String query = '']) => p.c.open(
+    '/community/posts/${post['id']}$query',
+    seed: {
+      'screen': 'community.post',
+      'data': {
+        'post': {...post, 'author': author},
+        'comments': null,
+        'threadRoot': null,
+      },
+    },
+  );
 
   Widget svg(String path, {double size = 20, Color? color}) {
     final ink = color ?? webMuted(context);
@@ -1481,9 +1507,11 @@ class _WebPostCardState extends State<WebPostCard> {
             ],
           ),
           GestureDetector(
-            onTap: detail
+            // Start fetching on touch-down; the tap renders the post at once.
+            onTapDown: detail
                 ? null
-                : () => c.open('/community/posts/${post['id']}'),
+                : (_) => c.prefetch('/community/posts/${post['id']}'),
+            onTap: detail ? null : () => openPost(),
             child: Padding(
               padding: EdgeInsetsDirectional.fromSTEB(
                 0,
@@ -1538,10 +1566,7 @@ class _WebPostCardState extends State<WebPostCard> {
                     ],
                   ),
                   label: c.t('Comments', 'التعليقات'),
-                  onTap: detail
-                      ? null
-                      : () =>
-                            c.open('/community/posts/${post['id']}?comment=1'),
+                  onTap: detail ? null : () => openPost('?comment=1'),
                 ),
                 const Spacer(),
                 if (total > 0) ...[
@@ -1650,7 +1675,7 @@ class _WebPostCardState extends State<WebPostCard> {
                       ),
                       const SizedBox(height: 4),
                       if (value(comment['sticker_id']).isNotEmpty)
-                        Image.network(
+                        networkImage(
                           p.c.api.media(
                             '/comment-stickers/${comment['sticker_id']}.webp',
                           ),

@@ -8,6 +8,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart' show DateFormat, NumberFormat;
 
 import 'api.dart';
+import 'image_cache.dart';
 import 'app_menus.dart';
 import 'screens.dart';
 import 'infinite_feed.dart';
@@ -600,7 +601,7 @@ class _WebProfileState extends State<WebProfile>
                             ),
                           ),
                         if (banner.isNotEmpty)
-                          Image.network(
+                          networkImage(
                             page.c.api.media(banner),
                             fit: BoxFit.cover,
                             cacheWidth:
@@ -1520,7 +1521,7 @@ class _ActivityItem extends StatelessWidget {
                         maxWidth: 160,
                         maxHeight: 160,
                       ),
-                      child: Image.network(
+                      child: networkImage(
                         page.c.api.media(
                           '/comment-stickers/${item['sticker_id']}.webp',
                         ),
@@ -2976,7 +2977,7 @@ class _Avatar extends StatelessWidget {
       '/avatars/${value(person['avatar'], 'jko.webp')}',
     );
     return ClipOval(
-      child: Image.network(
+      child: networkImage(
         page.c.api.media(url),
         width: size,
         height: size,

@@ -8,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart' show DateFormat;
 
 import 'api.dart';
+import 'image_cache.dart';
 import 'app_menus.dart';
 import 'screens.dart';
 import 'text_direction.dart';
@@ -642,13 +643,11 @@ class _WebProfileEditState extends State<WebProfileEdit> {
     ),
   );
 
-  Widget _networkImage(String url, {BoxFit fit = BoxFit.cover}) =>
-      Image.network(
-        page.c.api.media(url),
-        fit: fit,
-        errorBuilder: (_, _, _) =>
-            Container(color: _EditColors(context).secondary),
-      );
+  Widget _networkImage(String url, {BoxFit fit = BoxFit.cover}) => networkImage(
+    page.c.api.media(url),
+    fit: fit,
+    errorBuilder: (_, _, _) => Container(color: _EditColors(context).secondary),
+  );
 
   Widget _detailsPanel(_EditColors colors) => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,

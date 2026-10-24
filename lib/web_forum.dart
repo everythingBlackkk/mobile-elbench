@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart' show DateFormat;
 import 'api.dart';
+import 'image_cache.dart';
 import 'app_menus.dart';
 import 'screens.dart';
+import 'infinite_feed.dart';
 import 'text_direction.dart';
 import 'web_style.dart';
 import 'web_home.dart' show webAgo, webMuted;
@@ -221,7 +223,7 @@ class _WebForumState extends State<WebForum> {
               fit: StackFit.expand,
               children: [
                 if (image.isNotEmpty)
-                  Image.network(
+                  networkImage(
                     c.api.media(image),
                     fit: BoxFit.cover,
                     cacheWidth:
@@ -397,7 +399,20 @@ class _ForumQuestionCard extends StatelessWidget {
       color: colors.secondary,
       borderRadius: BorderRadius.circular(20),
       child: InkWell(
-        onTap: () => c.open('/question?id=${item['id']}'),
+        onTapDown: (_) => c.prefetch('/question?id=${item['id']}'),
+        onTap: () => c.open(
+          '/question?id=${item['id']}',
+          // The question renders from this row while its answers load.
+          seed: {
+            'screen': 'community.question',
+            'data': {
+              'question': item,
+              'answers': null,
+              'pagination': null,
+              'can_answer': true,
+            },
+          },
+        ),
         borderRadius: BorderRadius.circular(20),
         child: Container(
           padding: const EdgeInsets.all(18),
@@ -1035,7 +1050,9 @@ class _WebCommunityQuestionState extends State<WebCommunityQuestion> {
                 padding: const EdgeInsets.symmetric(vertical: 24),
                 child: Divider(color: colors.border, height: 1, thickness: 1),
               ),
-              if (answers.isEmpty)
+              if (page.provisional && page.data['answers'] == null)
+                const CommentsSkeleton()
+              else if (answers.isEmpty)
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 40),
                   child: Column(

@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'api.dart';
+import 'image_cache.dart';
 import 'main.dart';
 import 'forms.dart';
 import 'quiz.dart';
@@ -1074,17 +1075,50 @@ class NativePageState extends State<NativePage> with RouteAware {
         _ => '',
       };
     }
+    var fresh = false;
     if (cached != null) {
       envelope = cached.envelope;
       data = object(envelope['data']);
       screen = value(envelope['screen']);
       loading = false;
+      _fetchedAt = cached.fetchedAt;
+      fresh =
+          DateTime.now().difference(cached.fetchedAt) <
+              AppController.freshPageAge &&
+          // These two reflect read state and keep their own revalidation.
+          screen != 'ask.inbox' &&
+          screen != 'notifications.index';
+    } else {
+      // A tapped row (for example a feed post) renders at once; the full
+      // document, including comments, replaces it when it arrives.
+      final seed = c.takeSeed(path);
+      if (seed != null && value(seed['screen']).isNotEmpty) {
+        envelope = seed;
+        data = object(seed['data']);
+        screen = value(seed['screen']);
+        provisional = true;
+      } else {
+        // Uncached pages slide in with a skeleton instead of holding the
+        // previous page on screen for the whole network round trip.
+        _revealTimer = Timer(const Duration(milliseconds: 90), () {
+          if (mounted && loading && envelope.isEmpty) {
+            setState(() => _revealLoading = true);
+          }
+        });
+      }
     }
     c.addListener(_controllerChanged);
     _loadedGeneration = c.cacheGeneration;
     _loadedRefreshEpoch = c.refreshEpoch;
-    load(null, true);
+    if (!fresh) load(null, true);
   }
+
+  /// True while showing a seeded preview instead of the server's document.
+  bool provisional = false;
+  Json? _rememberedData;
+  bool _revealLoading = false;
+  Timer? _revealTimer;
+  DateTime? _fetchedAt;
 
   void _controllerChanged() {
     _contentWidget = null;
@@ -1148,11 +1182,20 @@ class NativePageState extends State<NativePage> with RouteAware {
   void didPushNext() {
     _dockScrollDirection = ScrollDirection.idle;
     _dockScrollDistance = 0;
-    c.rememberPage(path, {
-      ...envelope,
-      'screen': screen,
-      'data': data,
-    }, offset: scrollOffset.value);
+    if (provisional || envelope.isEmpty) return;
+    // This runs in the frame of every push; skip the sanitizing deep copy
+    // when the retained document already holds exactly this data.
+    if (identical(data, _rememberedData) && c.keptPageAge(path) != null) {
+      c.rememberScroll(path, scrollOffset.value);
+      return;
+    }
+    _rememberedData = data;
+    c.rememberPage(
+      path,
+      {...envelope, 'screen': screen, 'data': data},
+      offset: scrollOffset.value,
+      fetchedAt: _fetchedAt,
+    );
   }
 
   void reportScrollOffset(double offset) {
@@ -1278,6 +1321,7 @@ class NativePageState extends State<NativePage> with RouteAware {
     for (final controller in _searchControllers.values) {
       controller.dispose();
     }
+    _revealTimer?.cancel();
     _pageScroll.dispose();
     scrollOffset.dispose();
     headerOffset.dispose();
@@ -1315,7 +1359,8 @@ class NativePageState extends State<NativePage> with RouteAware {
     final request = ++_request,
         session = c.sessionGeneration,
         viewer = c.user?['id'],
-        language = c.settings.language;
+        language = c.settings.language,
+        mutation = c.mutationEpoch;
     if (destination != null && path != destination) {
       c.rememberScroll(path, scrollOffset.value);
       path = destination;
@@ -1338,7 +1383,13 @@ class NativePageState extends State<NativePage> with RouteAware {
       // Validate the request's viewer before absorbing its session envelope.
       // A first authorized GET can legitimately establish a previously unknown
       // viewer; checking afterwards rejects that response as an account switch.
-      final response = await c.api.get(c.localized(path));
+      final response = await c.fetchPage(path);
+      if (mounted && request == _request && mutation != c.mutationEpoch) {
+        // A write finished while this GET was in flight; its answer may
+        // predate the write. Ask again rather than showing older data.
+        unawaited(Future.microtask(load));
+        return;
+      }
       if (!mounted ||
           request != _request ||
           session != c.sessionGeneration ||
@@ -1353,39 +1404,60 @@ class NativePageState extends State<NativePage> with RouteAware {
       }
       data = object(envelope['data']);
       screen = value(envelope['screen']);
+      provisional = false;
+      _fetchedAt = DateTime.now();
+      if (screen == 'community.index') c.warmLikelyPages();
       _loadedGeneration = c.cacheGeneration;
       _appendErrors.clear();
       // A reload after an action (or on return) fetches the first page only.
       // Keep the rows the reader already scrolled through below it; a
       // pull-to-refresh or a different destination starts from the top.
-      if (_pullRefreshing || destination != null || previousScreen != screen) {
+      if (_pullRefreshing ||
+          _resetPaging ||
+          destination != null ||
+          previousScreen != screen) {
         _appended.clear();
-      } else if (_appended.isNotEmpty) {
-        final merged = <String, dynamic>{...data};
-        _appended.forEach((pageKey, listKey) {
-          final fresh = object(merged[pageKey]),
-              kept = object(previousData[pageKey]);
-          if (fresh.isEmpty || kept.isEmpty) return;
-          if (listKey == null) {
-            merged[pageKey] = {
-              ...fresh,
-              'next_page_url': kept['next_page_url'],
-              'data': mergeRows(rows(fresh), rows(kept)),
-            };
-          } else {
-            merged[pageKey] = {
-              ...fresh,
-              'next_page_url': kept['next_page_url'],
-            };
-            merged[listKey] = mergeRows(
-              rows({'data': merged[listKey]}),
-              rows({'data': previousData[listKey]}),
-            );
+      } else {
+        // A reload (after an action, on return, or of a restored document)
+        // fetches the first page only. Keep the rows the reader already
+        // scrolled through below it; a pull-to-refresh starts at the top.
+        final keys = <String, String?>{..._appended};
+        for (final entry in previousData.entries) {
+          final kept = entry.value;
+          if (kept is Map &&
+              kept['data'] is List &&
+              kept.containsKey('next_page_url') &&
+              rows(kept).length > rows(data[entry.key]).length) {
+            keys.putIfAbsent(entry.key, () => null);
           }
-        });
-        data = merged;
-        envelope = {...envelope, 'data': data};
+        }
+        if (keys.isNotEmpty) {
+          final merged = <String, dynamic>{...data};
+          keys.forEach((pageKey, listKey) {
+            final fresh = object(merged[pageKey]),
+                kept = object(previousData[pageKey]);
+            if (fresh.isEmpty || kept.isEmpty) return;
+            final freshRows = listKey == null
+                ? rows(fresh)
+                : rows({'data': merged[listKey]});
+            final keptRows = listKey == null
+                ? rows(kept)
+                : rows({'data': previousData[listKey]});
+            final continued = continueRows(freshRows, keptRows);
+            if (continued == null) return;
+            merged[pageKey] = {
+              ...fresh,
+              'next_page_url': kept['next_page_url'],
+              if (listKey == null) 'data': continued,
+            };
+            if (listKey != null) merged[listKey] = continued;
+            _appended[pageKey] = listKey;
+          });
+          data = merged;
+          envelope = {...envelope, 'data': data};
+        }
       }
+      _resetPaging = false;
       unchanged =
           hadCached &&
           previousScreen == screen &&
@@ -1394,8 +1466,16 @@ class NativePageState extends State<NativePage> with RouteAware {
           deepJsonEquals(previousData, data);
       if (unchanged) {
         c.rememberScroll(path, scrollOffset.value);
+        c.markFetched(path, _fetchedAt!);
+        _rememberedData = data;
       } else {
-        c.rememberPage(path, envelope, offset: scrollOffset.value);
+        c.rememberPage(
+          path,
+          envelope,
+          offset: scrollOffset.value,
+          fetchedAt: _fetchedAt,
+        );
+        _rememberedData = data;
       }
       error = null;
       if (_observedRoute?.isCurrent ?? false) {
@@ -1440,6 +1520,7 @@ class NativePageState extends State<NativePage> with RouteAware {
     try {
       await c.action(method, destination, payload);
       if (!mounted) return;
+      if (method == 'DELETE') _resetPaging = true;
       if (back) {
         Navigator.pop(context);
       } else {
@@ -1593,12 +1674,16 @@ class NativePageState extends State<NativePage> with RouteAware {
   /// mapped to the key that holds their rows (null: the paginator's own).
   final Map<String, String?> _appended = {};
   bool _pullRefreshing = false;
+  // Set by deletions: a removed row must not be restored from older pages.
+  bool _resetPaging = false;
 
   /// Apply a reaction and update the row in place from the server's counts,
   /// so lists extended by infinite scroll keep their rows and position.
   Future<void> react(String endpoint, Json row, String reaction) async {
     try {
-      final response = await c.action('POST', endpoint, {'reaction': reaction});
+      final response = await c.action('POST', endpoint, {
+        'reaction': reaction,
+      }, false);
       if (!mounted) return;
       final counts = object(response['counts']);
       if (!response.containsKey('selected') || counts.isEmpty) {
@@ -1620,10 +1705,13 @@ class NativePageState extends State<NativePage> with RouteAware {
         _contentWidget = null;
       });
       // Keep the patched row when this screen is restored from the cache.
-      c.rememberPage(path, {
-        ...envelope,
-        'data': data,
-      }, offset: scrollOffset.value);
+      c.rememberPage(
+        path,
+        {...envelope, 'data': data},
+        offset: scrollOffset.value,
+        fetchedAt: _fetchedAt,
+      );
+      _rememberedData = null;
       _loadedGeneration = c.cacheGeneration;
     } catch (e) {
       if (mounted) {
@@ -1717,7 +1805,13 @@ class NativePageState extends State<NativePage> with RouteAware {
       data = updated;
       envelope = {...envelope, 'data': data};
       _appended[pageKey] = listKey;
-      c.rememberPage(path, envelope, offset: scrollOffset.value);
+      c.rememberPage(
+        path,
+        envelope,
+        offset: scrollOffset.value,
+        fetchedAt: _fetchedAt,
+      );
+      _rememberedData = data;
     } catch (e) {
       if (e is ApiFailure && (e.status == 401 || e.status == 419)) {
         if (!stale()) await c.expired();
@@ -1756,10 +1850,12 @@ class NativePageState extends State<NativePage> with RouteAware {
       backgroundColor: Theme.of(context).colorScheme.primaryContainer,
       backgroundImage: url.isEmpty
           ? null
-          : ResizeImage.resizeIfNeeded(
-              (radius * 2 * MediaQuery.devicePixelRatioOf(context)).ceil(),
-              (radius * 2 * MediaQuery.devicePixelRatioOf(context)).ceil(),
-              NetworkImage(c.api.media(url)),
+          : CachedNetworkImage(
+              c.api.media(url),
+              width: (radius * 2 * MediaQuery.devicePixelRatioOf(context))
+                  .ceil(),
+              height: (radius * 2 * MediaQuery.devicePixelRatioOf(context))
+                  .ceil(),
             ),
       child: url.isEmpty
           ? Text(value(person['username'], '?').characters.first.toUpperCase())
@@ -2100,7 +2196,7 @@ class NativePageState extends State<NativePage> with RouteAware {
     final body = error != null
         ? ErrorPanel(error: error!, retry: load, retrying: loading)
         : loading && envelope.isEmpty
-        ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
+        ? const PageSkeleton()
         : content();
     final modal = ModalRoute.of(context);
     final route = modal is WebPageRoute ? modal : null;
@@ -2140,7 +2236,8 @@ class NativePageState extends State<NativePage> with RouteAware {
           : SizedBox(height: 76 + MediaQuery.paddingOf(context).bottom),
       body: WebPageEntrance(
         motion: route?.motion ?? const WebVisitMotion(),
-        ready: error != null || !loading || envelope.isNotEmpty,
+        ready:
+            error != null || !loading || envelope.isNotEmpty || _revealLoading,
         child: WebPageDeparture(
           visit: _incomingVisit,
           child: RepaintBoundary(
@@ -2517,7 +2614,8 @@ class NativePageState extends State<NativePage> with RouteAware {
                             },
                           );
                         },
-                        child: Image.network(
+                        child: networkImage(
+                          cacheWidth: 200,
                           c.api.media(value(s['url'])),
                           errorBuilder: (_, _, _) =>
                               const Icon(Icons.emoji_emotions_outlined),
@@ -2596,7 +2694,7 @@ class NativePageState extends State<NativePage> with RouteAware {
           ),
           Text(value(item['content'])),
           if (item['sticker_id'] != null)
-            Image.network(
+            networkImage(
               c.api.media('/comment-stickers/${item['sticker_id']}.webp'),
               height: 130,
               errorBuilder: (_, _, _) => const SizedBox.shrink(),
@@ -2866,7 +2964,13 @@ class NativePageState extends State<NativePage> with RouteAware {
           image: banner.isEmpty
               ? null
               : DecorationImage(
-                  image: NetworkImage(c.api.media(banner)),
+                  image: CachedNetworkImage(
+                    c.api.media(banner),
+                    width:
+                        (MediaQuery.sizeOf(context).width *
+                                MediaQuery.devicePixelRatioOf(context))
+                            .ceil(),
+                  ),
                   fit: BoxFit.cover,
                 ),
         ),
