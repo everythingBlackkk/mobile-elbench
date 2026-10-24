@@ -68,14 +68,40 @@ class ApiFailure implements Exception {
   String toString() => message;
 }
 
+/// The production site. It moved from sahbak.site to elbench.com in
+/// October 2026; links and cached pages may still name the old addresses.
+const productionOrigin = 'https://elbench.com';
+const legacyProductionOrigins = {
+  'https://sahbak.site',
+  'https://www.sahbak.site',
+  'https://www.elbench.com',
+};
+
 abstract class MobileApi {
   Uri get baseUri;
   Future<Json> get(String path);
   Future<Json> send(String method, String path, [Json data = const {}]);
   Future<void> clearSession();
-  String media(String path) => baseUri.resolve(path).toString();
-  String safePath(String path) {
+
+  /// Resolve [path] against the server, mapping the production site's former
+  /// and alternate addresses onto the current one.
+  Uri _resolve(String path) {
     final uri = baseUri.resolve(path);
+    if (baseUri.origin == productionOrigin &&
+        uri.hasAuthority &&
+        legacyProductionOrigins.contains(uri.origin)) {
+      return uri.replace(
+        scheme: baseUri.scheme,
+        host: baseUri.host,
+        port: baseUri.port,
+      );
+    }
+    return uri;
+  }
+
+  String media(String path) => _resolve(path).toString();
+  String safePath(String path) {
+    final uri = _resolve(path);
     if (!['https', 'http'].contains(uri.scheme) ||
         uri.origin != baseUri.origin ||
         uri.userInfo.isNotEmpty) {
@@ -94,7 +120,7 @@ class LaravelApi extends MobileApi {
                 ? const String.fromEnvironment('API_BASE_URL')
                 : (const String.fromEnvironment('API_URL').isNotEmpty
                       ? const String.fromEnvironment('API_URL')
-                      : 'https://sahbak.site')),
+                      : productionOrigin)),
       ),
       _dio = client ?? _keepAliveClient(),
       _storage = storage ?? const FlutterSecureStorage() {
@@ -134,7 +160,7 @@ class LaravelApi extends MobileApi {
 
   /// Reuse TLS connections across taps. Dart closes idle sockets after 15 s
   /// by default, so a tap after a short pause paid a new TCP and TLS
-  /// handshake (about 0.2 s to sahbak.site) before every page.
+  /// handshake (about 0.2 s to the production site) before every page.
   static Dio _keepAliveClient() =>
       Dio()
         ..httpClientAdapter = IOHttpClientAdapter(
@@ -168,7 +194,23 @@ class LaravelApi extends MobileApi {
   String? _persistedCookieShape;
   Future<void> _load() async {
     try {
-      final raw = await _storage.read(key: 'elbench.session.${baseUri.origin}');
+      var raw = await _storage.read(key: 'elbench.session.${baseUri.origin}');
+      if (raw == null && baseUri.origin == productionOrigin) {
+        // Laravel's session lives on the server, so the sign-in saved under
+        // the old address stays valid on the new one: move it across once.
+        for (final origin in legacyProductionOrigins) {
+          final key = 'elbench.session.$origin';
+          final legacy = await _storage.read(key: key);
+          if (legacy == null) continue;
+          raw = legacy;
+          await _storage.write(
+            key: 'elbench.session.${baseUri.origin}',
+            value: legacy,
+          );
+          await _storage.delete(key: key);
+          break;
+        }
+      }
       if (raw != null) {
         for (final item in (jsonDecode(raw) as List)) {
           final cookie = Cookie.fromSetCookieValue(item as String);

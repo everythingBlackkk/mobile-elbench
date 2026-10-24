@@ -1,6 +1,6 @@
 # ElBench mobile (Flutter)
 
-Native Android and iOS client for [sahbak.site](https://sahbak.site). It replaces
+Native Android and iOS client for [elbench.com](https://elbench.com). It replaces
 the earlier Android WebView app and keeps its Google Play listing.
 
 | Platform | Identifier          |
@@ -8,7 +8,7 @@ the earlier Android WebView app and keeps its Google Play listing.
 | Android  | `com.sahbakwebview` |
 | iOS      | `com.sahbak.ios`    |
 
-Version: `pubspec.yaml` (`2.0.0+6`). The Android version code must stay above
+Version: `pubspec.yaml` (`2.0.1+7`). The Android version code must stay above
 the last published WebView build (5).
 
 ## Requirements
@@ -20,7 +20,7 @@ the last published WebView build (5).
 
 ## Backend
 
-Release builds use `https://sahbak.site`. Each screen requests the website's
+Release builds use `https://elbench.com`. Each screen requests the website's
 own routes with `X-ElBench-Mobile: 1`. The server's `NativeMobileResponse`
 middleware returns sanitized JSON instead of HTML. Session cookies are kept in
 the platform keychain/keystore (`flutter_secure_storage`). Passwords are
@@ -33,6 +33,14 @@ flutter run --dart-define=API_BASE_URL=https://staging.example.com
 ```
 
 Only HTTPS is accepted, except for loopback and private LAN addresses.
+
+## Domain
+
+The site moved from `sahbak.site` to `elbench.com` in October 2026 (2.0.1).
+`sahbak.site` now redirects to `elbench.com` (Cloudflare, 308). The app treats
+links that still name `sahbak.site`, `www.sahbak.site` or `www.elbench.com`
+as in-app links and loads their images from `elbench.com`. A sign-in saved by
+an older build is carried over on first launch, so users stay signed in.
 
 ## Behaviour
 
@@ -61,7 +69,7 @@ Only HTTPS is accepted, except for loopback and private LAN addresses.
   post is prefetched on touch-down, Profile is prefetched once after Home, and
   reactions update the row in place instead of reloading the page.
 - **Network and images:** HTTPS connections are kept alive for 90 s (a new
-  TLS handshake to sahbak.site costs ~0.2 s). Images use a 7-day disk cache
+  TLS handshake to the server costs ~0.2 s). Images use a 7-day disk cache
   (`lib/image_cache.dart`) and decode at display size.
 - **Rendering:** comment lists build lazily, and persisted JSON is encoded and
   decoded off the UI thread.
