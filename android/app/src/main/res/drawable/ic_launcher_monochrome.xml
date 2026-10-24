@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Themed icon (Android 13+): the 1200 x 229 wordmark at 60 x 11.46dp, inside the 66dp safe zone of the 108dp layer. -->
+<inset xmlns:android="http://schemas.android.com/apk/res/android"
+    android:drawable="@drawable/elbench_wordmark"
+    android:insetBottom="48.27dp"
+    android:insetLeft="24dp"
+    android:insetRight="24dp"
+    android:insetTop="48.27dp" />

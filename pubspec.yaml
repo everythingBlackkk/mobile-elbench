@@ -1,0 +1,52 @@
+name: elbench
+description: Native ElBench student community app for Android and iOS.
+publish_to: none
+version: 2.0.0+6
+
+environment:
+  sdk: '>=3.12.2 <4.0.0'
+  flutter: '>=3.44.2 <3.45.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  dio: ^5.9.0
+  flutter_secure_storage: ^9.2.4
+  shared_preferences: ^2.5.3
+  firebase_core: ^4.0.0
+  firebase_messaging: ^16.0.0
+  flutter_local_notifications: ^19.4.0
+  image_picker: ^1.2.0
+  flutter_svg: ^2.2.1
+  url_launcher: ^6.3.2
+  intl: ^0.20.2
+  webview_flutter: ^4.14.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  integration_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/error-cat.svg
+    - assets/elbench_bilingual_intertwined_lottie_studio.html
+    - assets/campus.svg
+    - assets/campus-space-grotesk-700.ttf
+    - assets/logo.png
+    - assets/ai-logo.jpg
+  fonts:
+    - family: SF Arabic
+      fonts:
+        - asset: assets/fonts/SFArabic-Regular.ttf
+        - asset: assets/fonts/SFArabic-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/SFArabic-Semibold.ttf
+          weight: 600
+        - asset: assets/fonts/SFArabic-Bold.ttf
+          weight: 700

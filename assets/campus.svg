@@ -1,0 +1,934 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="2900" viewBox="350 -220 1600 2900">
+      <defs>
+        <!-- Soft Architectural Building Shadow -->
+        
+
+        <!-- Pin Drop Shadow -->
+        
+
+        <!-- Tree Canopy Shadow -->
+        
+
+        <!-- Sandstone Courtyard Tile Pattern -->
+        <pattern id="sandstone-paving" width="24" height="24" patternUnits="userSpaceOnUse">
+          <path d="M 24 0 L 0 0 0 24" fill="none" stroke="#c7b092" stroke-width="0.8" opacity="0.55" />
+        </pattern>
+
+        <!-- Reusable Student Picnic / Study Table + 2 Benches Set -->
+        <g id="student-table-set">
+          <rect x="-15" y="-11" width="30" height="22" rx="3" fill="rgba(30,41,59,0.12)" />
+          <rect x="-13" y="-11" width="26" height="4.5" rx="1.5" fill="#d9895b" stroke="#3e3832" stroke-width="1.3" />
+          <rect x="-13" y="6.5" width="26" height="4.5" rx="1.5" fill="#d9895b" stroke="#3e3832" stroke-width="1.3" />
+          <rect x="-15" y="-4.5" width="30" height="9" rx="2" fill="#f3ead8" stroke="#3e3832" stroke-width="1.5" />
+          <line x1="-11" y1="0" x2="11" y2="0" stroke="#cbbba0" stroke-width="1.2" />
+        </g>
+
+        <!-- Reusable Circular Student Table + 4 Stools Set -->
+        <g id="student-round-set">
+          <circle cx="0" cy="-11" r="3.4" fill="#d9895b" stroke="#3e3832" stroke-width="1.2" />
+          <circle cx="0" cy="11" r="3.4" fill="#d9895b" stroke="#3e3832" stroke-width="1.2" />
+          <circle cx="-11" cy="0" r="3.4" fill="#d9895b" stroke="#3e3832" stroke-width="1.2" />
+          <circle cx="11" cy="0" r="3.4" fill="#d9895b" stroke="#3e3832" stroke-width="1.2" />
+          <circle cx="1" cy="1.5" r="7.5" fill="rgba(30,41,59,0.16)" />
+          <circle cx="0" cy="0" r="7.2" fill="#f3ead8" stroke="#3e3832" stroke-width="1.5" />
+          <circle cx="0" cy="0" r="2.2" fill="#c7b296" />
+        </g>
+
+        <!-- Reusable Shaded Umbrella Student Table Set -->
+        <g id="student-umbrella-set">
+          <circle cx="0" cy="-13" r="3.5" fill="#d9895b" stroke="#3e3832" stroke-width="1.2" />
+          <circle cx="0" cy="13" r="3.5" fill="#d9895b" stroke="#3e3832" stroke-width="1.2" />
+          <circle cx="-13" cy="0" r="3.5" fill="#d9895b" stroke="#3e3832" stroke-width="1.2" />
+          <circle cx="13" cy="0" r="3.5" fill="#d9895b" stroke="#3e3832" stroke-width="1.2" />
+          <circle cx="2" cy="3" r="11.5" fill="rgba(30,41,59,0.18)" />
+          <circle cx="0" cy="0" r="11" fill="#f5efe6" stroke="#3e3832" stroke-width="1.6" />
+          <path d="M -11 0 L 11 0 M 0 -11 L 0 11 M -7.7 -7.7 L 7.7 7.7 M -7.7 7.7 L 7.7 -7.7" stroke="#d5c7b2" stroke-width="1.1" />
+          <circle cx="0" cy="0" r="2.5" fill="#d9895b" stroke="#3e3832" stroke-width="1" />
+        </g>
+
+        <!-- Reusable Student Wooden Bench (Horizontal) -->
+        <g id="student-bench-h">
+          <rect x="-13" y="-3" width="26" height="7" rx="2" fill="rgba(30,41,59,0.15)" />
+          <rect x="-14" y="-4" width="28" height="6" rx="1.8" fill="#e0915f" stroke="#3e3832" stroke-width="1.4" />
+          <line x1="-11" y1="-1" x2="11" y2="-1" stroke="#3e3832" stroke-width="0.9" opacity="0.55" />
+        </g>
+
+        <!-- Reusable Shaded Student Pergola Canopy -->
+        <g id="student-pergola">
+          <rect x="-24" y="-16" width="48" height="32" rx="3" fill="rgba(30,41,59,0.12)" transform="translate(2,3)" />
+          <rect x="-24" y="-16" width="48" height="32" rx="2.5" fill="#e9dec9" stroke="#3e3832" stroke-width="1.8" />
+          <line x1="-20" y1="-11" x2="20" y2="-11" stroke="#c2b093" stroke-width="2" />
+          <line x1="-20" y1="-5.5" x2="20" y2="-5.5" stroke="#c2b093" stroke-width="2" />
+          <line x1="-20" y1="0" x2="20" y2="0" stroke="#c2b093" stroke-width="2" />
+          <line x1="-20" y1="5.5" x2="20" y2="5.5" stroke="#c2b093" stroke-width="2" />
+          <line x1="-20" y1="11" x2="20" y2="11" stroke="#c2b093" stroke-width="2" />
+        </g>
+
+        <!-- Reusable Hand-Crafted Scalloped Organic Tree Cluster (Large) -->
+        <g id="tree-cluster-lg">
+          <path d="M -24,-6 C -28,-19 -14,-29 -2,-24 C 8,-31 24,-23 24,-9 C 33,-2 29,14 17,18 C 12,28 -4,29 -12,20 C -25,22 -32,6 -24,-6 Z"
+            fill="#66ab49" stroke="#355224" stroke-width="2.2" stroke-linejoin="round" />
+          <path d="M -16,-7 C -18,-15 -8,-21 0,-17 C 7,-21 16,-15 15,-6 C 20,0 15,10 7,11 C 1,16 -9,14 -12,8 C -19,7 -21,-2 -16,-7 Z"
+            fill="#87c45b" />
+          <path d="M -8,7 Q 1,14 10,6" fill="none" stroke="#355224" stroke-width="1.7" stroke-linecap="round" />
+          <path d="M -12,-6 Q -4,-13 5,-7" fill="none" stroke="#355224" stroke-width="1.5" stroke-linecap="round" />
+        </g>
+
+        <!-- Reusable Wide Scalloped Tree Grove -->
+        <g id="tree-grove-wide">
+          <path d="M -42,-4 C -46,-18 -31,-28 -17,-22 C -8,-32 10,-31 18,-20 C 31,-26 46,-15 43,0 C 50,12 39,26 24,23 C 14,32 -4,31 -14,22 C -29,28 -45,17 -41,3 Z"
+            fill="#66ab49" stroke="#355224" stroke-width="2.2" stroke-linejoin="round" />
+          <path d="M -30,-4 C -32,-13 -20,-20 -11,-15 C -3,-22 10,-21 15,-12 C 25,-15 34,-6 30,4 C 24,13 10,14 2,10 C -8,16 -24,12 -30,-4 Z"
+            fill="#87c45b" />
+          <path d="M -22,6 Q -10,14 0,5" fill="none" stroke="#355224" stroke-width="1.7" stroke-linecap="round" />
+          <path d="M 8,8 Q 19,15 28,6" fill="none" stroke="#355224" stroke-width="1.7" stroke-linecap="round" />
+        </g>
+
+        <!-- Reusable Medium Scalloped Tree -->
+        <g id="tree-md">
+          <path d="M -15,-4 C -18,-13 -8,-20 0,-16 C 8,-20 18,-13 16,-4 C 21,4 14,15 5,14 C -2,20 -13,17 -15,8 C -21,4 -19,-2 -15,-4 Z"
+            fill="#66ab49" stroke="#355224" stroke-width="2" stroke-linejoin="round" />
+          <circle cx="-2" cy="-3" r="8.5" fill="#87c45b" />
+          <path d="M -6,5 Q 1,10 7,4" fill="none" stroke="#355224" stroke-width="1.5" stroke-linecap="round" />
+        </g>
+
+        <!-- Reusable Small Shrub -->
+        <g id="tree-sm">
+          <path d="M -9,-2 C -11,-8 -4,-12 1,-10 C 6,-12 12,-7 10,-1 C 12,5 7,10 1,9 C -5,11 -11,6 -9,-2 Z"
+            fill="#6eb34f" stroke="#355224" stroke-width="1.8" stroke-linejoin="round" />
+          <circle cx="-1.5" cy="-2" r="5" fill="#8bc962" />
+        </g>
+
+        <!-- Reusable Ornamental Flowering Bush -->
+        <g id="flower-bush">
+          <circle cx="0" cy="0" r="6.5" fill="#5da443" stroke="#2d4c1e" stroke-width="1.5" />
+          <circle cx="-2" cy="-2" r="4" fill="#82c663" />
+          <circle cx="-2.5" cy="-1.5" r="1.4" fill="#f97316" />
+          <circle cx="2.2" cy="-2" r="1.3" fill="#facc15" />
+          <circle cx="1.5" cy="2.2" r="1.4" fill="#ec4899" />
+        </g>
+
+        <!-- Reusable Botanical Palm Tree -->
+        <g id="palm-tree">
+          <g stroke="#2d4c1e" stroke-width="1.4" fill="#4f8f3c">
+            <ellipse cx="0" cy="-14" rx="3.8" ry="12.5" />
+            <ellipse cx="0" cy="14" rx="3.8" ry="12.5" />
+            <ellipse cx="-14" cy="0" rx="12.5" ry="3.8" />
+            <ellipse cx="14" cy="0" rx="12.5" ry="3.8" />
+            <ellipse cx="-10" cy="-10" rx="10.5" ry="3.4" transform="rotate(45 -10 -10)" />
+            <ellipse cx="10" cy="10" rx="10.5" ry="3.4" transform="rotate(45 10 10)" />
+            <ellipse cx="10" cy="-10" rx="10.5" ry="3.4" transform="rotate(-45 10 -10)" />
+            <ellipse cx="-10" cy="10" rx="10.5" ry="3.4" transform="rotate(-45 -10 10)" />
+          </g>
+          <g fill="#74ba59" opacity="0.85">
+            <ellipse cx="0" cy="-11" rx="1.8" ry="8" />
+            <ellipse cx="0" cy="11" rx="1.8" ry="8" />
+            <ellipse cx="-11" cy="0" rx="8" ry="1.8" />
+            <ellipse cx="11" cy="0" rx="8" ry="1.8" />
+          </g>
+          <circle cx="0" cy="0" r="4.5" fill="#7c5836" stroke="#2d4c1e" stroke-width="1.3" />
+          <circle cx="-1" cy="-1" r="2" fill="#9c7248" />
+        </g>
+      </defs>
+
+      <!-- ==================== CAMERA PAN/ZOOM WORLD GROUP ==================== -->
+      <g id="camera-world">
+        <!-- ROTATED CAMPUS STRIP (-13.5° Authentic Reference Orientation) -->
+        <g id="campus-rotator" transform="rotate(-13.5, 1100, 1300)">
+
+          <!-- 1. OUTER CAMPUS BOUNDARY & GREEN PERIMETER TREE BUFFER (Extended North to y=-45 for Building #09) -->
+          <rect x="755" y="-45" width="690" height="2460" rx="6" fill="#cfd6e0" transform="translate(8, 10)" />
+          <rect x="755" y="-45" width="690" height="2460" rx="4" fill="#83bc59" stroke="#3e3832" stroke-width="4.5" />
+          <rect x="764" y="-36" width="672" height="2442" fill="none" stroke="#e4dac8" stroke-width="4" />
+
+          <!-- ==================== 2. INTERNAL ASPHALT ROAD NETWORK & PEDESTRIAN PLAZAS ==================== -->
+          <g id="road-network">
+            <!-- Main Continuous Asphalt Spine & Ring Roads (#7c838b) -->
+            <path d="
+              M 790 -24
+              L 1355 -24
+              L 1396 470
+              L 1396 2295
+              L 815 2295
+              L 790 -24 Z
+            " fill="#7c838b" stroke="#3e3832" stroke-width="2.8" />
+
+            <!-- Southern Main Gate Entry Road (Outside #08) -->
+            <rect x="755" y="2312" width="690" height="103" fill="#7c838b" stroke="#3e3832" stroke-width="3" />
+            <rect x="820" y="2328" width="260" height="85" fill="#6d747c" stroke="#3e3832" stroke-width="2" />
+            <rect x="1195" y="2328" width="215" height="85" fill="#6d747c" stroke="#3e3832" stroke-width="2" />
+
+            <!-- Continuous Warm Sandstone / Earth Base for Northern Complex (#09, Horse Arena & #01) -->
+            <path d="M 776 -24 L 1358 -24 L 1388 456 L 788 456 Z"
+              fill="#d5bc9d" stroke="#3e3832" stroke-width="2.2" />
+
+            <!-- =====================================================================
+                 BUILDING #09: ADDITIONAL NORTHERN BUILDING AFTER THE HORSE ARENA
+                 Located directly north of (above) the Horse Arena at the far northern tip
+                 ===================================================================== -->
+            <rect x="780" y="-16" width="286" height="128" rx="6"
+              fill="#e8dac3" stroke="#3e3832" stroke-width="2" />
+            <rect x="786" y="-10" width="274" height="116" rx="4"
+              fill="url(#sandstone-paving)" />
+            <rect x="788" y="88" width="58" height="16" rx="5" fill="#83bc59" stroke="#3e3832" stroke-width="1.6" />
+            <rect x="926" y="88" width="68" height="16" rx="5" fill="#83bc59" stroke="#3e3832" stroke-width="1.6" />
+            <rect x="1078" y="-14" width="266" height="92" rx="8" fill="#83bc59" stroke="#3e3832" stroke-width="2" />
+            <rect x="1090" y="-4" width="242" height="72" rx="6" fill="#4f8f46" />
+
+            <g id="zone-09-hitbox" class="campus-zone-hitbox" data-building-id="09">
+              <polygon points="
+                792,2 1038,2 1038,82 952,82 952,92 868,92 868,82 792,82
+              " fill="#d9895b" stroke="#3e3832" stroke-width="2.3" />
+              <g fill="#3b4854" stroke="#2d2724" stroke-width="1.1">
+                <rect x="806" y="68" width="24" height="10" />
+                <rect x="836" y="68" width="24" height="10" />
+                <rect x="880" y="77" width="26" height="11" />
+                <rect x="914" y="77" width="26" height="11" />
+                <rect x="964" y="68" width="28" height="10" />
+                <rect x="998" y="68" width="28" height="10" />
+              </g>
+              <polygon points="
+                792,-12 1034,-12 1034,64 952,64 952,74 868,74 868,64 792,64
+              " fill="#e4dac8" stroke="#3e3832" stroke-width="2.5" />
+              <polygon points="
+                802,-3 1024,-3 1024,55 944,55 944,65 876,65 876,55 802,55
+              " fill="none" stroke="#c9bba3" stroke-width="2" />
+              <rect x="818" y="10" width="44" height="28" rx="2" fill="#d5cab6" stroke="#8c7f6b" stroke-width="1.5" />
+              <rect x="884" y="8" width="52" height="32" rx="2" fill="#5b7a94" stroke="#3e3832" stroke-width="1.6" />
+              <line x1="884" y1="24" x2="936" y2="24" stroke="#e4dac8" stroke-width="1.4" />
+              <line x1="910" y1="8" x2="910" y2="40" stroke="#e4dac8" stroke-width="1.4" />
+              <rect x="960" y="10" width="46" height="28" rx="2" fill="#d5cab6" stroke="#8c7f6b" stroke-width="1.5" />
+            </g>
+
+            <!-- =====================================================================
+                 TOP-LEFT BROWN AREA: HORSE ARENA & STABLES (مبنى الخيل)
+                 Positioned cleanly on the far west (x=776..868) with zero overlap with #01
+                 ===================================================================== -->
+            <g id="zone-horse-arena" class="campus-zone-hitbox" data-building-id="01">
+              <rect x="776" y="130" width="92" height="156" rx="4"
+                fill="#b88454" stroke="#4a3219" stroke-width="2.8" />
+              <rect x="782" y="136" width="68" height="144" rx="3"
+                fill="#c99563" stroke="#78512a" stroke-width="1.8" />
+              <rect x="788" y="144" width="56" height="128" rx="14"
+                fill="none" stroke="#b37e4c" stroke-width="1.8" stroke-dasharray="7 5" />
+              <circle cx="816" cy="180" r="18" fill="none" stroke="#b37e4c" stroke-width="1.4" stroke-dasharray="4 4" />
+              <circle cx="816" cy="236" r="18" fill="none" stroke="#b37e4c" stroke-width="1.4" stroke-dasharray="4 4" />
+
+              <!-- Equestrian Show-Jumping Obstacles -->
+              <g stroke="#3e3832" stroke-width="1">
+                <rect x="798" y="166" width="34" height="4" rx="1.5" fill="#ffffff" />
+                <rect x="804" y="166" width="7" height="4" fill="#dc2626" />
+                <rect x="818" y="166" width="7" height="4" fill="#dc2626" />
+                <rect x="798" y="206" width="34" height="4" rx="1.5" fill="#ffffff" />
+                <rect x="804" y="206" width="7" height="4" fill="#2563eb" />
+                <rect x="818" y="206" width="7" height="4" fill="#2563eb" />
+                <rect x="798" y="246" width="34" height="4" rx="1.5" fill="#ffffff" />
+                <rect x="804" y="246" width="7" height="4" fill="#dc2626" />
+                <rect x="818" y="246" width="7" height="4" fill="#dc2626" />
+              </g>
+
+              <!-- Wooden Fence Posts -->
+              <g fill="#5c3d1e" stroke="#2d1e0f" stroke-width="1">
+                <circle cx="779" cy="138" r="2.3" /><circle cx="779" cy="172" r="2.3" />
+                <circle cx="779" cy="208" r="2.3" /><circle cx="779" cy="244" r="2.3" /><circle cx="779" cy="280" r="2.3" />
+                <circle cx="816" cy="133" r="2.3" /><circle cx="816" cy="283" r="2.3" />
+              </g>
+
+              <!-- Horse Stables Roof & Stalls Along Eastern Border (x=850..868) -->
+              <g>
+                <rect x="850" y="130" width="18" height="114" rx="2"
+                  fill="#8c6239" stroke="#3e3832" stroke-width="1.8" />
+                <rect x="853" y="134" width="12" height="106" rx="1"
+                  fill="#a67c52" stroke="#4a3219" stroke-width="1.1" />
+                <line x1="853" y1="155" x2="865" y2="155" stroke="#4a3219" stroke-width="1.4" />
+                <line x1="853" y1="176" x2="865" y2="176" stroke="#4a3219" stroke-width="1.4" />
+                <line x1="853" y1="197" x2="865" y2="197" stroke="#4a3219" stroke-width="1.4" />
+                <line x1="853" y1="218" x2="865" y2="218" stroke="#4a3219" stroke-width="1.4" />
+              </g>
+
+              <!-- English Map Label Badge: HORSE ARENA -->
+              <g transform="translate(816, 190)">
+                <rect x="-42" y="-10" width="84" height="20" rx="10"
+                  fill="rgba(45, 30, 15, 0.88)" stroke="#f5efe6" stroke-width="1.3" />
+                <text x="0" y="3.5" text-anchor="middle" fill="#ffffff"
+                  font-family="'Space Grotesk', 'Inter', sans-serif" font-weight="700" font-size="9.5" letter-spacing="0.4">
+                  HORSE ARENA
+                </text>
+              </g>
+            </g>
+
+            <!-- Lower-Left Annex Below Horse Arena (x=786..836) & Parallel Hedge Row -->
+            <g>
+              <rect x="790" y="304" width="46" height="136" rx="2"
+                fill="#d48356" stroke="#3e3832" stroke-width="2" />
+              <rect x="784" y="298" width="46" height="134" rx="2"
+                fill="#dfd5c2" stroke="#3e3832" stroke-width="2.2" />
+              <rect x="791" y="305" width="32" height="120"
+                fill="none" stroke="#c5b8a1" stroke-width="1.5" />
+            </g>
+            <rect x="840" y="296" width="14" height="140" rx="7"
+              fill="#3c5e2c" stroke="#283f1d" stroke-width="1.8" />
+            <path d="M 847 304 L 847 428" stroke="#55823e" stroke-width="2.6" stroke-linecap="round" stroke-dasharray="10 8" />
+
+            <!-- UNOBSTRUCTED DIRECT PROMENADE FROM STAIRS (x=1010) TO BUILDING #01 -->
+            <g id="walkway-01-to-stairs">
+              <rect x="984" y="368" width="52" height="368" fill="#7c838b" />
+              <!-- Sidewalk curbs along the direct avenue -->
+              <line x1="984" y1="456" x2="984" y2="736" stroke="#e4dac8" stroke-width="4" />
+              <line x1="1036" y1="456" x2="1036" y2="736" stroke="#e4dac8" stroke-width="4" />
+              <!-- Subtle center directional guidance line -->
+              <line x1="1010" y1="382" x2="1010" y2="728" stroke="#cbd5e1" stroke-width="2" stroke-dasharray="10 10" opacity="0.65" />
+            </g>
+
+            <!-- Right Side of #01: D-Shaped / Curved-East PAVED STUDENT SEATING COURTYARD (NO GRASS, NO CARS) -->
+            <g id="zone-01-student-courtyard" class="campus-zone-hitbox" data-building-id="01">
+              <path d="M 1040 444 L 1040 356 L 1126 248 L 1344 224 L 1378 362 C 1380 412, 1346 444, 1286 444 Z"
+                fill="#b8a590" stroke="#3e3832" stroke-width="2.5" />
+              <path d="M 1048 428 L 1048 358 L 1132 258 L 1326 238 L 1354 358 C 1356 400, 1328 428, 1276 428 Z"
+                fill="#dec6a7" stroke="#3e3832" stroke-width="2" />
+              <path d="M 1048 428 L 1048 358 L 1132 258 L 1326 238 L 1354 358 C 1356 400, 1328 428, 1276 428 Z"
+                fill="url(#sandstone-paving)" />
+              <path d="M 1324 242 L 1342 240 L 1370 360 C 1372 406, 1340 436, 1282 436 L 1100 436 L 1100 424 L 1280 424 C 1326 424, 1352 398, 1350 358 Z"
+                fill="#c7b49e" stroke="#3e3832" stroke-width="1.6" />
+
+              <polygon points="1206,348 1254,330 1272,358 1222,376"
+                fill="#5ca04e" stroke="#3e3832" stroke-width="2" />
+              <polygon points="1214,350 1248,338 1260,356 1226,368"
+                fill="#3f7a38" />
+
+              <!-- Student Seating Sets in #01 Courtyard -->
+              <use href="#student-umbrella-set" x="1136" y="308" />
+              <use href="#student-umbrella-set" x="1212" y="284" />
+              <use href="#student-umbrella-set" x="1288" y="276" />
+              <use href="#student-umbrella-set" x="1156" y="394" />
+              <use href="#student-round-set" x="1084" y="362" />
+              <use href="#student-round-set" x="1164" y="346" />
+              <use href="#student-round-set" x="1252" y="310" />
+              <use href="#student-round-set" x="1314" y="328" />
+              <use href="#student-round-set" x="1092" y="402" />
+              <use href="#student-round-set" x="1216" y="402" />
+              <use href="#student-round-set" x="1264" y="398" />
+              <use href="#student-table-set" x="1310" y="394" />
+              <use href="#student-bench-h" x="1192" y="256" transform="rotate(-10, 1192, 256)" />
+              <use href="#student-bench-h" x="1260" y="246" transform="rotate(-10, 1260, 246)" />
+              <use href="#student-bench-h" x="1334" y="366" transform="rotate(78, 1334, 366)" />
+
+              <g transform="translate(1224, 256)">
+                <rect x="-66" y="-9.5" width="132" height="19" rx="9.5"
+                  fill="rgba(45, 39, 36, 0.84)" stroke="#f5efe6" stroke-width="1.2" />
+                <text x="0" y="3.5" text-anchor="middle" fill="#ffffff"
+                  font-family="'Space Grotesk', 'Inter', sans-serif" font-weight="700" font-size="9" letter-spacing="0.4">
+                  STUDENT SEATING AREA
+                </text>
+              </g>
+            </g>
+
+            <!-- ==================== ZONE #02 SURROUNDINGS & CAR-FREE STUDENT SEATING PLAZA ==================== -->
+            <rect x="802" y="475" width="176" height="266" rx="10" fill="#83bc59" stroke="#e4dac8" stroke-width="6" />
+            <rect x="802" y="475" width="176" height="266" rx="10" fill="none" stroke="#3e3832" stroke-width="2" />
+            <path d="M 885 520 L 920 520 L 912 622 L 972 622 L 972 685 L 876 685 Z"
+              fill="#e39d67" stroke="#3e3832" stroke-width="1.8" />
+            <g>
+              <rect x="818" y="572" width="44" height="44" fill="#e4dac8" stroke="#3e3832" stroke-width="2" />
+              <rect x="818" y="610" width="44" height="9" fill="#d9895b" stroke="#3e3832" stroke-width="1.8" />
+              <rect x="824" y="578" width="32" height="28" fill="none" stroke="#c9bba3" stroke-width="1.5" />
+            </g>
+
+            <!-- Student Benches & Seating Terrace Between #02 and #03 (NO CARS) -->
+            <g id="student-seating-plaza-23" class="campus-zone-hitbox" data-building-id="02">
+              <rect x="802" y="742" width="576" height="72" rx="8" fill="#f0e5cf" stroke="#3e3832" stroke-width="2.2" />
+              <rect x="810" y="749" width="560" height="58" rx="5" fill="none" stroke="#d9895b" stroke-width="1.6" stroke-dasharray="10 5" />
+
+              <rect x="816" y="756" width="24" height="44" rx="6" fill="#83bc59" stroke="#3e3832" stroke-width="1.6" />
+              <rect x="1340" y="756" width="24" height="44" rx="6" fill="#83bc59" stroke="#3e3832" stroke-width="1.6" />
+
+              <!-- 2.5D Architectural Staircase (STAIRS / سلم) Centered at x=1010 Directly Facing Building #01 -->
+              <g id="plaza-02-southwest-stairs" transform="translate(-9, 0)">
+                <rect x="998" y="734" width="42" height="74" rx="2" fill="#e8dec9" stroke="#35302a" stroke-width="2" />
+                <rect x="1000" y="736" width="38" height="11" fill="#dfd3ba" stroke="#35302a" stroke-width="1.4" />
+                <rect x="1000" y="796" width="38" height="11" fill="#dfd3ba" stroke="#35302a" stroke-width="1.4" />
+
+                <rect x="1000" y="747" width="38" height="6" fill="#efe6d5" stroke="#35302a" stroke-width="1.3" />
+                <rect x="1001" y="751" width="36" height="2" fill="#8c7b65" />
+                <rect x="1000" y="753" width="38" height="6" fill="#efe6d5" stroke="#35302a" stroke-width="1.3" />
+                <rect x="1001" y="757" width="36" height="2" fill="#8c7b65" />
+                <rect x="1000" y="759" width="38" height="6" fill="#efe6d5" stroke="#35302a" stroke-width="1.3" />
+                <rect x="1001" y="763" width="36" height="2" fill="#8c7b65" />
+                <rect x="1000" y="765" width="38" height="6" fill="#e8dec9" stroke="#35302a" stroke-width="1.3" />
+                <rect x="1001" y="769" width="36" height="2" fill="#8c7b65" />
+                <rect x="1000" y="771" width="38" height="6" fill="#efe6d5" stroke="#35302a" stroke-width="1.3" />
+                <rect x="1001" y="775" width="36" height="2" fill="#8c7b65" />
+                <rect x="1000" y="777" width="38" height="6" fill="#e8dec9" stroke="#35302a" stroke-width="1.3" />
+                <rect x="1001" y="781" width="36" height="2" fill="#8c7b65" />
+                <rect x="1000" y="783" width="38" height="6" fill="#efe6d5" stroke="#35302a" stroke-width="1.3" />
+                <rect x="1001" y="787" width="36" height="2" fill="#8c7b65" />
+                <rect x="1000" y="789" width="38" height="7" fill="#e8dec9" stroke="#35302a" stroke-width="1.3" />
+                <rect x="1001" y="794" width="36" height="2" fill="#8c7b65" />
+
+                <rect x="993" y="736" width="6.5" height="72" rx="1.5" fill="#d98a5c" stroke="#35302a" stroke-width="1.8" />
+                <rect x="995" y="736" width="4.5" height="70" rx="1" fill="#e8dec9" stroke="#35302a" stroke-width="1.2" />
+                <rect x="1038.5" y="736" width="6.5" height="72" rx="1.5" fill="#d98a5c" stroke="#35302a" stroke-width="1.8" />
+                <rect x="1038.5" y="736" width="4.5" height="70" rx="1" fill="#e8dec9" stroke="#35302a" stroke-width="1.2" />
+
+                <rect x="992" y="732" width="8.5" height="8.5" rx="1.5" fill="#dfd3ba" stroke="#35302a" stroke-width="1.8" />
+                <rect x="994" y="734" width="4.5" height="4.5" fill="#d98a5c" />
+                <rect x="1037.5" y="732" width="8.5" height="8.5" rx="1.5" fill="#dfd3ba" stroke="#35302a" stroke-width="1.8" />
+                <rect x="1039.5" y="734" width="4.5" height="4.5" fill="#d98a5c" />
+                <rect x="992" y="802" width="8.5" height="8.5" rx="1.5" fill="#dfd3ba" stroke="#35302a" stroke-width="1.8" />
+                <rect x="994" y="804" width="4.5" height="4.5" fill="#d98a5c" />
+                <rect x="1037.5" y="802" width="8.5" height="8.5" rx="1.5" fill="#dfd3ba" stroke="#35302a" stroke-width="1.8" />
+                <rect x="1039.5" y="804" width="4.5" height="4.5" fill="#d98a5c" />
+
+                <line x1="1020.5" y1="744" x2="1020.5" y2="800" stroke="rgba(30,41,59,0.28)" stroke-width="3" stroke-linecap="round" />
+                <rect x="1017.5" y="743" width="3" height="56" rx="1.5" fill="#d98a5c" stroke="#35302a" stroke-width="1.2" />
+
+                <g transform="translate(1019, 771)">
+                  <rect x="-26" y="-8.5" width="52" height="17" rx="8.5"
+                    fill="rgba(15, 23, 42, 0.88)" stroke="#ffffff" stroke-width="1.2" />
+                  <text x="0" y="3.5" text-anchor="middle" fill="#ffffff"
+                    font-family="'Space Grotesk', 'Inter', sans-serif" font-weight="700" font-size="9.5" letter-spacing="0.5">
+                    STAIRS
+                  </text>
+                </g>
+              </g>
+
+              <use href="#student-pergola" x="875" y="778" />
+              <use href="#student-pergola" x="942" y="778" />
+              <use href="#student-table-set" x="875" y="778" />
+              <use href="#student-table-set" x="942" y="778" />
+
+              <use href="#student-bench-h" x="1062" y="764" />
+              <use href="#student-bench-h" x="1114" y="764" />
+              <use href="#student-bench-h" x="1166" y="764" />
+              <use href="#student-bench-h" x="1218" y="764" />
+              <use href="#student-bench-h" x="1270" y="764" />
+              <use href="#student-bench-h" x="1320" y="764" />
+
+              <use href="#student-table-set" x="1078" y="792" />
+              <use href="#student-bench-h" x="1142" y="794" />
+              <use href="#student-table-set" x="1208" y="792" />
+              <use href="#student-bench-h" x="1276" y="794" />
+            </g>
+
+            <!-- Green Buffer Strip Directly Above Building #03 -->
+            <rect x="815" y="835" width="210" height="48" rx="14" fill="#83bc59" stroke="#3e3832" stroke-width="2" />
+            <rect x="1048" y="832" width="245" height="48" rx="12" fill="#83bc59" stroke="#3e3832" stroke-width="2" />
+
+            <!-- ==================== ZONE #03 FORMAL COURTYARD PLAZA (SOUTH OF #03) ==================== -->
+            <path d="M 822 1005 L 1372 1005 L 1372 1242 L 1125 1242 L 1090 1128 L 822 1128 Z"
+              fill="#f1e6d0" stroke="#3e3832" stroke-width="2.2" />
+
+            <!-- Courtyard Lawn Cutouts & Formal Gardens South of #03 -->
+            <rect x="845" y="1042" width="58" height="48" rx="8" fill="#83bc59" stroke="#3e3832" stroke-width="1.8" />
+            <rect x="920" y="1038" width="38" height="46" rx="8" fill="#83bc59" stroke="#3e3832" stroke-width="1.8" />
+            <rect x="980" y="1034" width="95" height="38" rx="10" fill="#83bc59" stroke="#3e3832" stroke-width="1.8" />
+            <rect x="1125" y="1025" width="58" height="38" rx="10" fill="#83bc59" stroke="#3e3832" stroke-width="1.8" />
+            <circle cx="1162" cy="1110" r="28" fill="#4f8f46" stroke="#3e3832" stroke-width="2" />
+            <rect x="1142" y="1158" width="55" height="65" rx="8" fill="#83bc59" stroke="#3e3832" stroke-width="1.8" />
+            <rect x="1220" y="1018" width="136" height="205" rx="12" fill="#83bc59" stroke="#3e3832" stroke-width="2" />
+            <rect x="1235" y="1035" width="106" height="170" rx="8" fill="#4f8f46" />
+
+            <!-- Student Seating Benches in #03 Courtyard -->
+            <use href="#student-bench-h" x="1028" y="1082" />
+            <use href="#student-bench-h" x="1075" y="1082" />
+            <use href="#student-table-set" x="1115" y="1195" />
+
+            <!-- L-Shaped Auxiliary Pavilion Below #03 -->
+            <g>
+              <polygon points="982,1095 1118,1095 1118,1135 1038,1135 1038,1152 982,1152"
+                fill="#d9895b" stroke="#3e3832" stroke-width="2" />
+              <polygon points="982,1088 1118,1088 1118,1126 1038,1126 1038,1142 982,1142"
+                fill="#e4dac8" stroke="#3e3832" stroke-width="2.2" />
+            </g>
+
+            <!-- Triangular Green Traffic Island Above Sports Plaza -->
+            <polygon points="1015,1212 1125,1255 1022,1288" fill="#83bc59" stroke="#e4dac8" stroke-width="5" />
+            <polygon points="1015,1212 1125,1255 1022,1288" fill="none" stroke="#3e3832" stroke-width="2" />
+          </g>
+
+          <!-- ==================== 3. ARCHITECTURAL BUILDINGS (#01 TO #05) ==================== -->
+
+          <!-- =====================================================================
+               BUILDING #01 & #04: NORTH MAIN AUDITORIUM, OCTAGON & NE FACETED BUILDING
+               * Separated cleanly from Horse Arena (x >= 886 vs Horse Arena x <= 868)
+               * Centered on the north-south axis directly facing the unobstructed road from STAIRS (x=1010)
+               * West Auxiliary Building tucked to the left of the road (x=882..972)
+               ===================================================================== -->
+          <g id="zone-01-hitbox" class="campus-zone-hitbox" data-building-id="01">
+            <!-- 1A. Top-Right (NE) Faceted Building (Pin #04) -->
+            <polygon points="1116,104 1142,92 1314,92 1314,118 1334,118 1334,158 1316,214 1252,204 1194,226 1130,168"
+              fill="#2d2724" stroke="#221d1a" stroke-width="2.2" />
+            <polygon points="1130,168 1194,226 1252,204 1316,214 1322,198 1252,188 1198,208 1140,156"
+              fill="#c97a4e" stroke="#3e3832" stroke-width="1.8" />
+            <polygon points="1140,90 1312,90 1312,114 1334,114 1334,150 1318,198 1252,188 1198,208 1140,154"
+              fill="#e8e0d2" stroke="#3e3832" stroke-width="2.4" />
+            <polygon points="1152,100 1302,100 1302,124 1322,124 1322,148 1310,186 1252,176 1202,194 1152,148"
+              fill="none" stroke="#cfc4b0" stroke-width="2.2" />
+            <rect x="1170" y="114" width="22" height="16" rx="2" fill="#d5cab6" stroke="#8c7f6b" stroke-width="1.4" />
+            <rect x="1200" y="118" width="16" height="12" rx="1.5" fill="#d5cab6" stroke="#8c7f6b" stroke-width="1.2" />
+
+            <!-- 1B. Two-Tiered Chevron West Wing (x=886..978, completely clear of Horse Arena at x<=868) -->
+            <polygon points="886,232 924,158 952,174 912,244 922,324 970,358 952,386 894,340"
+              fill="#2d2724" stroke="#1f1b18" stroke-width="2.2" />
+            <polygon points="896,228 934,160 960,176 920,242 930,318 976,352 958,376 904,332"
+              fill="#dcd1be" stroke="#3e3832" stroke-width="2.2" />
+            <polygon points="910,222 954,150 986,174 944,238 954,306 1000,342 974,370 918,324"
+              fill="#d48356" stroke="#3e3832" stroke-width="2.2" />
+            <polygon points="910,210 954,138 986,162 944,226 954,294 1000,330 974,358 918,312"
+              fill="#e5dccb" stroke="#3e3832" stroke-width="2.4" />
+            <polyline points="918,214 956,152 976,166 936,228 946,300 988,332 970,346 926,308"
+              fill="none" stroke="#cbbba2" stroke-width="2" />
+
+            <!-- Shadow recess between Chevron Wing and Octagon -->
+            <polygon points="934,220 988,142 1012,154 960,230 966,296 1014,336 996,350 944,304"
+              fill="#2d2724" />
+
+            <!-- 1C. Main 8-Sided Octagonal Auditorium (#01) Centered Facing the Direct Avenue from STAIRS -->
+            <polygon points="946,288 996,342 996,366 946,312"
+              fill="#c8764b" stroke="#3e3832" stroke-width="2.2" />
+            <polygon points="996,342 1068,342 1068,366 996,366"
+              fill="#d48356" stroke="#3e3832" stroke-width="2.2" />
+            <polygon points="1068,342 1118,288 1118,312 1068,366"
+              fill="#b8683e" stroke="#3e3832" stroke-width="2.2" />
+            <polygon points="956,304 988,336 988,348 956,316" fill="#3b4854" stroke="#2d2724" stroke-width="1.2" />
+            <rect x="1006" y="347" width="52" height="12" fill="#3b4854" stroke="#2d2724" stroke-width="1.2" />
+            <polygon points="1076,336 1108,304 1108,316 1076,348" fill="#3b4854" stroke="#2d2724" stroke-width="1.2" />
+
+            <!-- Entrance Steps on South Face of Octagon (x=1002..1054) Directly Facing the Avenue from STAIRS -->
+            <rect x="1002" y="366" width="52" height="12" rx="2" fill="#e8dec9" stroke="#3e3832" stroke-width="1.6" />
+            <line x1="1004" y1="370" x2="1052" y2="370" stroke="#8c7b65" stroke-width="1.2" />
+            <line x1="1004" y1="374" x2="1052" y2="374" stroke="#8c7b65" stroke-width="1.2" />
+
+            <!-- Octagon Roof Layers -->
+            <polygon points="946,204 996,148 1068,148 1118,204 1118,288 1068,342 996,342 946,288"
+              fill="#eee7d8" stroke="#3e3832" stroke-width="2.8" />
+            <polygon points="958,210 1002,160 1062,160 1106,210 1106,282 1062,330 1002,330 958,282"
+              fill="#e0d6c3" stroke="#b8a990" stroke-width="2.2" />
+            <polygon points="972,216 1008,176 1056,176 1092,216 1092,276 1056,314 1008,314 972,276"
+              fill="none" stroke="#cabca4" stroke-width="1.4" />
+
+            <!-- 1D. West Auxiliary Building (Positioned at x=882..972 to the LEFT of the road, NEVER blocking the avenue!) -->
+            <rect x="882" y="400" width="90" height="54" rx="2"
+              fill="#d48356" stroke="#3e3832" stroke-width="2.2" />
+            <rect x="882" y="388" width="90" height="48" rx="2"
+              fill="#e2d8c5" stroke="#3e3832" stroke-width="2.4" />
+            <rect x="890" y="395" width="74" height="34"
+              fill="none" stroke="#c5b69e" stroke-width="1.8" />
+          </g>
+
+          <!-- BUILDING #02: UPPER-MIDDLE MAIN COURTYARD ACADEMIC COMPLEX (Starts at x=1038 so the avenue at x=984..1036 goes straight from STAIRS to #01) -->
+          <g id="zone-02-hitbox" class="campus-zone-hitbox" data-building-id="02">
+            <polygon points="1038,488 1376,488 1376,756 1038,756 1038,595 1096,595 1096,572 1038,572"
+              fill="#d9895b" stroke="#3e3832" stroke-width="2.4" />
+            <g fill="#4c5d69" stroke="#3e3832" stroke-width="1.1">
+              <rect x="1050" y="738" width="26" height="11" /><rect x="1084" y="738" width="26" height="11" />
+              <rect x="1124" y="737" width="36" height="12" /><rect x="1170" y="737" width="36" height="12" />
+              <rect x="1222" y="738" width="26" height="11" /><rect x="1258" y="738" width="26" height="11" />
+              <rect x="1296" y="738" width="26" height="11" /><rect x="1334" y="738" width="26" height="11" />
+            </g>
+
+            <polygon points="
+              1038,474 1372,474 1372,560 1322,560 1322,578 1372,578 1372,732 1038,732
+              1038,586 1096,586 1096,564 1038,564
+            " fill="#e4dac8" stroke="#3e3832" stroke-width="2.5" />
+
+            <polygon points="
+              1050,486 1360,486 1360,550 1312,550 1312,588 1360,588 1360,720 1050,720
+              1050,596 1106,596 1106,554 1050,554
+            " fill="none" stroke="#c9bba3" stroke-width="2.2" />
+
+            <rect x="1132" y="550" width="78" height="112" fill="#4f8f46" stroke="#3e3832" stroke-width="2.2" />
+            <rect x="1132" y="550" width="78" height="18" fill="#d9895b" stroke="#3e3832" stroke-width="1.8" />
+
+            <rect x="1246" y="550" width="44" height="96" fill="#4f8f46" stroke="#3e3832" stroke-width="2.2" />
+            <rect x="1246" y="550" width="44" height="18" fill="#d9895b" stroke="#3e3832" stroke-width="1.8" />
+          </g>
+
+          <!-- BUILDING #03: WIDE CENTRAL ACADEMIC BUILDING -->
+          <g id="zone-03-hitbox" class="campus-zone-hitbox" data-building-id="03">
+            <rect x="1245" y="846" width="95" height="32" fill="#e4dac8" stroke="#3e3832" stroke-width="2.2" />
+            <polygon points="
+              825,895 1385,895 1385,1002 1272,1002 1272,1022 1168,1022 1168,1006
+              1062,1006 1062,1022 958,1022 958,1005 825,1005
+            " fill="#d9895b" stroke="#3e3832" stroke-width="2.4" />
+            <g fill="#4c5d69" stroke="#3e3832" stroke-width="1.1">
+              <rect x="855" y="988" width="34" height="10" /><rect x="902" y="988" width="34" height="10" />
+              <rect x="972" y="1005" width="34" height="11" /><rect x="1014" y="1005" width="34" height="11" />
+              <rect x="1082" y="990" width="64" height="10" />
+              <rect x="1182" y="1005" width="34" height="11" /><rect x="1224" y="1005" width="34" height="11" />
+              <rect x="1292" y="986" width="36" height="10" /><rect x="1336" y="986" width="34" height="10" />
+            </g>
+            <polygon points="
+              840,868 1385,868 1385,980 1272,980 1272,998 1168,998 1168,984
+              1062,984 1062,998 958,998 958,982 840,982
+            " fill="#e4dac8" stroke="#3e3832" stroke-width="2.5" />
+            <polygon points="
+              852,880 1373,880 1373,968 1262,968 1262,986 1178,986 1178,972
+              1052,972 1052,986 968,986 968,970 852,970
+            " fill="none" stroke="#c9bba3" stroke-width="2" />
+          </g>
+
+          <!-- TWO SMALL WESTERN BUILDINGS (Unlabeled non-student service/studio annexes) -->
+          <g id="zone-west-annex-1">
+            <rect x="815" y="1115" width="142" height="82" fill="#83bc59" stroke="#3e3832" stroke-width="2" />
+            <rect x="822" y="1138" width="128" height="48" fill="#d9895b" stroke="#3e3832" stroke-width="2" />
+            <rect x="822" y="1126" width="128" height="48" fill="#e4dac8" stroke="#3e3832" stroke-width="2.2" />
+            <rect x="830" y="1133" width="112" height="34" fill="none" stroke="#c9bba3" stroke-width="1.6" />
+          </g>
+
+          <g id="zone-west-annex-2">
+            <rect x="822" y="1212" width="150" height="84" fill="#83bc59" stroke="#3e3832" stroke-width="2" />
+            <polygon points="830,1235 968,1235 968,1292 930,1292 930,1274 830,1274"
+              fill="#d9895b" stroke="#3e3832" stroke-width="2" />
+            <polygon points="830,1222 968,1222 968,1280 930,1280 930,1262 830,1262"
+              fill="#e4dac8" stroke="#3e3832" stroke-width="2.2" />
+          </g>
+
+          <!-- ==================== TRACK-FREE SPORTS COMPLEX & COURTS ==================== -->
+          <g id="zone-sports-complex">
+            <!-- Open Concrete/Sandstone Circular Sports Arena Plaza (No Running Track) -->
+            <circle cx="1135" cy="1555" r="248" fill="#e5dccb" stroke="#3e3832" stroke-width="3" />
+            <circle cx="1135" cy="1555" r="236" fill="none" stroke="#cfc2ac" stroke-width="1.8" stroke-dasharray="12 8" />
+
+            <!-- 4. TOP HORIZONTAL COURT: TENNIS COURT -->
+            <g transform="translate(1055, 1345)">
+              <rect x="0" y="0" width="160" height="84" rx="4" fill="#3b78a8" stroke="#3e3832" stroke-width="2.2" />
+              <rect x="12" y="10" width="136" height="64" fill="#4f9a65" stroke="#ffffff" stroke-width="1.8" />
+              <line x1="12" y1="18" x2="148" y2="18" stroke="#ffffff" stroke-width="1.2" />
+              <line x1="12" y1="66" x2="148" y2="66" stroke="#ffffff" stroke-width="1.2" />
+              <line x1="46" y1="18" x2="46" y2="66" stroke="#ffffff" stroke-width="1.2" />
+              <line x1="114" y1="18" x2="114" y2="66" stroke="#ffffff" stroke-width="1.2" />
+              <line x1="46" y1="42" x2="114" y2="42" stroke="#ffffff" stroke-width="1.2" />
+              <line x1="80" y1="8" x2="80" y2="76" stroke="#f8fafc" stroke-width="2.4" stroke-dasharray="3 2" />
+              <rect x="34" y="32" width="92" height="20" rx="10" fill="rgba(15, 23, 42, 0.85)" stroke="#ffffff" stroke-width="1.2" />
+              <text x="80" y="45.5" text-anchor="middle" fill="#ffffff"
+                font-family="'Space Grotesk', 'Inter', sans-serif" font-weight="700" font-size="9.5" letter-spacing="0.5">
+                TENNIS COURT
+              </text>
+            </g>
+
+            <!-- 3. LEFT COURT: BASKETBALL COURT -->
+            <g transform="translate(925, 1480)">
+              <rect x="0" y="0" width="92" height="156" rx="4" fill="#3b82f6" stroke="#3e3832" stroke-width="2.2" />
+              <rect x="7" y="7" width="78" height="142" fill="none" stroke="#ffffff" stroke-width="1.6" />
+              <rect x="28" y="7" width="36" height="34" fill="#ea580c" stroke="#ffffff" stroke-width="1.4" />
+              <rect x="28" y="115" width="36" height="34" fill="#ea580c" stroke="#ffffff" stroke-width="1.4" />
+              <path d="M 14,7 A 32,32 0 0,0 78,7" fill="none" stroke="#ffffff" stroke-width="1.4" />
+              <path d="M 14,149 A 32,32 0 0,1 78,149" fill="none" stroke="#ffffff" stroke-width="1.4" />
+              <line x1="7" y1="78" x2="85" y2="78" stroke="#ffffff" stroke-width="1.4" />
+              <circle cx="46" cy="78" r="14" fill="#ea580c" stroke="#ffffff" stroke-width="1.4" />
+              <rect x="-4" y="68" width="100" height="20" rx="10" fill="rgba(15, 23, 42, 0.88)" stroke="#ffffff" stroke-width="1.2" />
+              <text x="46" y="81.5" text-anchor="middle" fill="#ffffff"
+                font-family="'Space Grotesk', 'Inter', sans-serif" font-weight="700" font-size="8.5" letter-spacing="0.4">
+                BASKETBALL COURT
+              </text>
+            </g>
+
+            <!-- 1. CENTER COURT: FOOTBALL FIELD + SPECTATOR BLEACHERS -->
+            <g transform="translate(1055, 1448)">
+              <!-- Left & Right Spectator Bleacher Stands -->
+              <g fill="#dfd5c2" stroke="#3e3832" stroke-width="1.6">
+                <rect x="-20" y="14" width="14" height="36" rx="2" />
+                <rect x="-20" y="58" width="14" height="36" rx="2" />
+                <rect x="-20" y="102" width="14" height="36" rx="2" />
+                <rect x="-20" y="146" width="14" height="36" rx="2" />
+                <rect x="-20" y="190" width="14" height="36" rx="2" />
+                <rect x="166" y="14" width="14" height="36" rx="2" />
+                <rect x="166" y="58" width="14" height="36" rx="2" />
+                <rect x="166" y="102" width="14" height="36" rx="2" />
+                <rect x="166" y="146" width="14" height="36" rx="2" />
+                <rect x="166" y="190" width="14" height="36" rx="2" />
+              </g>
+
+              <!-- Football Pitch Turf & Stripes -->
+              <rect x="0" y="0" width="160" height="240" rx="5" fill="#3f8f46" stroke="#3e3832" stroke-width="2.4" />
+              <g fill="#4ca154">
+                <rect x="6" y="10" width="148" height="26" />
+                <rect x="6" y="62" width="148" height="26" />
+                <rect x="6" y="114" width="148" height="26" />
+                <rect x="6" y="166" width="148" height="26" />
+              </g>
+              <rect x="8" y="8" width="144" height="224" fill="none" stroke="#ffffff" stroke-width="2" />
+              <line x1="8" y1="120" x2="152" y2="120" stroke="#ffffff" stroke-width="2" />
+              <circle cx="80" cy="120" r="24" fill="none" stroke="#ffffff" stroke-width="2" />
+              <circle cx="80" cy="120" r="3" fill="#ffffff" />
+              <!-- Penalty Boxes -->
+              <rect x="36" y="8" width="88" height="38" fill="none" stroke="#ffffff" stroke-width="1.8" />
+              <rect x="56" y="8" width="48" height="16" fill="none" stroke="#ffffff" stroke-width="1.6" />
+              <rect x="36" y="194" width="88" height="38" fill="none" stroke="#ffffff" stroke-width="1.8" />
+              <rect x="56" y="216" width="48" height="16" fill="none" stroke="#ffffff" stroke-width="1.6" />
+
+              <rect x="24" y="92" width="112" height="22" rx="11" fill="rgba(15, 23, 42, 0.88)" stroke="#ffffff" stroke-width="1.4" />
+              <text x="80" y="106.5" text-anchor="middle" fill="#ffffff"
+                font-family="'Space Grotesk', 'Inter', sans-serif" font-weight="700" font-size="10.5" letter-spacing="0.6">
+                FOOTBALL FIELD
+              </text>
+            </g>
+
+            <!-- 2. RIGHT COURT: HANDBALL COURT -->
+            <g transform="translate(1252, 1480)">
+              <rect x="0" y="0" width="92" height="156" rx="4" fill="#ea8a35" stroke="#3e3832" stroke-width="2.2" />
+              <rect x="7" y="7" width="78" height="142" fill="none" stroke="#ffffff" stroke-width="1.6" />
+              <path d="M 12,7 A 34,28 0 0,0 80,7" fill="#3b82f6" stroke="#ffffff" stroke-width="1.5" />
+              <path d="M 7,20 A 42,36 0 0,0 85,20" fill="none" stroke="#ffffff" stroke-width="1.3" stroke-dasharray="4 3" />
+              <path d="M 12,149 A 34,28 0 0,1 80,149" fill="#3b82f6" stroke="#ffffff" stroke-width="1.5" />
+              <path d="M 7,136 A 42,36 0 0,1 85,136" fill="none" stroke="#ffffff" stroke-width="1.3" stroke-dasharray="4 3" />
+              <line x1="7" y1="78" x2="85" y2="78" stroke="#ffffff" stroke-width="1.5" />
+              <circle cx="46" cy="78" r="12" fill="none" stroke="#ffffff" stroke-width="1.4" />
+              <rect x="-4" y="68" width="100" height="20" rx="10" fill="rgba(15, 23, 42, 0.88)" stroke="#ffffff" stroke-width="1.2" />
+              <text x="46" y="81.5" text-anchor="middle" fill="#ffffff"
+                font-family="'Space Grotesk', 'Inter', sans-serif" font-weight="700" font-size="8.5" letter-spacing="0.4">
+                HANDBALL COURT
+              </text>
+            </g>
+          </g>
+
+          <!-- ==================== BOTANICAL GARDENS & GRAND ENTRANCE PARK ==================== -->
+          <g id="zone-botanical-gardens">
+            <!-- Outer Curved Sandstone Garden Base & Sweeping Pedestrian Promenade -->
+            <path d="M 852 1810 L 1362 1810 L 1362 2175 C 1362 2238, 1320 2262, 1255 2262 L 955 2262 C 890 2262, 852 2238, 852 2175 Z"
+              fill="#f3e8d2" stroke="#3e3832" stroke-width="2.6" />
+            <path d="M 860 1818 L 1354 1818 L 1354 2172 C 1354 2230, 1314 2254, 1250 2254 L 960 2254 C 896 2254, 860 2230, 860 2172 Z"
+              fill="url(#sandstone-paving)" opacity="0.55" />
+
+            <!-- 1. Upper-Left Curved Lawn Bed (Two-Tone Velvet Turf) -->
+            <path d="M 868 1838 Q 985 1806 1098 1848 L 1012 1962 Q 896 1916 868 1838 Z"
+              fill="#74b94d" stroke="#3e3832" stroke-width="2.2" />
+            <path d="M 888 1852 Q 982 1828 1072 1860 L 1004 1942 Q 912 1906 888 1852 Z"
+              fill="#49873d" />
+
+            <!-- 2. Upper-Center Left Teardrop Lawn Sector -->
+            <path d="M 1028 1978 Q 1118 1882 1122 1852 L 1124 2032 Q 1068 2020 1028 1978 Z"
+              fill="#74b94d" stroke="#3e3832" stroke-width="2.2" />
+            <path d="M 1048 1972 Q 1108 1902 1112 1878 L 1114 2016 Q 1074 2006 1048 1972 Z"
+              fill="#3d7833" />
+
+            <!-- 3. Upper-Center Right Teardrop Lawn Sector -->
+            <path d="M 1146 1852 Q 1236 1888 1274 1974 Q 1212 2016 1146 2032 Z"
+              fill="#74b94d" stroke="#3e3832" stroke-width="2.2" />
+            <path d="M 1158 1878 Q 1224 1908 1252 1968 Q 1204 2002 1158 2014 Z"
+              fill="#3d7833" />
+
+            <!-- 4. Mid-Left Crescent Botanical Lawn Sector -->
+            <path d="M 868 1978 Q 966 1988 1026 2072 L 916 2174 Q 846 2088 868 1978 Z"
+              fill="#74b94d" stroke="#3e3832" stroke-width="2.2" />
+            <path d="M 884 2002 Q 956 2010 1002 2072 L 918 2148 Q 866 2080 884 2002 Z"
+              fill="#49873d" />
+
+            <!-- 5. Mid-Right Botanical Lawn Sector -->
+            <path d="M 1244 2072 Q 1304 2004 1348 2022 Q 1362 2116 1312 2180 L 1222 2124 Z"
+              fill="#74b94d" stroke="#3e3832" stroke-width="2.2" />
+            <path d="M 1260 2076 Q 1304 2026 1336 2040 Q 1346 2108 1306 2158 L 1242 2118 Z"
+              fill="#49873d" />
+
+            <!-- 6. Lower-Left Entrance Garden Bed -->
+            <path d="M 942 2196 Q 1032 2132 1088 2148 L 1034 2232 Q 974 2224 942 2196 Z"
+              fill="#74b94d" stroke="#3e3832" stroke-width="2" />
+            <path d="M 964 2194 Q 1030 2148 1070 2160 L 1028 2218 Z"
+              fill="#3d7833" />
+
+            <!-- 7. Lower-Right Entrance Garden Bed -->
+            <path d="M 1182 2148 Q 1238 2132 1300 2196 Q 1272 2224 1232 2232 Z"
+              fill="#74b94d" stroke="#3e3832" stroke-width="2" />
+            <path d="M 1198 2160 Q 1238 2148 1280 2194 L 1236 2218 Z"
+              fill="#3d7833" />
+
+            <!-- 8. Grand Crescent Welcome Island Directly Inside Main Gate -->
+            <path d="M 1044 2246 Q 1135 2178 1226 2246 Q 1135 2256 1044 2246 Z"
+              fill="#74b94d" stroke="#3e3832" stroke-width="2.2" />
+            <path d="M 1072 2242 Q 1135 2196 1198 2242 Z"
+              fill="#3d7833" />
+
+            <!-- Central Ornate Multi-Tiered Fountain & Botanical Plaza -->
+            <circle cx="1135" cy="2095" r="52" fill="#e9dec7" stroke="#cbb898" stroke-width="2" />
+            <circle cx="1135" cy="2095" r="42" fill="#f7efe0" stroke="#3e3832" stroke-width="2.2" />
+            <circle cx="1135" cy="2095" r="28" fill="#68b048" stroke="#3e3832" stroke-width="2" />
+            <circle cx="1135" cy="2095" r="17" fill="#38bdf8" stroke="#3e3832" stroke-width="1.8" />
+            <circle cx="1135" cy="2095" r="10" fill="#bae6fd" opacity="0.75" />
+            <circle cx="1135" cy="2095" r="4.5" fill="#ffffff" stroke="#0284c7" stroke-width="1.2" />
+
+            <!-- Circular Garden Gazebo & Eastern Study Pergolas -->
+            <g>
+              <circle cx="1238" cy="1820" r="26" fill="#dfd5c2" stroke="#3e3832" stroke-width="2" />
+              <circle cx="1238" cy="1814" r="16" fill="#cbc0ab" stroke="#3e3832" stroke-width="1.6" />
+              <rect x="1265" y="1858" width="22" height="36" transform="rotate(28 1276 1876)" fill="#e4dac8" stroke="#3e3832" stroke-width="1.8" />
+              <rect x="1292" y="1882" width="32" height="44" transform="rotate(28 1308 1904)" fill="#e4dac8" stroke="#3e3832" stroke-width="1.8" />
+            </g>
+
+            <!-- Garden Study Tables & Benches (East Sector) -->
+            <use href="#student-table-set" x="1290" y="1965" />
+            <use href="#student-table-set" x="1325" y="1992" />
+            <use href="#student-bench-h" x="1282" y="2014" />
+            <use href="#student-bench-h" x="1325" y="2030" />
+            <use href="#student-bench-h" x="1038" y="2038" transform="rotate(-38 1038 2038)" />
+            <use href="#student-bench-h" x="1232" y="2038" transform="rotate(38 1232 2038)" />
+          </g>
+
+          <!-- ==================== SOUTHERN MAIN ENTRANCE GATEHOUSE & LANDSCAPED FORECOURT ==================== -->
+          <g id="zone-main-gatehouse">
+            <!-- Entrance Crosswalk & Decorative Cobblestone Forecourt Apron -->
+            <rect x="1068" y="2262" width="134" height="58" rx="4" fill="#d8cbb8" stroke="#3e3832" stroke-width="1.8" />
+            <g fill="#f3ead8" opacity="0.85">
+              <rect x="1078" y="2308" width="14" height="24" rx="2" />
+              <rect x="1102" y="2308" width="14" height="24" rx="2" />
+              <rect x="1126" y="2308" width="14" height="24" rx="2" />
+              <rect x="1150" y="2308" width="14" height="24" rx="2" />
+              <rect x="1174" y="2308" width="14" height="24" rx="2" />
+            </g>
+
+            <!-- Left & Right Perimeter Gate Walls with Decorative Terracotta Piers -->
+            <rect x="845" y="2294" width="218" height="16" fill="#e4dac8" stroke="#3e3832" stroke-width="2.2" />
+            <rect x="845" y="2290" width="24" height="24" rx="2" fill="#d9895b" stroke="#3e3832" stroke-width="2" />
+            <rect x="945" y="2292" width="18" height="20" rx="2" fill="#d9895b" stroke="#3e3832" stroke-width="1.8" />
+
+            <rect x="1206" y="2294" width="184" height="16" fill="#e4dac8" stroke="#3e3832" stroke-width="2.2" />
+            <rect x="1295" y="2292" width="18" height="20" rx="2" fill="#d9895b" stroke="#3e3832" stroke-width="1.8" />
+            <rect x="1368" y="2290" width="24" height="24" rx="2" fill="#d9895b" stroke="#3e3832" stroke-width="2" />
+
+            <!-- Twin Terracotta Gatehouses & Spanning Overhead Portal Canopy -->
+            <rect x="1058" y="2278" width="38" height="48" rx="3" fill="#d9895b" stroke="#3e3832" stroke-width="2.2" />
+            <rect x="1063" y="2283" width="28" height="34" rx="2" fill="#e4dac8" stroke="#3e3832" stroke-width="1.6" />
+            <rect x="1174" y="2278" width="38" height="48" rx="3" fill="#d9895b" stroke="#3e3832" stroke-width="2.2" />
+            <rect x="1179" y="2283" width="28" height="34" rx="2" fill="#e4dac8" stroke="#3e3832" stroke-width="1.6" />
+
+            <!-- Overhead Gate Arch & Roof -->
+            <rect x="1052" y="2268" width="166" height="24" rx="4" fill="#e4dac8" stroke="#3e3832" stroke-width="2.5" />
+            <rect x="1060" y="2274" width="150" height="12" fill="#d5c7b0" stroke="#8c7b65" stroke-width="1.4" />
+          </g>
+
+          <!-- ==================== 4. LUSH SCALLOPED ORGANIC TREES & ENTRANCE LANDSCAPING ==================== -->
+          <g id="campus-trees" class="pointer-events-none">
+            <!-- Zone #09 Northernmost Trees -->
+            <use href="#tree-md" x="774" y="25" />
+            <use href="#tree-sm" x="774" y="85" />
+            <use href="#tree-cluster-lg" x="1125" y="32" />
+            <use href="#tree-md" x="1215" y="28" />
+            <use href="#tree-cluster-lg" x="1298" y="34" />
+
+            <!-- Hedge Row Between Building #09 Plaza & Horse Arena / Octagon -->
+            <rect x="850" y="106" width="165" height="12" rx="6" fill="#3c5e2c" stroke="#283f1d" stroke-width="1.8" />
+            <use href="#tree-sm" x="895" y="112" />
+            <use href="#tree-sm" x="945" y="112" />
+            <use href="#tree-sm" x="995" y="112" />
+
+            <!-- 3 Large Scalloped Shade Trees in #01 East Student Seating Courtyard -->
+            <use href="#tree-cluster-lg" x="1178" y="334" />
+            <use href="#tree-cluster-lg" x="1288" y="314" />
+            <use href="#tree-cluster-lg" x="1242" y="384" />
+            <use href="#tree-md" x="1096" y="346" />
+            <use href="#tree-sm" x="1078" y="378" />
+            <use href="#tree-sm" x="1194" y="252" />
+            <use href="#tree-sm" x="1238" y="246" />
+            <rect x="1050" y="382" width="14" height="62" rx="7" fill="#3c5e2c" stroke="#283f1d" stroke-width="1.8" />
+            <use href="#tree-sm" x="1057" y="394" />
+            <use href="#tree-sm" x="1057" y="422" />
+
+            <!-- Far-Left Boundary Wall Trees Alongside Horse Arena & West Annex -->
+            <use href="#tree-md" x="768" y="215" />
+            <use href="#tree-cluster-lg" x="772" y="285" />
+            <use href="#tree-cluster-lg" x="774" y="365" />
+            <use href="#tree-md" x="776" y="430" />
+
+            <!-- Zone #02 Quad Dense Scalloped Tree Grove & Buffer Row Above #03 -->
+            <use href="#tree-grove-wide" x="888" y="665" />
+            <use href="#tree-cluster-lg" x="935" y="705" />
+            <use href="#tree-cluster-lg" x="848" y="710" />
+            <use href="#tree-md" x="855" y="510" />
+            <use href="#tree-sm" x="948" y="495" />
+
+            <use href="#tree-cluster-lg" x="975" y="838" />
+            <use href="#tree-grove-wide" x="1115" y="822" />
+            <use href="#tree-cluster-lg" x="1195" y="818" />
+            <use href="#tree-md" x="912" y="858" />
+
+            <!-- Zone #03 Courtyard Trees -->
+            <use href="#tree-cluster-lg" x="1032" y="1048" />
+            <use href="#tree-md" x="1152" y="1042" />
+            <use href="#tree-md" x="1162" y="1110" />
+            <use href="#tree-md" x="1168" y="1188" />
+            <use href="#tree-cluster-lg" x="1312" y="1095" />
+            <use href="#tree-md" x="1285" y="1165" />
+            <use href="#tree-sm" x="1038" y="1245" />
+            <use href="#tree-sm" x="1078" y="1258" />
+
+            <!-- Sports Complex Perimeter Trees -->
+            <use href="#tree-md" x="825" y="1365" />
+            <use href="#tree-cluster-lg" x="815" y="1465" />
+            <use href="#tree-md" x="815" y="1610" />
+            <use href="#tree-cluster-lg" x="822" y="1725" />
+            <use href="#tree-md" x="1412" y="1450" />
+            <use href="#tree-cluster-lg" x="1415" y="1590" />
+            <use href="#tree-md" x="1410" y="1715" />
+
+            <!-- ==================== RICH ENTRANCE & BOTANICAL GARDEN FOLIAGE ==================== -->
+            <!-- Upper Garden Border Canopy Row (Below Sports Complex) -->
+            <use href="#tree-cluster-lg" x="835" y="1802" />
+            <use href="#tree-grove-wide" x="905" y="1822" />
+            <use href="#tree-md" x="985" y="1805" />
+            <use href="#tree-sm" x="1045" y="1822" />
+            <use href="#tree-md" x="1335" y="1795" />
+            <use href="#tree-cluster-lg" x="1395" y="1835" />
+
+            <!-- 6 Symmetrical Botanical Palm Trees Framing the Central Fountain & Welcome Walk -->
+            <use href="#palm-tree" x="1074" y="2056" />
+            <use href="#palm-tree" x="1196" y="2056" />
+            <use href="#palm-tree" x="1078" y="2138" />
+            <use href="#palm-tree" x="1192" y="2138" />
+            <use href="#palm-tree" x="1028" y="2088" />
+            <use href="#palm-tree" x="1242" y="2088" />
+
+            <!-- Sculpted Canopy Groves Inside the Curved Garden Beds -->
+            <use href="#tree-cluster-lg" x="948" y="1882" />
+            <use href="#tree-md" x="1012" y="1905" />
+            <use href="#tree-md" x="1088" y="1942" />
+            <use href="#tree-cluster-lg" x="1212" y="1928" />
+            <use href="#tree-sm" x="1175" y="1888" />
+
+            <use href="#tree-cluster-lg" x="922" y="2058" />
+            <use href="#tree-md" x="958" y="2115" />
+            <use href="#tree-cluster-lg" x="1308" y="2105" />
+            <use href="#tree-md" x="1272" y="2148" />
+
+            <!-- Beaded Ornamental Topiary Shrub Rows Along the Curved Walks -->
+            <use href="#tree-sm" x="888" y="1948" />
+            <use href="#tree-sm" x="916" y="1962" />
+            <use href="#tree-sm" x="946" y="1974" />
+            <use href="#tree-sm" x="976" y="1988" />
+
+            <use href="#flower-bush" x="1095" y="2038" />
+            <use href="#flower-bush" x="1175" y="2038" />
+            <use href="#flower-bush" x="1095" y="2152" />
+            <use href="#flower-bush" x="1175" y="2152" />
+            <use href="#flower-bush" x="1102" y="2228" />
+            <use href="#flower-bush" x="1135" y="2218" />
+            <use href="#flower-bush" x="1168" y="2228" />
+
+            <!-- Left & Right Perimeter Tree Avenues Framing the Entrance Curve -->
+            <use href="#tree-md" x="792" y="1895" />
+            <use href="#tree-cluster-lg" x="795" y="1975" />
+            <use href="#tree-md" x="802" y="2055" />
+            <use href="#tree-cluster-lg" x="808" y="2135" />
+            <use href="#tree-md" x="822" y="2210" />
+            <use href="#tree-grove-wide" x="885" y="2268" />
+            <use href="#tree-md" x="995" y="2268" />
+
+            <use href="#tree-md" x="1412" y="1915" />
+            <use href="#tree-cluster-lg" x="1410" y="1995" />
+            <use href="#tree-md" x="1408" y="2075" />
+            <use href="#tree-cluster-lg" x="1402" y="2155" />
+            <use href="#tree-grove-wide" x="1355" y="2255" />
+            <use href="#tree-md" x="1255" y="2268" />
+
+            <!-- Grand Gatehouse Flanking Trees -->
+            <use href="#tree-cluster-lg" x="1032" y="2292" />
+            <use href="#tree-cluster-lg" x="1238" y="2292" />
+            <use href="#palm-tree" x="1042" y="2252" />
+            <use href="#palm-tree" x="1228" y="2252" />
+          </g>
+
+          <!-- ==================== 5. BUILDING NUMBER PINS (#01, #02, #03, #04, #09 ONLY) ==================== -->
+          <g id="map-pins-layer"><g transform="translate(1034,256)"><circle r="24" fill="#9e5b53"/><text y="6" text-anchor="middle" fill="white" font-size="17">#01</text></g></g>
+
+        </g>
+      </g>
+    <g transform="translate(1205,632)"><circle r="24" fill="#d4744a"/><text y="6" text-anchor="middle" fill="white" font-size="17">#02</text></g><g transform="translate(1125,962)"><circle r="24" fill="#3d6078"/><text y="6" text-anchor="middle" fill="white" font-size="17">#03</text></g><g transform="translate(1234,174)"><circle r="24" fill="#6a994e"/><text y="6" text-anchor="middle" fill="white" font-size="17">#04</text></g><g transform="translate(912,36)"><circle r="24" fill="#7e57c2"/><text y="6" text-anchor="middle" fill="white" font-size="17">#09</text></g></svg>

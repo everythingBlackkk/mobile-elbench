@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ElBench × البنش</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      background-color: #000000;
+      color: #ffffff;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      overflow: hidden;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      gap: 24px;
+    }
+
+    .stage {
+      width: min(96vw, 920px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: #000000;
+    }
+
+    svg {
+      width: 100%;
+      height: auto;
+      max-height: 72vh;
+      display: block;
+      overflow: visible;
+    }
+
+    .replay-btn {
+      background-color: #000000;
+      color: rgba(255, 255, 255, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      padding: 9px 22px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 500;
+      letter-spacing: 0.02em;
+      cursor: pointer;
+      transition: color 0.15s ease, border-color 0.15s ease, transform 0.12s ease;
+    }
+
+    .replay-btn:hover {
+      color: #ffffff;
+      border-color: rgba(255, 255, 255, 0.55);
+    }
+
+    .replay-btn:active {
+      transform: scale(0.96);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="stage">
+    <svg id="bilingual-svg" viewBox="0 0 1000 440" width="1000" height="440" xmlns="http://www.w3.org/2000/svg" aria-label="ElBench and البنش intertwined animation">
+
+      <!-- ===================================================================
+           LAYER 1 (BACK): English Letters that pass BEHIND the main Arabic body
+           ('l', 'e', 'c')
+           =================================================================== -->
+      <g id="layer-en-back" fill-rule="evenodd">
+        <!-- l -->
+        <path class="en-letter" data-index="1"
+          d="M 258 140 L 282 140 L 282 238 L 258 238 Z"
+          fill="#FFFFFF" fill-opacity="0" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+
+        <!-- e -->
+        <path class="en-letter" data-index="3"
+          d="M 424 168 L 496 168 L 496 182 L 508 182 L 508 210 L 436 210 L 436 224 L 496 224 L 496 238 L 424 238 L 424 224 L 412 224 L 412 182 L 424 182 Z M 436 182 L 436 196 L 484 196 L 484 182 Z"
+          fill="#FFFFFF" fill-opacity="0" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+
+        <!-- c -->
+        <path class="en-letter" data-index="5"
+          d="M 648 168 L 720 168 L 720 182 L 660 182 L 660 224 L 720 224 L 720 238 L 648 238 L 648 224 L 636 224 L 636 182 L 648 182 Z"
+          fill="#FFFFFF" fill-opacity="0" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+      </g>
+
+      <!-- ===================================================================
+           LAYER 2 (MIDDLE-BACK): Main Arabic Calligraphic Body ("لبنش")
+           Weaves IN FRONT OF 'c', 'e', 'l' and BEHIND 'h', 'n', 'B', 'E'
+           =================================================================== -->
+      <g id="layer-ar-main" fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <!-- Black separator backing for clean weave over 'c', 'e', 'l' -->
+        <path id="ar-main-cutout"
+          d="M 792 108 C 796 158, 800 212, 796 238 C 793 254, 780 260, 756 260 L 724 260 C 704 260, 694 242, 688 198 C 682 242, 670 258, 646 258 L 614 258 C 592 258, 580 240, 574 196 C 568 240, 558 258, 542 258 C 526 258, 520 236, 516 186 C 512 232, 502 250, 490 250 C 476 250, 468 234, 462 198 C 456 234, 446 250, 432 250 C 416 250, 408 232, 402 186 C 396 244, 374 282, 316 288 C 254 292, 188 292, 150 284 C 116 276, 108 232, 124 190"
+          stroke="#000000" stroke-width="30" />
+
+        <!-- Green Arabic Main Ribbon -->
+        <path id="ar-main-stroke"
+          d="M 792 108 C 796 158, 800 212, 796 238 C 793 254, 780 260, 756 260 L 724 260 C 704 260, 694 242, 688 198 C 682 242, 670 258, 646 258 L 614 258 C 592 258, 580 240, 574 196 C 568 240, 558 258, 542 258 C 526 258, 520 236, 516 186 C 512 232, 502 250, 490 250 C 476 250, 468 234, 462 198 C 456 234, 446 250, 432 250 C 416 250, 408 232, 402 186 C 396 244, 374 282, 316 288 C 254 292, 188 292, 150 284 C 116 276, 108 232, 124 190"
+          stroke="#169B1E" stroke-width="23" />
+      </g>
+
+      <!-- ===================================================================
+           LAYER 3 (MIDDLE-FRONT): English Letters that pass IN FRONT OF the
+           main Arabic ribbon ('E', 'B', 'n', 'h')
+           =================================================================== -->
+      <g id="layer-en-front" fill-rule="evenodd">
+        <!-- Black separator cutouts so 'E', 'B', 'n', 'h' cross cleanly over green -->
+        <path class="en-cutout" data-index="0"
+          d="M 144 140 L 240 140 L 240 154 L 168 154 L 168 182 L 228 182 L 228 196 L 168 196 L 168 224 L 240 224 L 240 238 L 144 238 Z"
+          fill="none" stroke="#000000" stroke-width="6" stroke-linejoin="round" stroke-opacity="0" />
+        <path class="en-cutout" data-index="2"
+          d="M 300 140 L 384 140 L 384 154 L 396 154 L 396 182 L 384 182 L 384 196 L 396 196 L 396 224 L 384 224 L 384 238 L 300 238 Z M 324 154 L 324 182 L 372 182 L 372 154 Z M 324 196 L 324 224 L 372 224 L 372 196 Z"
+          fill="none" stroke="#000000" stroke-width="6" stroke-linejoin="round" stroke-opacity="0" />
+        <path class="en-cutout" data-index="4"
+          d="M 524 168 L 608 168 L 608 182 L 620 182 L 620 238 L 596 238 L 596 182 L 548 182 L 548 238 L 524 238 Z"
+          fill="none" stroke="#000000" stroke-width="6" stroke-linejoin="round" stroke-opacity="0" />
+        <path class="en-cutout" data-index="6"
+          d="M 736 140 L 760 140 L 760 168 L 820 168 L 820 182 L 832 182 L 832 238 L 808 238 L 808 182 L 760 182 L 760 238 L 736 238 Z"
+          fill="none" stroke="#000000" stroke-width="6" stroke-linejoin="round" stroke-opacity="0" />
+
+        <!-- E -->
+        <path class="en-letter" data-index="0"
+          d="M 144 140 L 240 140 L 240 154 L 168 154 L 168 182 L 228 182 L 228 196 L 168 196 L 168 224 L 240 224 L 240 238 L 144 238 Z"
+          fill="#FFFFFF" fill-opacity="0" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+
+        <!-- B -->
+        <path class="en-letter" data-index="2"
+          d="M 300 140 L 384 140 L 384 154 L 396 154 L 396 182 L 384 182 L 384 196 L 396 196 L 396 224 L 384 224 L 384 238 L 300 238 Z M 324 154 L 324 182 L 372 182 L 372 154 Z M 324 196 L 324 224 L 372 224 L 372 196 Z"
+          fill="#FFFFFF" fill-opacity="0" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+
+        <!-- n -->
+        <path class="en-letter" data-index="4"
+          d="M 524 168 L 608 168 L 608 182 L 620 182 L 620 238 L 596 238 L 596 182 L 548 182 L 548 238 L 524 238 Z"
+          fill="#FFFFFF" fill-opacity="0" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+
+        <!-- h -->
+        <path class="en-letter" data-index="6"
+          d="M 736 140 L 760 140 L 760 168 L 820 168 L 820 182 L 832 182 L 832 238 L 808 238 L 808 182 L 760 182 L 760 238 L 736 238 Z"
+          fill="#FFFFFF" fill-opacity="0" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+      </g>
+
+      <!-- ===================================================================
+           LAYER 4 (TOP OVER-WEAVE): Arabic Alif, Sheen Loop Crossover Slash,
+           Sheen Wave Caret, and Calligraphic Dots
+           =================================================================== -->
+      <g id="layer-ar-front" fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <!-- Standalone right Alif (ا) -->
+        <path id="ar-alif-stroke"
+          d="M 854 108 C 857 156, 858 212, 855 262"
+          stroke="#169B1E" stroke-width="23" />
+
+        <!-- Black separator for the diagonal loop crossover (starts just after apex so loop join is seamless) -->
+        <path id="ar-slash-cutout"
+          d="M 140 176 C 166 172, 188 194, 206 218 C 242 266, 280 328, 314 386"
+          stroke="#000000" stroke-width="21" />
+
+        <!-- Sheen left loop return & diagonal slash across 'E', 'l', and lower bowl -->
+        <path id="ar-slash-stroke"
+          d="M 124 190 C 138 166, 174 176, 206 218 C 242 266, 280 328, 314 386"
+          stroke="#169B1E" stroke-width="15" />
+
+        <!-- Calligraphic wave / caret above Sheen (ش) -->
+        <path id="ar-caret-stroke"
+          d="M 508 144 C 494 156, 476 156, 462 136 C 446 146, 430 150, 414 142"
+          stroke="#169B1E" stroke-width="14" />
+
+        <!-- Calligraphic Dots (Ba, Nun, Sheen Top) -->
+        <ellipse id="ar-dot-ba" cx="688" cy="296" rx="15" ry="11.5" fill="#169B1E" />
+        <circle id="ar-dot-nun" cx="574" cy="140" r="13.5" fill="#169B1E" />
+        <ellipse id="ar-dot-sheen" cx="460" cy="100" rx="10.5" ry="15.5" transform="rotate(-28 460 100)" fill="#169B1E" />
+      </g>
+
+    </svg>
+  </div>
+
+  <button class="replay-btn" id="replay-btn" type="button">↻ Replay</button>
+
+  <script>
+    (function () {
+      // Easing utilities
+      function clamp01(t) {
+        return t < 0 ? 0 : t > 1 ? 1 : t;
+      }
+
+      function easeInOutCubic(t) {
+        t = clamp01(t);
+        return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+      }
+
+      function easeOutCubic(t) {
+        t = clamp01(t);
+        return 1 - Math.pow(1 - t, 3);
+      }
+
+      function easeOutBack(t) {
+        t = clamp01(t);
+        const c1 = 1.70158;
+        const c3 = c1 + 1;
+        return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
+      }
+
+      // Collect and measure English letter paths
+      const enLetters = Array.from(document.querySelectorAll('.en-letter')).map(el => {
+        const idx = parseInt(el.getAttribute('data-index'), 10);
+        const len = el.getTotalLength();
+        el.style.strokeDasharray = len;
+        el.style.strokeDashoffset = len;
+        return { el, idx, len };
+      });
+
+      const enCutouts = Array.from(document.querySelectorAll('.en-cutout')).map(el => {
+        const idx = parseInt(el.getAttribute('data-index'), 10);
+        return { el, idx };
+      });
+
+      // Collect and measure Arabic stroke paths
+      function prepareStroke(id) {
+        const el = document.getElementById(id);
+        const len = el.getTotalLength();
+        el.style.strokeDasharray = len;
+        el.style.strokeDashoffset = len;
+        return { el, len };
+      }
+
+      const arAlif = prepareStroke('ar-alif-stroke');
+      const arMain = prepareStroke('ar-main-stroke');
+      const arMainCutout = prepareStroke('ar-main-cutout');
+      const arSlash = prepareStroke('ar-slash-stroke');
+      const arSlashCutout = prepareStroke('ar-slash-cutout');
+      const arCaret = prepareStroke('ar-caret-stroke');
+
+      // Collect Arabic dots
+      const dots = [
+        { el: document.getElementById('ar-dot-ba'), start: 680, dur: 320, cx: 688, cy: 296, rot: 0 },
+        { el: document.getElementById('ar-dot-nun'), start: 940, dur: 320, cx: 574, cy: 140, rot: 0 },
+        { el: document.getElementById('ar-dot-sheen'), start: 1420, dur: 340, cx: 460, cy: 100, rot: -28 }
+      ];
+
+      function setStrokeProgress(item, progress) {
+        const p = clamp01(progress);
+        item.el.style.strokeDashoffset = item.len * (1 - p);
+      }
+
+      let rafId = null;
+      let startTime = null;
+      const TOTAL_DURATION = 2250; // ms
+
+      function renderFrame(elapsed) {
+        // 1. Animate English letters (L -> R trace + solid white fill)
+        enLetters.forEach(item => {
+          const traceStart = item.idx * 110;
+          const traceDur = 680;
+          const fillStart = traceStart + 260;
+          const fillDur = 520;
+
+          const traceP = easeInOutCubic((elapsed - traceStart) / traceDur);
+          const fillP = easeOutCubic((elapsed - fillStart) / fillDur);
+
+          item.el.style.strokeDashoffset = item.len * (1 - traceP);
+          item.el.style.fillOpacity = fillP;
+
+          // Fade outline stroke gently once solid fill is complete
+          const strokeFade = 1 - clamp01((elapsed - (fillStart + 360)) / 300);
+          item.el.style.strokeOpacity = strokeFade;
+        });
+
+        enCutouts.forEach(item => {
+          const fillStart = item.idx * 110 + 260;
+          const fillP = easeOutCubic((elapsed - fillStart) / 520);
+          item.el.style.strokeOpacity = fillP;
+        });
+
+        // 2. Animate Arabic Calligraphy (R -> L continuous write-on)
+        // Standalone Alif (ا)
+        const alifP = easeInOutCubic((elapsed - 80) / 440);
+        setStrokeProgress(arAlif, alifP);
+
+        // Main continuous body (لبنش) up to left loop apex
+        const mainP = easeInOutCubic((elapsed - 220) / 1300);
+        setStrokeProgress(arMain, mainP);
+        setStrokeProgress(arMainCutout, mainP);
+
+        // Sheen Left Loop Over-Arch & Diagonal Slash (continues seamlessly from main body at 1500ms)
+        const slashP = easeOutCubic((elapsed - 1490) / 540);
+        setStrokeProgress(arSlash, slashP);
+        const slashCutoutP = easeOutCubic((elapsed - 1530) / 500);
+        setStrokeProgress(arSlashCutout, slashCutoutP);
+
+        // Sheen Caret Wave
+        const caretP = easeInOutCubic((elapsed - 1140) / 440);
+        setStrokeProgress(arCaret, caretP);
+
+        // 3. Animate Arabic Dots
+        dots.forEach(d => {
+          const raw = (elapsed - d.start) / d.dur;
+          if (raw <= 0) {
+            d.el.setAttribute('opacity', '0');
+          } else {
+            const s = easeOutBack(raw);
+            d.el.setAttribute('opacity', String(clamp01(raw * 2.5)));
+            const rotPart = d.rot ? ` rotate(${d.rot})` : '';
+            d.el.setAttribute(
+              'transform',
+              `translate(${d.cx}, ${d.cy})${rotPart} scale(${s}) translate(${-d.cx}, ${-d.cy})`
+            );
+          }
+        });
+      }
+
+      function tick(now) {
+        if (startTime === null) startTime = now;
+        const elapsed = now - startTime;
+        renderFrame(elapsed);
+
+        if (elapsed < TOTAL_DURATION) {
+          rafId = requestAnimationFrame(tick);
+        } else {
+          renderFrame(TOTAL_DURATION);
+          rafId = null;
+        }
+      }
+
+      function playAnimation() {
+        if (rafId !== null) {
+          cancelAnimationFrame(rafId);
+        }
+        startTime = null;
+        renderFrame(0);
+        rafId = requestAnimationFrame(tick);
+      }
+
+      document.getElementById('replay-btn').addEventListener('click', playAnimation);
+
+      // Start automatically on load
+      playAnimation();
+    })();
+  </script>
+</body>
+</html>
