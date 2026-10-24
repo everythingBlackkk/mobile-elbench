@@ -12,6 +12,7 @@ import 'screens.dart';
 import 'web_motion.dart';
 import 'launch_experience.dart';
 import 'page_store.dart';
+import 'scroll_physics.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -160,6 +161,7 @@ class _ElBenchAppState extends State<ElBenchApp> with WidgetsBindingObserver {
   Widget build(BuildContext context) => MaterialApp(
     title: 'ElBench',
     debugShowCheckedModeBanner: false,
+    scrollBehavior: const AppScrollBehavior(),
     navigatorKey: rootNavigator,
     theme: widget.settings.theme(Brightness.light),
     darkTheme: widget.settings.theme(Brightness.dark),

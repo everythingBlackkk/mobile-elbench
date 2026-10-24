@@ -57,8 +57,18 @@ class ImageDiskCache {
     return '${hash.toUnsigned(64).toRadixString(16)}-${url.length}';
   }
 
-  Future<Uint8List> load(String url) =>
-      _pending[url] ??= _load(url).whenComplete(() => _pending.remove(url));
+  Future<Uint8List> load(String url) {
+    final existing = _pending[url];
+    if (existing != null) return existing;
+    final request = _load(url);
+    _pending[url] = request;
+    // Block body on purpose: returning the removed future from whenComplete
+    // would make this load wait for itself and never finish.
+    request.whenComplete(() {
+      _pending.remove(url);
+    }).ignore();
+    return request;
+  }
 
   Future<Uint8List> _load(String url) async {
     File? file;

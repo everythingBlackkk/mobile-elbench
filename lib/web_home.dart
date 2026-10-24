@@ -367,6 +367,9 @@ class _WebHomeState extends State<WebHome> {
               child: ListView.custom(
                 padding: const EdgeInsets.fromLTRB(10, 40, 10, 180),
                 physics: const AlwaysScrollableScrollPhysics(),
+                // Build (and start loading photos for) posts about a screen
+                // ahead, so a fast fling doesn't reach unbuilt rows.
+                scrollCacheExtent: const ScrollCacheExtent.pixels(900),
                 childrenDelegate: _HomeChildrenDelegate(
                   (context, index) {
                     if (index < headerItems.length) {

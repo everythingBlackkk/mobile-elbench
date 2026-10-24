@@ -65,6 +65,10 @@ Only HTTPS is accepted, except for loopback and private LAN addresses.
   (`lib/image_cache.dart`) and decode at display size.
 - **Rendering:** comment lists build lazily, and persisted JSON is encoded and
   decoded off the UI thread.
+- **Scrolling:** flings carry about 30% further on iOS and 15% on Android
+  (`lib/scroll_physics.dart`) while keeping each platform's native bounce or
+  stretch, and the Home feed builds about a screen ahead so fast flings reach
+  ready posts with their photos already loading.
 
 Measured on an iPhone 11 (profile mode, 450 ms simulated server latency):
 opening a post went from 500 ms to 23 ms to first content, the first Profile
