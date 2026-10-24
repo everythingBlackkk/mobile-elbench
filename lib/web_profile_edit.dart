@@ -32,7 +32,7 @@ class _WebProfileEditState extends State<WebProfileEdit> {
   late Json person;
   late List<Json> skills;
   late String panel, avatar, banner;
-  String? major, city, job;
+  String? major, city, job, level, section;
   int? day, month, year;
   bool imageBanner = false, saving = false, skillBusy = false;
   String? error, success;
@@ -57,6 +57,8 @@ class _WebProfileEditState extends State<WebProfileEdit> {
     banner = value(person['banner_image']);
     imageBanner = banner.isNotEmpty;
     major = _selected(person['major']);
+    level = _selected(person['level']);
+    section = _selected(person['section']);
     city = _selected(person['city']);
     job = _selected(person['job']);
     final birth = DateTime.tryParse(value(person['birthdate']));
@@ -105,6 +107,8 @@ class _WebProfileEditState extends State<WebProfileEdit> {
       }
       final data = <String, dynamic>{
         'major': major,
+        'level': level,
+        'section': section,
         'city': city,
         'job': job,
         'birthdate': day != null && month != null && year != null
@@ -139,6 +143,8 @@ class _WebProfileEditState extends State<WebProfileEdit> {
           fieldErrors = exception.fields;
           if ([
             'major',
+            'level',
+            'section',
             'city',
             'birthdate',
             'job',
@@ -607,7 +613,7 @@ class _WebProfileEditState extends State<WebProfileEdit> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Text(
-                        value(person['username']),
+                        value(person['name']),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
@@ -659,6 +665,33 @@ class _WebProfileEditState extends State<WebProfileEdit> {
           'بياناتك بتساعد الناس تتعرف عليك.',
         ),
       ),
+      // Identity comes from the university records and can't be edited.
+      _LockedField(
+        label: tr('Student ID', 'الرقم الجامعي'),
+        text: value(person['university_id']),
+        ltr: true,
+      ),
+      const SizedBox(height: 15),
+      _LockedField(label: tr('Name', 'الاسم'), text: value(person['name'])),
+      const SizedBox(height: 15),
+      _LockedField(
+        label: tr('Gender', 'النوع'),
+        text: switch (value(person['gender'])) {
+          'Male' => tr('Male', 'ذكر'),
+          'Female' => tr('Female', 'أنثى'),
+          _ => '—',
+        },
+      ),
+      Padding(
+        padding: const EdgeInsets.only(top: 8, bottom: 15),
+        child: Text(
+          tr(
+            'Your student ID, name and gender come from the university records and can’t be changed.',
+            'الرقم الجامعي والاسم والنوع جايين من سجلات الجامعة ومينفعش تغيّرهم.',
+          ),
+          style: TextStyle(fontSize: 12.5, height: 1.45, color: colors.muted),
+        ),
+      ),
       _EditSelect(
         label: tr('Major', 'التخصص'),
         hint: tr('Choose your major', 'اختار تخصصك'),
@@ -668,6 +701,37 @@ class _WebProfileEditState extends State<WebProfileEdit> {
         onChanged: saving ? null : (v) => setState(() => major = v),
         error: errorFor('major'),
       ),
+      const SizedBox(height: 15),
+      _EditSelect(
+        label: tr('Level', 'الفرقة'),
+        hint: tr('Choose your level', 'اختار الفرقة'),
+        selected: level,
+        options: const ['1', '2', '3', '4'],
+        translate: (n) => tr('Level $n', 'الفرقة $n'),
+        onChanged: saving ? null : (v) => setState(() => level = v),
+        error: errorFor('level'),
+      ),
+      const SizedBox(height: 15),
+      _EditSelect(
+        label: tr('Section', 'السكشن'),
+        hint: tr('Choose your section', 'اختار السكشن'),
+        selected: section,
+        options: const ['1', '2', '3', '4', '5', '6'],
+        translate: (n) => tr('Section $n', 'سكشن $n'),
+        onChanged: saving ? null : (v) => setState(() => section = v),
+        error: errorFor('section'),
+      ),
+      if (section != null)
+        Padding(
+          padding: const EdgeInsets.only(top: 6),
+          child: Text(
+            tr(
+              'Group ${int.parse(section!).isOdd ? 1 : 2} (set by your section)',
+              'جروب ${int.parse(section!).isOdd ? 1 : 2} (بيتحدد من السكشن)',
+            ),
+            style: TextStyle(fontSize: 12.5, color: colors.muted),
+          ),
+        ),
       const SizedBox(height: 15),
       _EditSelect(
         label: tr('City', 'المحافظة'),
@@ -1290,6 +1354,46 @@ class _EditFieldLabel extends StatelessWidget {
       ],
     ],
   );
+}
+
+class _LockedField extends StatelessWidget {
+  const _LockedField({
+    required this.label,
+    required this.text,
+    this.ltr = false,
+  });
+  final String label, text;
+  final bool ltr;
+  @override
+  Widget build(BuildContext context) {
+    final colors = _EditColors(context);
+    return _EditFieldLabel(
+      label: label,
+      child: Container(
+        height: 47,
+        alignment: AlignmentDirectional.centerStart,
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        decoration: BoxDecoration(
+          color: colors.secondary,
+          border: Border.all(color: colors.border),
+          borderRadius: BorderRadius.circular(13),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                text,
+                textDirection: ltr ? TextDirection.ltr : null,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 16, color: colors.muted),
+              ),
+            ),
+            Icon(Icons.lock_outline, size: 16, color: colors.muted),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _EditSelect extends StatelessWidget {

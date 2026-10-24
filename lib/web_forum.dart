@@ -33,7 +33,7 @@ Json _questionPerson(Json question) {
   final avatar = value(question['avatar'], 'jko.webp');
   return {
     'id': question['user_id'],
-    'username': question['username'],
+    'name': question['name'],
     'university_id': question['university_id'],
     'avatar': avatar,
     'avatar_url':
@@ -443,7 +443,7 @@ class _ForumQuestionCard extends StatelessWidget {
                           crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
                             Text(
-                              value(person['username']),
+                              value(person['name']),
                               style: const TextStyle(
                                 fontSize: 14.4,
                                 fontWeight: FontWeight.w700,
@@ -854,7 +854,7 @@ class _CommunityComposerState extends State<_CommunityComposer> {
                         children: [
                           if (!editing) ...[
                             Text(
-                              value(c.user?['username']),
+                              value(c.user?['name']),
                               style: const TextStyle(
                                 fontSize: 15,
                                 height: 1.5,
@@ -1240,7 +1240,7 @@ class _QuestionAuthor extends StatelessWidget {
                   InkWell(
                     onTap: () => page.c.open('/users/${person['id']}'),
                     child: Text(
-                      value(person['username']),
+                      value(person['name']),
                       style: TextStyle(
                         fontSize: 15,
                         height: 1.5,
@@ -1676,7 +1676,7 @@ class WebModerate extends StatelessWidget {
                           children: [
                             const TextSpan(text: 'Submitted by '),
                             TextSpan(
-                              text: value(item['username']),
+                              text: value(item['name']),
                               style: TextStyle(
                                 fontWeight: FontWeight.w700,
                                 color: colors.text,

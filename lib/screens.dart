@@ -304,47 +304,12 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  void forgotPassword() {
-    final c = widget.controller;
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(
-          c.t('Forgot your password?', 'نسيت كلمة السر؟'),
-          textAlign: TextAlign.center,
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              c.t(
-                'To reset your password, email the administrator from your university email address at:',
-                'عشان تغير كلمة السر، ابعت رسالة للإدمن من خلال الإيميل الجامعي بتاعك على:',
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 12),
-            SelectableText(
-              'team@sahbak.site',
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.primary,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text(c.t('Got it', 'تمام، فهمت')),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  void forgotPassword() => Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      builder: (_) =>
+          WebSignupPage(controller: widget.controller, passwordReset: true),
+    ),
+  );
 }
 
 class ElBenchBrandLogo extends StatelessWidget {
@@ -1858,7 +1823,7 @@ class NativePageState extends State<NativePage> with RouteAware {
                   .ceil(),
             ),
       child: url.isEmpty
-          ? Text(value(person['username'], '?').characters.first.toUpperCase())
+          ? Text(value(person['name'], '?').characters.first.toUpperCase())
           : null,
     );
   }
@@ -1875,7 +1840,7 @@ class NativePageState extends State<NativePage> with RouteAware {
       children: [
         Flexible(
           child: Text(
-            value(person['username'], c.t('Member', 'عضو')),
+            value(person['name'], c.t('Member', 'عضو')),
             style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
           ),
         ),
@@ -2068,7 +2033,7 @@ class NativePageState extends State<NativePage> with RouteAware {
                                   value(
                                     object(
                                       data['profile_user'] ?? data['user'],
-                                    )['username'],
+                                    )['name'],
                                   ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
@@ -2396,8 +2361,8 @@ class NativePageState extends State<NativePage> with RouteAware {
   List<Widget> home() => [
     Text(
       c.t(
-        'Hey, ${c.user?['username'] ?? ''} 👋',
-        'أهلاً، ${c.user?['username'] ?? ''} 👋',
+        'Hey, ${c.user?['first_name'] ?? ''} 👋',
+        'أهلاً، ${c.user?['first_name'] ?? ''} 👋',
       ),
       style: Theme.of(context).textTheme.headlineSmall,
     ),
@@ -2715,7 +2680,7 @@ class NativePageState extends State<NativePage> with RouteAware {
             Padding(
               padding: const EdgeInsetsDirectional.only(start: 20, top: 12),
               child: Text(
-                '${object(reply['author'])['username'] ?? ''}: ${reply['content'] ?? ''}',
+                '${object(reply['author'])['name'] ?? ''}: ${reply['content'] ?? ''}',
               ),
             ),
         ],
@@ -2767,7 +2732,7 @@ class NativePageState extends State<NativePage> with RouteAware {
       children: [
         personLine({
           'id': item['user_id'],
-          'username': item['username'],
+          'name': item['name'],
           'avatar_url': item['avatar_url'],
         }, subtitle: date(item['created_at'])),
         InkWell(
@@ -2823,7 +2788,7 @@ class NativePageState extends State<NativePage> with RouteAware {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              value(item['username']),
+              value(item['name']),
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
@@ -3041,7 +3006,7 @@ class NativePageState extends State<NativePage> with RouteAware {
                 children: [
                   Flexible(
                     child: Text(
-                      value(person['username']),
+                      value(person['name']),
                       style: const TextStyle(
                         fontSize: 26,
                         fontWeight: FontWeight.w800,
@@ -3137,10 +3102,7 @@ class NativePageState extends State<NativePage> with RouteAware {
                 onPressed: own
                     ? () => c.open('/profile/edit')
                     : () => form(
-                        c.t(
-                          'Ask ${person['username']}',
-                          'اسأل ${person['username']}',
-                        ),
+                        c.t('Ask ${person['name']}', 'اسأل ${person['name']}'),
                         '/users/${person['id']}/ask',
                         [
                           FieldSpec(
@@ -3764,7 +3726,7 @@ class NativePageState extends State<NativePage> with RouteAware {
               item['message'] ??
                   item['title'] ??
                   item['actor_name'] ??
-                  object(item['actor'])['username'],
+                  object(item['actor'])['name'],
               label(value(item['type'])),
             ),
           ),
@@ -4141,7 +4103,7 @@ class NativePageState extends State<NativePage> with RouteAware {
               : value(comment['content']),
           author: comment.isEmpty
               ? null
-              : value(object(comment['author'])['username']),
+              : value(object(comment['author'])['name']),
         ),
       section(
         c.t('Current post', 'المنشور الحالي'),
@@ -4151,11 +4113,11 @@ class NativePageState extends State<NativePage> with RouteAware {
                 'تم حذف المنشور الأصلي. محتوى البلاغ محفوظ.',
               )
             : value(post['content']),
-        author: post.isEmpty ? null : value(object(post['author'])['username']),
+        author: post.isEmpty ? null : value(object(post['author'])['name']),
       ),
       for (final row in rows(data['comments']))
         section(
-          value(object(row['author'])['username']),
+          value(object(row['author'])['name']),
           value(row['content']),
           small: true,
         ),

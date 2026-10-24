@@ -105,7 +105,7 @@ class _WebProfileState extends State<WebProfile>
   bool get hasIdentity =>
       authorized &&
       value(object(profileData['profile_user'])['id']) == scope.profile &&
-      value(object(profileData['profile_user'])['username']).isNotEmpty;
+      value(object(profileData['profile_user'])['name']).isNotEmpty;
 
   @override
   void initState() {
@@ -696,7 +696,7 @@ class _WebProfileState extends State<WebProfile>
                           children: [
                             Flexible(
                               child: Text(
-                                value(person['username']),
+                                value(person['name']),
                                 key: const ValueKey('profile.identity'),
                                 style: const TextStyle(
                                   fontSize: 26,
@@ -721,6 +721,7 @@ class _WebProfileState extends State<WebProfile>
                             fontWeight: FontWeight.w500,
                           ),
                         ),
+                        _StudyPlacement(page: page, person: person),
                         Align(
                           alignment: AlignmentDirectional.centerStart,
                           child: Container(
@@ -1475,7 +1476,7 @@ class _ActivityItem extends StatelessWidget {
                   Flexible(
                     child: Text(
                       value(
-                        author['username'],
+                        author['name'],
                         page.c.t('Deleted user', 'مستخدم محذوف'),
                       ),
                       maxLines: 1,
@@ -1699,7 +1700,7 @@ class _AskThread extends StatelessWidget {
                         children: [
                           Text(
                             value(
-                              author['username'],
+                              author['name'],
                               page.c.t('Deleted user', 'مستخدم محذوف'),
                             ),
                             style: const TextStyle(
@@ -2251,7 +2252,7 @@ class _PeopleRow extends StatelessWidget {
                           children: [
                             Flexible(
                               child: Text(
-                                value(person['username']),
+                                value(person['name']),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
@@ -2596,8 +2597,8 @@ class _AskComposerState extends State<_AskComposer> {
           const SizedBox(height: 28),
           Text(
             page.c.t(
-              '${widget.recipient['username']} will see your name and profile picture.',
-              '${widget.recipient['username']} هيشوف اسمك وصورتك مع السؤال.',
+              '${widget.recipient['name']} will see your name and profile picture.',
+              '${widget.recipient['name']} هيشوف اسمك وصورتك مع السؤال.',
             ),
             style: TextStyle(color: colors.muted, fontSize: 15),
           ),
@@ -2647,7 +2648,7 @@ class _AskComposerState extends State<_AskComposer> {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  value(widget.recipient['username']),
+                  value(widget.recipient['name']),
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(fontSize: 12, color: colors.muted),
                 ),
@@ -2724,7 +2725,7 @@ Future<void> showWebProfileOptions(
   if (!context.mounted) return;
   if (choice == 'share') {
     final url = page.c.api.media('/users/${person['id']}');
-    if (await shareNative(url, value(person['username']))) return;
+    if (await shareNative(url, value(person['name']))) return;
     if (!context.mounted) return;
     await showDialog<void>(
       context: context,
@@ -3329,4 +3330,61 @@ String _relativeTime(NativePageState page, dynamic input) {
         ? 'منذ سنتين'
         : 'منذ $count سنوات',
   );
+}
+
+/// Level and section pills under the profile handle.
+class _StudyPlacement extends StatelessWidget {
+  const _StudyPlacement({required this.page, required this.person});
+  final NativePageState page;
+  final Json person;
+  @override
+  Widget build(BuildContext context) {
+    final level = value(person['level']), section = value(person['section']);
+    if (level.isEmpty && section.isEmpty) return const SizedBox(height: 4);
+    final colors = _Colors(context);
+    Widget pill(String text, {bool accent = false, IconData? icon}) =>
+        Container(
+          height: 28,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            color: accent ? colors.accent.withValues(alpha: .12) : null,
+            border: accent ? null : Border.all(color: colors.border),
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (icon != null) ...[
+                Icon(icon, size: 14, color: colors.accent),
+                const SizedBox(width: 6),
+              ],
+              Text(
+                text,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: accent ? colors.accent : colors.muted,
+                ),
+              ),
+            ],
+          ),
+        );
+    return Padding(
+      padding: const EdgeInsets.only(top: 10, bottom: 10),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          if (level.isNotEmpty)
+            pill(
+              page.c.t('Level $level', 'الفرقة $level'),
+              accent: true,
+              icon: Icons.layers_outlined,
+            ),
+          if (section.isNotEmpty)
+            pill(page.c.t('Section $section', 'سكشن $section')),
+        ],
+      ),
+    );
+  }
 }

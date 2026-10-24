@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -53,7 +54,27 @@ class WebHome extends StatefulWidget {
 }
 
 class _WebHomeState extends State<WebHome> {
-  String search = '';
+  /// Home search matches post text only and runs on the server, across every
+  /// post the viewer may see (not just the loaded ones).
+  late String search = Uri.parse(widget.page.path).queryParameters['q'] ?? '';
+  late final _searchField = TextEditingController(text: search);
+  Timer? _searchTimer;
+
+  void _searchChanged(String value) {
+    final term = value.trim();
+    setState(() => search = term);
+    _searchTimer?.cancel();
+    if (term.length == 1) return;
+    _searchTimer = Timer(const Duration(milliseconds: 400), () {
+      if (!mounted || term != search) return;
+      p.load(
+        term.isEmpty
+            ? '/community'
+            : '/community?q=${Uri.encodeQueryComponent(term)}',
+      );
+    });
+  }
+
   final _feedKey = GlobalKey();
   final _showAdd = ValueNotifier<bool>(false);
   bool _checkQueued = false;
@@ -108,14 +129,12 @@ class _WebHomeState extends State<WebHome> {
   @override
   void dispose() {
     _showAdd.dispose();
+    _searchTimer?.cancel();
+    _searchField.dispose();
     super.dispose();
   }
 
   NativePageState get p => widget.page;
-  bool matches(Json item) =>
-      '${item['title']} ${item['name']} ${item['description']} ${item['content']} ${object(item['author'])['username']}'
-          .toLowerCase()
-          .contains(search.toLowerCase());
   Future<void> compose() async {
     final changed = await pushPostComposerRoute(context, page: p);
     if (changed == true) await p.load();
@@ -143,15 +162,11 @@ class _WebHomeState extends State<WebHome> {
   @override
   Widget build(BuildContext context) {
     final c = p.c;
-    final query = search.toLowerCase();
-    bool filter(Json item) =>
-        query.isEmpty ||
-        '${item['title']} ${item['name']} ${item['description']} ${item['content']} ${object(item['author'])['username']}'
-            .toLowerCase()
-            .contains(query);
-    final events = rows(p.data['featured_events']).where(filter).toList();
-    final communities = rows(p.data['communities']).where(filter).toList();
-    final posts = rows(p.data['posts']).where(filter).toList();
+    final searching = search.length >= 2;
+    // While searching, only matching posts are shown.
+    final events = searching ? <Json>[] : rows(p.data['featured_events']);
+    final communities = searching ? <Json>[] : rows(p.data['communities']);
+    final posts = rows(p.data['posts']);
     _bottomClearance = MediaQuery.paddingOf(context).bottom + 12;
     _cachedFeedOffset = null;
     _checkFeedVisibility();
@@ -210,13 +225,12 @@ class _WebHomeState extends State<WebHome> {
       const SizedBox(height: 28),
       TextField(
         textDirection: contentDirection(search),
-        onChanged: (v) => setState(() => search = v.trim()),
+        controller: _searchField,
+        onChanged: _searchChanged,
+        textInputAction: TextInputAction.search,
         style: const TextStyle(fontSize: 16),
         decoration: InputDecoration(
-          hintText: c.t(
-            'Search events, communities, posts...',
-            'ابحث عن ايفنتات، مجتمعات، منشورات...',
-          ),
+          hintText: c.t('Search posts…', 'دوّر في المنشورات…'),
           hintStyle: TextStyle(color: webMuted(context), fontSize: 16),
           prefixIcon: Padding(
             padding: const EdgeInsets.all(16),
@@ -378,10 +392,15 @@ class _WebHomeState extends State<WebHome> {
                     final postIndex = index - headerItems.length;
                     if (posts.isEmpty && postIndex == 0) {
                       return p.empty(
-                        c.t(
-                          'No posts yet. Be the first to share a thought.',
-                          'لسه مفيش منشورات. شارك أول فكرة.',
-                        ),
+                        searching
+                            ? c.t(
+                                'No posts match your search.',
+                                'مفيش منشورات بتطابق بحثك.',
+                              )
+                            : c.t(
+                                'No posts yet. Be the first to share a thought.',
+                                'لسه مفيش منشورات. شارك أول فكرة.',
+                              ),
                       );
                     }
                     if (postIndex < posts.length) {
@@ -390,11 +409,8 @@ class _WebHomeState extends State<WebHome> {
                         child: WebPostCard(page: p, post: posts[postIndex]),
                       );
                     }
-                    // Search filters the loaded posts only; fetching every
-                    // page to look for matches would download the whole feed.
-                    return search.isEmpty
-                        ? p.more('posts')
-                        : const SizedBox(height: 8);
+                    // Search results are paginated by the server too.
+                    return p.more('posts');
                   },
                   childCount: totalCount,
                   feedHeadingIndex: feedHeadingIndex,
@@ -1148,7 +1164,7 @@ class WebThreadComment extends StatelessWidget {
                             onTap: () => c.open('/users/${person['id']}'),
                             child: Text(
                               value(
-                                person['username'],
+                                person['name'],
                                 c.t('Deleted user', 'عضو محذوف'),
                               ),
                               style: const TextStyle(
@@ -1344,11 +1360,7 @@ class _WebPostCardState extends State<WebPostCard> {
       ? object(post['author'])
       : object(p.data['profile_user']).isNotEmpty
       ? object(p.data['profile_user'])
-      : {
-          'id': post['user_id'],
-          'username': post['username'],
-          'avatar': post['avatar'],
-        };
+      : {'id': post['user_id'], 'name': post['name'], 'avatar': post['avatar']};
   static final _postSvgCache = <String, String>{};
 
   /// Open the post detail, rendering this row immediately while the full
@@ -1425,7 +1437,7 @@ class _WebPostCardState extends State<WebPostCard> {
                         children: [
                           Text(
                             value(
-                              author['username'],
+                              author['name'],
                               c.t('Deleted user', 'عضو محذوف'),
                             ),
                             style: const TextStyle(
@@ -1657,7 +1669,7 @@ class _WebPostCardState extends State<WebPostCard> {
                         spacing: 6,
                         children: [
                           Text(
-                            value(person['username']),
+                            value(person['name']),
                             style: const TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w500,

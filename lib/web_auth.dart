@@ -2,22 +2,33 @@ import 'dart:async';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'api.dart';
 import 'main.dart';
 import 'screens.dart' show AuthHeader, NativePage;
 import 'web_style.dart';
 
-/// The mobile auth/signup.blade.php flow, rendered using native controls.
+/// Student ID → e-mailed code → password, rendered natively. Used for
+/// sign-up (auth/signup.blade.php) and for "Forgot password"
+/// (auth/forgot-password.blade.php). The server enforces every limit.
 class WebSignupPage extends StatefulWidget {
-  const WebSignupPage({super.key, required this.controller});
+  const WebSignupPage({
+    super.key,
+    required this.controller,
+    this.passwordReset = false,
+  });
   final AppController controller;
+  final bool passwordReset;
   @override
   State<WebSignupPage> createState() => _WebSignupPageState();
 }
 
 class _WebSignupPageState extends State<WebSignupPage> {
   final _form = GlobalKey<FormState>();
-  final _email = TextEditingController();
+  final _studentId = TextEditingController();
+  String _email = '';
+  String? _supportUrl;
+  int? _resendsLeft;
   final _code = TextEditingController();
   final _password = TextEditingController();
   final _confirmation = TextEditingController();
@@ -28,6 +39,15 @@ class _WebSignupPageState extends State<WebSignupPage> {
   DateTime? _resendAt;
   Timer? _ticker;
   AppController get c => widget.controller;
+  bool get _reset => widget.passwordReset;
+  String get _base => _reset ? '/password/forgot' : '/signup';
+  String get _sendPath => _reset ? '/password/forgot/code' : '/signup/otp';
+  String get _verifyPath =>
+      _reset ? '/password/forgot/verify' : '/signup/verify';
+  String get _resendKey =>
+      _reset ? 'reset.resend_available_at' : 'signup.resend_available_at';
+  String get _studentIdKey => _reset ? 'reset.student_id' : 'signup.student_id';
+  static const _domain = '@fa-hists.edu.eg';
   int get _wait {
     final millis = _resendAt?.difference(DateTime.now()).inMilliseconds ?? 0;
     return millis <= 0 ? 0 : (millis / 1000).ceil();
@@ -37,9 +57,11 @@ class _WebSignupPageState extends State<WebSignupPage> {
   void initState() {
     super.initState();
     _termsTap = TapGestureRecognizer()..onTap = _openTerms;
-    final persisted = c.settings.preferences?.getInt(
-      'signup.resend_available_at',
-    );
+    final persisted = c.settings.preferences?.getInt(_resendKey);
+    _studentId.text = c.settings.preferences?.getString(_studentIdKey) ?? '';
+    _studentId.addListener(() {
+      if (mounted && _step == 1) setState(() {});
+    });
     if (persisted != null) {
       _resendAt = DateTime.fromMillisecondsSinceEpoch(persisted);
     }
@@ -51,9 +73,9 @@ class _WebSignupPageState extends State<WebSignupPage> {
 
   Future<void> _load() async {
     try {
-      final data = object((await c.get('/signup'))['data']);
+      final data = object((await c.get(_base))['data']);
       _step = (int.tryParse(value(data['step'])) ?? 1).clamp(1, 3);
-      _email.text = value(data['pendingEmail']);
+      _email = value(data['pendingEmail']);
       _verifiedName = data['verifiedName'] as String?;
       _verifiedMajor = data['verifiedMajor'] as String?;
     } catch (e) {
@@ -62,14 +84,35 @@ class _WebSignupPageState extends State<WebSignupPage> {
     if (mounted) setState(() => _loading = false);
   }
 
-  void _cooldown(Json response) {
-    final seconds = int.tryParse(value(response['cooldown_seconds'])) ?? 60;
+  void _cooldown(Json response, {String key = 'cooldown_seconds'}) {
+    final seconds = int.tryParse(value(response[key])) ?? 60;
     _resendAt = DateTime.now().add(Duration(seconds: seconds));
     c.settings.preferences?.setInt(
-      'signup.resend_available_at',
+      _resendKey,
       _resendAt!.millisecondsSinceEpoch,
     );
+    final left = int.tryParse(value(response['resends_left']));
+    if (left != null) _resendsLeft = left;
   }
+
+  /// Show a server refusal; an unknown student ID offers WhatsApp support.
+  void _failed(Object error) {
+    if (!mounted) return;
+    final body = error is ApiFailure ? error.body : const <String, dynamic>{};
+    final url = value(body['whatsapp_url']);
+    if (body['retry_after'] != null && _step == 2) {
+      _cooldown(body, key: 'retry_after');
+    }
+    setState(() {
+      _error = '$error';
+      _supportUrl = RegExp(r'^https://wa\.me/[0-9]+$').hasMatch(url)
+          ? url
+          : null;
+    });
+  }
+
+  Future<Json> _send() =>
+      c.action('POST', _sendPath, {'university_id': _studentId.text.trim()});
 
   Future<void> _submit() async {
     if (_busy || !_form.currentState!.validate()) return;
@@ -78,27 +121,36 @@ class _WebSignupPageState extends State<WebSignupPage> {
       _busy = true;
       _error = null;
       _message = null;
+      _supportUrl = null;
     });
     try {
       if (_step == 1) {
-        final response = await c.action('POST', '/signup/otp', {
-          'email': _email.text.trim(),
-        });
+        final response = await _send();
+        c.settings.preferences?.setString(
+          _studentIdKey,
+          _studentId.text.trim(),
+        );
         _cooldown(response);
         if (mounted) {
           setState(() {
             _step = 2;
+            _email = value(
+              response['email'],
+              '${_studentId.text.trim()}$_domain',
+            );
             _code.clear();
             _message = response['message'] as String?;
           });
         }
       } else if (_step == 2) {
-        final response = await c.action('POST', '/signup/verify', {
+        final response = await c.action('POST', _verifyPath, {
           'otp_code': _code.text.trim(),
         });
         final verified = object(response['data']);
-        final page = object((await c.get('/signup'))['data']);
-        c.settings.preferences?.remove('signup.resend_available_at');
+        final page = _reset
+            ? const <String, dynamic>{}
+            : object((await c.get(_base))['data']);
+        c.settings.preferences?.remove(_resendKey);
         if (mounted) {
           setState(() {
             _step = 3;
@@ -107,12 +159,26 @@ class _WebSignupPageState extends State<WebSignupPage> {
             _terms = false;
           });
         }
+      } else if (_reset) {
+        final response = await c.action('POST', '/password/forgot', {
+          'password': _password.text,
+          'password_confirmation': _confirmation.text,
+        });
+        c.settings.preferences?.remove(_studentIdKey);
+        if (mounted) {
+          final messenger = ScaffoldMessenger.of(context);
+          Navigator.of(context).pop();
+          messenger.showSnackBar(
+            SnackBar(content: Text(value(response['message']))),
+          );
+        }
       } else {
         await c.action('POST', '/signup', {
           'password': _password.text,
           'password_confirmation': _confirmation.text,
           'terms': _terms,
         });
+        c.settings.preferences?.remove(_studentIdKey);
         try {
           await c.get('/mobile/session');
           if (c.enablePush) await c.push.bind(c.user, c.settings.language);
@@ -120,7 +186,7 @@ class _WebSignupPageState extends State<WebSignupPage> {
         if (mounted) Navigator.of(context).popUntil((route) => route.isFirst);
       }
     } catch (e) {
-      if (mounted) setState(() => _error = '$e');
+      _failed(e);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -134,13 +200,15 @@ class _WebSignupPageState extends State<WebSignupPage> {
       _message = null;
     });
     try {
-      final response = await c.action('POST', '/signup/otp', {
-        'email': _email.text.trim(),
-      });
+      if (_studentId.text.trim().isEmpty) {
+        setState(() => _step = 1);
+        return;
+      }
+      final response = await _send();
       _cooldown(response);
       if (mounted) setState(() => _message = response['message'] as String?);
     } catch (e) {
-      if (mounted) setState(() => _error = '$e');
+      _failed(e);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -156,7 +224,7 @@ class _WebSignupPageState extends State<WebSignupPage> {
   void dispose() {
     _ticker?.cancel();
     _termsTap.dispose();
-    for (final input in [_email, _code, _password, _confirmation]) {
+    for (final input in [_studentId, _code, _password, _confirmation]) {
       input.dispose();
     }
     super.dispose();
@@ -248,7 +316,12 @@ class _WebSignupPageState extends State<WebSignupPage> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Text(
-                        c.t('Create an account', 'إنشاء حساب'),
+                        _reset
+                            ? c.t(
+                                'Reset your password',
+                                'إعادة تعيين كلمة السر',
+                              )
+                            : c.t('Create an account', 'إنشاء حساب'),
                         style: theme.textTheme.headlineSmall?.copyWith(
                           fontSize: 28,
                           height: 1.4,
@@ -257,10 +330,15 @@ class _WebSignupPageState extends State<WebSignupPage> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        c.t(
-                          'Your campus community is waiting.',
-                          'مجتمع جامعتك مستنيك.',
-                        ),
+                        _reset
+                            ? c.t(
+                                'We’ll email a code to your university address.',
+                                'هنبعتلك كود على إيميلك الجامعي.',
+                              )
+                            : c.t(
+                                'Your campus community is waiting.',
+                                'مجتمع جامعتك مستنيك.',
+                              ),
                         style: TextStyle(
                           fontSize: 14,
                           height: 1.8,
@@ -314,38 +392,91 @@ class _WebSignupPageState extends State<WebSignupPage> {
                               ),
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            child: Text(
-                              _error ?? _message!,
-                              style: TextStyle(
-                                fontSize: 13,
-                                height: 1.7,
-                                color: _error != null
-                                    ? scheme.error
-                                    : scheme.primary,
-                              ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  _error ?? _message!,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    height: 1.7,
+                                    color: _error != null
+                                        ? scheme.error
+                                        : scheme.primary,
+                                  ),
+                                ),
+                                if (_error != null && _supportUrl != null) ...[
+                                  const SizedBox(height: 10),
+                                  FilledButton.icon(
+                                    key: const ValueKey('signup.whatsapp'),
+                                    onPressed: () => launchUrl(
+                                      Uri.parse(_supportUrl!),
+                                      mode: LaunchMode.externalApplication,
+                                    ),
+                                    style: FilledButton.styleFrom(
+                                      backgroundColor: const Color(0xff25d366),
+                                      foregroundColor: Colors.white,
+                                    ),
+                                    icon: const Icon(Icons.chat, size: 18),
+                                    label: Text(
+                                      c.t(
+                                        'Contact support on WhatsApp',
+                                        'كلّم الدعم على واتساب',
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
                             ),
                           ),
                         if (_step == 1) ...[
-                          _label(c.t('University email', 'الإيميل الجامعي')),
+                          _label(c.t('Student ID', 'الرقم الجامعي')),
                           TextFormField(
-                            key: const ValueKey('signup.email'),
-                            controller: _email,
+                            key: const ValueKey('signup.studentId'),
+                            controller: _studentId,
                             enabled: !_busy,
-                            keyboardType: TextInputType.emailAddress,
-                            autofillHints: const [AutofillHints.email],
+                            keyboardType: TextInputType.number,
+                            autofillHints: const [AutofillHints.username],
                             textDirection: TextDirection.ltr,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                              LengthLimitingTextInputFormatter(12),
+                            ],
                             decoration: const InputDecoration(
-                              hintText: 'example@fa-hists.edu.eg',
+                              hintText: '420250000',
                             ),
                             validator: (v) => v == null || v.trim().isEmpty
                                 ? required
-                                : !v.contains('@')
+                                : !RegExp(r'^[0-9]{6,12}$').hasMatch(v.trim())
                                 ? c.t(
-                                    'Enter a valid email address',
-                                    'أدخل بريدًا إلكترونيًا صحيحًا',
+                                    'Enter a valid student ID (numbers only).',
+                                    'اكتب رقم جامعي صحيح (أرقام بس).',
                                   )
                                 : null,
                             onFieldSubmitted: (_) => _submit(),
+                          ),
+                          const SizedBox(height: 10),
+                          Text.rich(
+                            TextSpan(
+                              children: [
+                                TextSpan(
+                                  text:
+                                      '${c.t('We will send a code to your university email:', 'هنبعت الكود على إيميلك الجامعي:')} ',
+                                ),
+                                TextSpan(
+                                  text:
+                                      '${_studentId.text.isEmpty ? '…' : _studentId.text}$_domain',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            style: TextStyle(
+                              fontSize: 13,
+                              height: 1.6,
+                              color: muted,
+                            ),
                           ),
                           const SizedBox(height: 28),
                           _primary(
@@ -362,7 +493,7 @@ class _WebSignupPageState extends State<WebSignupPage> {
                                   style: TextStyle(color: muted),
                                 ),
                                 TextSpan(
-                                  text: _email.text,
+                                  text: _email,
                                   style: TextStyle(
                                     color: scheme.primary,
                                     fontWeight: FontWeight.w700,
@@ -411,7 +542,10 @@ class _WebSignupPageState extends State<WebSignupPage> {
                           const SizedBox(height: 12),
                           TextButton(
                             key: const ValueKey('signup.resend'),
-                            onPressed: _busy || _wait > 0 ? null : _resend,
+                            onPressed:
+                                _busy || _wait > 0 || (_resendsLeft ?? 1) <= 0
+                                ? null
+                                : _resend,
                             child: Text(
                               _wait > 0
                                   ? c.t(
@@ -422,8 +556,18 @@ class _WebSignupPageState extends State<WebSignupPage> {
                               style: const TextStyle(fontSize: 13),
                             ),
                           ),
+                          if (_resendsLeft != null)
+                            Text(
+                              c.t(
+                                'Resends left: $_resendsLeft',
+                                'مرات إعادة الإرسال المتبقية: $_resendsLeft',
+                              ),
+                              textAlign: TextAlign.center,
+                              style: TextStyle(fontSize: 12, color: muted),
+                            ),
                         ] else ...[
-                          if (_verifiedName != null &&
+                          if (!_reset &&
+                              _verifiedName != null &&
                               _verifiedName!.isNotEmpty)
                             Container(
                               padding: const EdgeInsets.all(16),
@@ -466,7 +610,11 @@ class _WebSignupPageState extends State<WebSignupPage> {
                                 ],
                               ),
                             ),
-                          _label(c.t('Choose a password', 'اختار كلمة سر')),
+                          _label(
+                            _reset
+                                ? c.t('New password', 'كلمة السر الجديدة')
+                                : c.t('Choose a password', 'اختار كلمة سر'),
+                          ),
                           TextFormField(
                             key: const ValueKey('signup.password'),
                             controller: _password,
@@ -502,93 +650,99 @@ class _WebSignupPageState extends State<WebSignupPage> {
                                 : null,
                           ),
                           const SizedBox(height: 18),
-                          FormField<bool>(
-                            key: const ValueKey('signup.terms'),
-                            initialValue: _terms,
-                            validator: (_) => !_terms
-                                ? c.t(
-                                    'Accept the terms to create your account.',
-                                    'وافق على الشروط لإنشاء حسابك.',
-                                  )
-                                : null,
-                            builder: (state) => Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    SizedBox(
-                                      width: 17,
-                                      height: 25,
-                                      child: Checkbox(
-                                        value: _terms,
-                                        activeColor: const Color(0xff428735),
-                                        materialTapTargetSize:
-                                            MaterialTapTargetSize.shrinkWrap,
-                                        onChanged: _busy
-                                            ? null
-                                            : (v) {
-                                                setState(
-                                                  () => _terms = v ?? false,
-                                                );
-                                                state.didChange(_terms);
-                                              },
-                                      ),
-                                    ),
-                                    const SizedBox(width: 9),
-                                    Expanded(
-                                      child: Text.rich(
-                                        TextSpan(
-                                          children: [
-                                            TextSpan(
-                                              text:
-                                                  '${c.t('I have read and agree to the', 'أنا قرأت وموافق على')} ',
-                                            ),
-                                            TextSpan(
-                                              text: c.t(
-                                                'terms and conditions',
-                                                'الشروط والأحكام',
-                                              ),
-                                              recognizer: _termsTap,
-                                              style: TextStyle(
-                                                color: scheme.primary,
-                                                fontWeight: FontWeight.w700,
-                                                decoration:
-                                                    TextDecoration.underline,
-                                              ),
-                                            ),
-                                            TextSpan(
-                                              text:
-                                                  ' ${c.t('and ElBench’s usage policy.', 'وسياسة الاستخدام بتاعة ElBench.')}',
-                                            ),
-                                          ],
-                                        ),
-                                        style: TextStyle(
-                                          fontSize: 13,
-                                          height: 1.6,
-                                          fontWeight: FontWeight.w500,
-                                          color: muted,
+                          if (!_reset)
+                            FormField<bool>(
+                              key: const ValueKey('signup.terms'),
+                              initialValue: _terms,
+                              validator: (_) => !_terms
+                                  ? c.t(
+                                      'Accept the terms to create your account.',
+                                      'وافق على الشروط لإنشاء حسابك.',
+                                    )
+                                  : null,
+                              builder: (state) => Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      SizedBox(
+                                        width: 17,
+                                        height: 25,
+                                        child: Checkbox(
+                                          value: _terms,
+                                          activeColor: const Color(0xff428735),
+                                          materialTapTargetSize:
+                                              MaterialTapTargetSize.shrinkWrap,
+                                          onChanged: _busy
+                                              ? null
+                                              : (v) {
+                                                  setState(
+                                                    () => _terms = v ?? false,
+                                                  );
+                                                  state.didChange(_terms);
+                                                },
                                         ),
                                       ),
-                                    ),
-                                  ],
-                                ),
-                                if (state.errorText != null)
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 6),
-                                    child: Text(
-                                      state.errorText!,
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: scheme.error,
+                                      const SizedBox(width: 9),
+                                      Expanded(
+                                        child: Text.rich(
+                                          TextSpan(
+                                            children: [
+                                              TextSpan(
+                                                text:
+                                                    '${c.t('I have read and agree to the', 'أنا قرأت وموافق على')} ',
+                                              ),
+                                              TextSpan(
+                                                text: c.t(
+                                                  'terms and conditions',
+                                                  'الشروط والأحكام',
+                                                ),
+                                                recognizer: _termsTap,
+                                                style: TextStyle(
+                                                  color: scheme.primary,
+                                                  fontWeight: FontWeight.w700,
+                                                  decoration:
+                                                      TextDecoration.underline,
+                                                ),
+                                              ),
+                                              TextSpan(
+                                                text:
+                                                    ' ${c.t('and ElBench’s usage policy.', 'وسياسة الاستخدام بتاعة ElBench.')}',
+                                              ),
+                                            ],
+                                          ),
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            height: 1.6,
+                                            fontWeight: FontWeight.w500,
+                                            color: muted,
+                                          ),
+                                        ),
                                       ),
-                                    ),
+                                    ],
                                   ),
-                              ],
+                                  if (state.errorText != null)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 6),
+                                      child: Text(
+                                        state.errorText!,
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: scheme.error,
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
                             ),
-                          ),
                           const SizedBox(height: 32),
-                          _primary(c.t('Create an account', 'إنشاء حساب')),
+                          _primary(
+                            _reset
+                                ? c.t('Change password', 'تغيير كلمة السر')
+                                : c.t('Create an account', 'إنشاء حساب'),
+                          ),
                         ],
                       ],
                       const SizedBox(height: 28),
@@ -597,21 +751,24 @@ class _WebSignupPageState extends State<WebSignupPage> {
                         crossAxisAlignment: WrapCrossAlignment.center,
                         spacing: 4,
                         children: [
-                          Text(
-                            c.t(
-                              'Already have an account?',
-                              'عندك حساب بالفعل؟',
+                          if (!_reset)
+                            Text(
+                              c.t(
+                                'Already have an account?',
+                                'عندك حساب بالفعل؟',
+                              ),
+                              style: TextStyle(
+                                fontSize: 12,
+                                height: 1.8,
+                                color: muted,
+                              ),
                             ),
-                            style: TextStyle(
-                              fontSize: 12,
-                              height: 1.8,
-                              color: muted,
-                            ),
-                          ),
                           InkWell(
                             onTap: () => Navigator.of(context).pop(),
                             child: Text(
-                              c.t('Log in', 'سجل دخول'),
+                              _reset
+                                  ? c.t('Back to log in', 'رجوع لتسجيل الدخول')
+                                  : c.t('Log in', 'سجل دخول'),
                               style: TextStyle(
                                 fontSize: 12,
                                 height: 1.8,

@@ -194,7 +194,7 @@ class AdminContent extends StatelessWidget {
             cells: [
               for (final user in records)
                 [
-                  Text(value(user['username'])),
+                  Text(value(user['name'])),
                   Text(value(user['university_id'])),
                   if (user['role'] == 'super_admin')
                     Text(t('announcement_inherited'))
@@ -242,11 +242,12 @@ class AdminContent extends StatelessWidget {
                 fixed: superAdmin ? {} : {'role': 'student'},
                 fields: [
                   _AdminField(
-                    'username',
-                    t('username'),
+                    'first_name',
+                    t('first_name'),
                     required: true,
-                    maxLength: 100,
+                    maxLength: 50,
                   ),
+                  _AdminField('last_name', t('last_name'), maxLength: 50),
                   _AdminField(
                     'university_id',
                     t('university_id'),
@@ -318,7 +319,7 @@ class AdminContent extends StatelessWidget {
             cells: [
               for (final user in records)
                 [
-                  Text(value(user['username'])),
+                  Text(value(user['name'])),
                   Text(value(user['university_id'])),
                   _AdminBadge(t('roles.${user['role']}')),
                   Text(
@@ -490,7 +491,7 @@ class AdminContent extends StatelessWidget {
               cells: [
                 for (final assignment in rows(d['communityAssignments']))
                   [
-                    Text(value(assignment['username'])),
+                    Text(value(assignment['user_name'] ?? assignment['name'])),
                     Text(value(assignment['university_id'])),
                     Text(value(assignment['community_name'])),
                     _AdminForm(
@@ -643,7 +644,7 @@ class AdminContent extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _h3('${t('edit_user')} · ${user['username']}'),
+          _h3('${t('edit_user')} · ${user['name']}'),
           if (c.permission('users.manage')) ...[
             _AdminForm(
               page: p,
@@ -652,11 +653,17 @@ class AdminContent extends StatelessWidget {
               submit: t('save_user'),
               fields: [
                 _AdminField(
-                  'username',
-                  t('username'),
+                  'first_name',
+                  t('first_name'),
                   required: true,
-                  initial: user['username'],
-                  maxLength: 100,
+                  initial: user['first_name'],
+                  maxLength: 50,
+                ),
+                _AdminField(
+                  'last_name',
+                  t('last_name'),
+                  initial: user['last_name'],
+                  maxLength: 50,
                 ),
                 _AdminField(
                   'university_id',
@@ -708,7 +715,7 @@ class AdminContent extends StatelessWidget {
                   page: p,
                   path: '/admin/users/${user['id']}',
                   method: 'DELETE',
-                  submit: '${t('delete_user')} · ${user['username']}',
+                  submit: '${t('delete_user')} · ${user['name']}',
                   danger: true,
                   fields: const [],
                 ),
@@ -793,7 +800,7 @@ class AdminContent extends StatelessWidget {
                 Expanded(
                   child: _h3(
                     value(
-                      record['title'] ?? record['username'],
+                      record['title'] ?? record['user_name'],
                       '${t('record')} #${record['id']}',
                     ),
                   ),
@@ -802,9 +809,9 @@ class AdminContent extends StatelessWidget {
                 _AdminBadge(value(record['status'], '#${record['id']}')),
               ],
             ),
-            if (record['username'] != null)
+            if (record['user_name'] != null)
               _paragraph(
-                '${record['username']}${record['university_id'] != null ? ' · ${record['university_id']}' : ''}',
+                '${record['user_name']}${record['university_id'] != null ? ' · ${record['university_id']}' : ''}',
                 context,
                 muted: true,
               ),
@@ -987,7 +994,7 @@ class AdminContent extends StatelessWidget {
                 children: [
                   Expanded(
                     child: _h3(
-                      '${t('login.selected_user')} · ${selected['username']}',
+                      '${t('login.selected_user')} · ${selected['name']}',
                     ),
                   ),
                   _AdminBadge('${rows(d['loginActivities']).length} / 7'),
@@ -1069,7 +1076,7 @@ class AdminContent extends StatelessWidget {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    value(user['username']),
+                                    value(user['name']),
                                     style: const TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.w600,
@@ -3114,10 +3121,12 @@ const _adminEnglish = <String, String>{
   "disabled": "Disabled",
   "save_features": "Save features",
   "search_user": "Find a user",
-  "search_placeholder": "University ID or username",
+  "search_placeholder": "University ID or name",
   "search": "Search",
   "edit_user": "Edit user",
-  "username": "Username",
+  "username": "Name",
+  "first_name": "First name",
+  "last_name": "Last name",
   "university_id": "University ID",
   "email": "Email",
   "password_optional": "New password (optional)",
@@ -3203,8 +3212,7 @@ const _adminEnglish = <String, String>{
   "login.admin_intro":
       "The selected account’s latest seven successful sign-ins, newest first.",
   "login.search_user": "Find an account",
-  "login.search_placeholder":
-      "Username or university ID (at least 2 characters)",
+  "login.search_placeholder": "Name or university ID (at least 2 characters)",
   "login.select_user": "View login logs",
   "login.search_hint":
       "Search for an account, then select it to view its latest seven sign-ins.",
@@ -3308,10 +3316,12 @@ const _adminArabic = <String, String>{
   "disabled": "متوقف",
   "save_features": "حفظ الخدمات",
   "search_user": "البحث عن مستخدم",
-  "search_placeholder": "الرقم الجامعي أو اسم المستخدم",
+  "search_placeholder": "الرقم الجامعي أو الاسم",
   "search": "بحث",
   "edit_user": "تعديل المستخدم",
-  "username": "اسم المستخدم",
+  "username": "الاسم",
+  "first_name": "الاسم الأول",
+  "last_name": "اسم العائلة",
   "university_id": "الرقم الجامعي",
   "email": "البريد الإلكتروني",
   "password_optional": "كلمة مرور جديدة (اختياري)",
@@ -3395,7 +3405,7 @@ const _adminArabic = <String, String>{
   "login.intro": "آخر ٧ تسجيلات دخول ناجحة لحسابك، الأحدث الأول.",
   "login.admin_intro": "آخر ٧ تسجيلات دخول ناجحة للحساب المحدد، الأحدث الأول.",
   "login.search_user": "ابحث عن حساب",
-  "login.search_placeholder": "اسم المستخدم أو الرقم الجامعي (حرفين على الأقل)",
+  "login.search_placeholder": "الاسم أو الرقم الجامعي (حرفين على الأقل)",
   "login.select_user": "عرض سجل الدخول",
   "login.search_hint": "ابحث عن حساب واختاره عشان تشوف آخر ٧ تسجيلات دخول ليه.",
   "login.search_empty": "مفيش حسابات مطابقة للبحث.",
@@ -3484,17 +3494,14 @@ class WebAdminReportDetail extends StatelessWidget {
           if (report['reported_comment_id'] != null)
             section(t('current_comment'), [
               if (comment.isNotEmpty) ...[
-                _paragraph(
-                  value(object(comment['author'])['username']),
-                  context,
-                ),
+                _paragraph(value(object(comment['author'])['name']), context),
                 _paragraph(value(comment['content']), context),
               ] else
                 _paragraph(t('report_comment_deleted'), context),
             ]),
           section(t('current_post'), [
             if (post.isNotEmpty) ...[
-              _paragraph(value(object(post['author'])['username']), context),
+              _paragraph(value(object(post['author'])['name']), context),
               _paragraph(value(post['content']), context),
             ] else
               _paragraph(t('report_post_deleted'), context),
@@ -3504,7 +3511,7 @@ class WebAdminReportDetail extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _h3(value(object(item['author'])['username'])),
+                  _h3(value(object(item['author'])['name'])),
                   _paragraph(value(item['content']), context),
                 ],
               ),

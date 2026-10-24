@@ -206,7 +206,7 @@ class _HallAvatar extends StatelessWidget {
         color: Theme.of(context).colorScheme.surface,
         child: Center(
           child: Text(
-            value(person['username'], '?').characters.first,
+            value(person['name'], '?').characters.first,
             style: TextStyle(fontSize: size / 3),
           ),
         ),
@@ -351,7 +351,7 @@ class _Podium extends StatelessWidget {
               avatar,
             SizedBox(height: first ? 20 : 12),
             Text(
-              value(person['username']),
+              value(person['name']),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
@@ -794,8 +794,8 @@ class _RankedMember extends StatelessWidget {
         '${person['id']}' ==
         '${page.data['current_user_id'] ?? page.c.user?['id']}';
     final scheme = Theme.of(context).colorScheme;
-    final username = value(person['username']);
-    final nameDirection = _arabicNamePattern.hasMatch(username)
+    final displayName = value(person['name']);
+    final nameDirection = _arabicNamePattern.hasMatch(displayName)
         ? TextDirection.rtl
         : TextDirection.ltr;
     return RepaintBoundary(
@@ -848,7 +848,7 @@ class _RankedMember extends StatelessWidget {
                       : CrossAxisAlignment.start,
                   children: [
                     Text(
-                      username,
+                      displayName,
                       textDirection: nameDirection,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,

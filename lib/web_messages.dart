@@ -81,7 +81,7 @@ bool _containsId(dynamic collection, dynamic id) {
 }
 
 String _name(NativePageState page, Json person) =>
-    value(person['username'], page.c.t('Deleted user', 'مستخدم محذوف'));
+    value(person['name'], page.c.t('Deleted user', 'مستخدم محذوف'));
 
 Widget _avatar(NativePageState page, Json person, double diameter) {
   if (person.isEmpty) {

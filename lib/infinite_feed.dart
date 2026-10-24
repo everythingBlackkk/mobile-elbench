@@ -112,7 +112,7 @@ class _InfiniteScrollFooterState extends State<InfiniteScrollFooter> {
   }
 }
 
-/// A shimmering placeholder shaped like a feed post card.
+/// A softly pulsing placeholder shaped like a feed post card.
 class PostSkeleton extends StatefulWidget {
   const PostSkeleton({super.key, this.compact = false});
   final bool compact;
@@ -122,109 +122,79 @@ class PostSkeleton extends StatefulWidget {
 
 class _PostSkeletonState extends State<PostSkeleton>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _shimmer = AnimationController(
+  late final AnimationController _pulse = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 1350),
+    duration: const Duration(milliseconds: 900),
+    lowerBound: .55,
   );
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (MediaQuery.disableAnimationsOf(context)) {
-      _shimmer.stop();
-    } else if (!_shimmer.isAnimating) {
-      _shimmer.repeat();
+      _pulse.stop();
+      _pulse.value = 1;
+    } else if (!_pulse.isAnimating) {
+      _pulse.repeat(reverse: true);
     }
   }
 
   @override
   void dispose() {
-    _shimmer.dispose();
+    _pulse.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final border = webBorder(context);
-    final base = Color.alphaBlend(
-      webMuted(context).withValues(alpha: .14),
+    final fill = Color.alphaBlend(
+      webMuted(context).withValues(alpha: .16),
       webSecondary(context),
     );
-    final highlight = Theme.of(
-      context,
-    ).colorScheme.onSurface.withValues(alpha: .07);
     Widget bar({double? width, required double height, double radius = 6}) =>
-        ClipRRect(
-          borderRadius: BorderRadius.circular(radius),
-          child: SizedBox(
-            width: width,
-            height: height,
-            child: AnimatedBuilder(
-              animation: _shimmer,
-              builder: (_, _) => DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment(-1.0 + _shimmer.value * 3, 0),
-                    end: Alignment(_shimmer.value * 3, 0),
-                    colors: [base, highlight, base],
-                  ),
-                ),
-              ),
-            ),
+        Container(
+          width: width,
+          height: height,
+          decoration: BoxDecoration(
+            color: fill,
+            borderRadius: BorderRadius.circular(radius),
           ),
         );
+    Widget line(double widthFactor) => FractionallySizedBox(
+      alignment: AlignmentDirectional.centerStart,
+      widthFactor: widthFactor,
+      child: bar(height: 12),
+    );
     return ExcludeSemantics(
       child: Container(
         decoration: BoxDecoration(
           color: webSecondary(context),
-          border: Border.all(color: border),
+          border: Border.all(color: webBorder(context)),
           borderRadius: BorderRadius.circular(12),
         ),
-        padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                bar(width: 40, height: 40, radius: 20),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      bar(width: 120, height: 13),
-                      const SizedBox(height: 7),
-                      bar(width: 70, height: 10),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            bar(height: 13),
-            const SizedBox(height: 8),
-            FractionallySizedBox(
-              alignment: AlignmentDirectional.centerStart,
-              widthFactor: .8,
-              child: bar(height: 13),
-            ),
-            if (!widget.compact) ...[
-              const SizedBox(height: 8),
-              FractionallySizedBox(
-                alignment: AlignmentDirectional.centerStart,
-                widthFactor: .55,
-                child: bar(height: 13),
-              ),
-              const SizedBox(height: 16),
+        padding: const EdgeInsets.all(14),
+        child: FadeTransition(
+          opacity: _pulse,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
               Row(
                 children: [
-                  bar(width: 56, height: 22, radius: 11),
+                  bar(width: 36, height: 36, radius: 18),
                   const SizedBox(width: 10),
-                  bar(width: 56, height: 22, radius: 11),
+                  bar(width: 110, height: 12),
                 ],
               ),
+              const SizedBox(height: 14),
+              line(1),
+              const SizedBox(height: 8),
+              line(widget.compact ? .6 : .75),
+              if (!widget.compact) ...[
+                const SizedBox(height: 8),
+                line(.45),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
