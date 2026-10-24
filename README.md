@@ -119,14 +119,15 @@ Outputs:
 - `build/app/outputs/bundle/release/app-release.aab`
 - `build/ios/ipa/`
 
-### iOS push notifications
+### Push notifications
 
-iOS push is off by default. To enable it:
+Android and iOS use the same Firebase project, `elbench-624b9`, which the server also sends through. The config files (`android/app/google-services.json`, `ios/Runner/GoogleService-Info.plist`) are not in this repository.
 
-1. Register `com.sahbak.ios` in the Firebase project.
-2. Upload an APNs key in Firebase.
-3. Add `ios/Runner/GoogleService-Info.plist`.
-4. Add the Push Notifications capability (`aps-environment`) to the Runner target.
-5. Build with `--dart-define=IOS_PUSH_ENABLED=true`.
+iOS push is off by default because Apple only allows it for apps signed by a paid Apple Developer Program team. To turn it on:
+
+1. Create an APNs key (Apple Developer → Keys) and upload it in Firebase → Project settings → Cloud Messaging → Apple app `com.sahbak.ios`.
+2. Add `ios/Runner/GoogleService-Info.plist` for `com.sahbak.ios` from Firebase.
+3. In `ios/Flutter/Push.xcconfig`, set `ELBENCH_PUSH = Push`. This signs the app with the `aps-environment` entitlement and makes the app register for notifications.
+4. Enable Push Notifications for the App ID `com.sahbak.ios` and sign with your paid team.
 
 Android push works with `google-services.json`.

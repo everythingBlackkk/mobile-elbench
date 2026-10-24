@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'api.dart';
@@ -63,8 +64,7 @@ class PushService extends ChangeNotifier {
   final List<StreamSubscription<dynamic>> _subscriptions = [];
   Future<void> initialize() async {
     if (!Platform.isAndroid && !Platform.isIOS) return;
-    if (Platform.isIOS &&
-        !const bool.fromEnvironment('IOS_PUSH_ENABLED', defaultValue: false)) {
+    if (Platform.isIOS && !await _iosBuildSupportsPush()) {
       state = 'Push notifications are not configured for this iOS build yet.';
       notifyListeners();
       return;
@@ -132,6 +132,20 @@ class PushService extends ChangeNotifier {
       state = 'Push notifications are not configured for this build yet.';
     }
     notifyListeners();
+  }
+
+  /// iOS builds request APNs only when signed with the push entitlement
+  /// (ELBENCH_PUSH in ios/Flutter/Push.xcconfig); asking for it otherwise
+  /// would prompt for permission and then never deliver anything.
+  static Future<bool> _iosBuildSupportsPush() async {
+    try {
+      return await const MethodChannel(
+            'elbench/push-config',
+          ).invokeMethod<bool>('isEnabled') ??
+          false;
+    } catch (_) {
+      return false;
+    }
   }
 
   Json? _pending;

@@ -77,6 +77,8 @@
 	<string>Connect to a Sahbak development server on your local network.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Take a profile or community photo.</string>
+	<key>ElBenchPush</key>
+	<string>$(ELBENCH_PUSH)</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>remote-notification</string>

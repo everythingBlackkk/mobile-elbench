@@ -26,6 +26,15 @@ import UIKit
       }
     }
     registrar.register(ElBenchGlassFactory(messenger: registrar.messenger()), withId: "elbench/native-glass")
+    // Reports whether this build was signed for push (ELBENCH_PUSH in Push.xcconfig).
+    FlutterMethodChannel(name: "elbench/push-config", binaryMessenger: registrar.messenger())
+      .setMethodCallHandler { call, result in
+        guard call.method == "isEnabled" else {
+          result(FlutterMethodNotImplemented)
+          return
+        }
+        result(Bundle.main.object(forInfoDictionaryKey: "ElBenchPush") as? String == "Push")
+      }
     FlutterMethodChannel(name: "elbench/native-share", binaryMessenger: registrar.messenger())
       .setMethodCallHandler { call, result in
         guard call.method == "share", let args = call.arguments as? [String: Any],

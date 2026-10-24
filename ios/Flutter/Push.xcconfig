@@ -1,0 +1,9 @@
+// iOS push notifications. Apple only allows them for apps signed by a paid
+// Apple Developer Program team, so they are off by default.
+//
+// To turn them on (once the APNs key is uploaded to Firebase project
+// elbench-624b9 and ios/Runner/GoogleService-Info.plist is in place):
+//   ELBENCH_PUSH = Push
+// This signs the app with the aps-environment entitlement and tells the app
+// to register for notifications.
+ELBENCH_PUSH =
