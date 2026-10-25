@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'api.dart';
+import 'app_toast.dart';
 import 'screens.dart';
 import 'text_direction.dart';
 import 'web_comments.dart' show confirmDelete;
@@ -67,9 +68,7 @@ class _FeedModerationContentState extends State<FeedModerationContent> {
     if (result == null || !mounted) return;
     final message = value(result['message']);
     if (message.isNotEmpty) {
-      ScaffoldMessenger.maybeOf(
-        context,
-      )?.showSnackBar(SnackBar(content: Text(message)));
+      showAppToast(context, message);
     }
     await p.load();
   }

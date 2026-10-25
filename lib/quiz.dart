@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'api.dart';
+import 'app_toast.dart';
 import 'screens.dart';
 import 'web_style.dart';
 import 'quiz_views.dart';
@@ -165,9 +166,7 @@ class QuizContent extends StatelessWidget {
       c.open(value(response['url'], '/quiz/${response['attempt_id']}'));
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('$e')));
+        showAppToast(context, '$e');
       }
     }
   }
@@ -381,9 +380,7 @@ class _QuizAttemptViewState extends State<QuizAttemptView>
       return true;
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('$e')));
+        showAppToast(context, '$e');
       }
       return false;
     } finally {
@@ -451,9 +448,7 @@ class _QuizAttemptViewState extends State<QuizAttemptView>
         if (_autoFailures > 1) return;
       }
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('$e')));
+        showAppToast(context, '$e');
       }
     } finally {
       if (mounted) setState(() => finishing = false);

@@ -5,6 +5,7 @@ import 'package:flutter_svg/flutter_svg.dart' show svg;
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'api.dart';
+import 'app_links.dart';
 import 'native_glass.dart';
 import 'settings.dart';
 import 'push.dart';
@@ -66,6 +67,9 @@ class _ElBenchAppState extends State<ElBenchApp> with WidgetsBindingObserver {
   bool _launchReleased = false;
   bool _initializing = true;
   Object? _initializationError;
+  String? _pendingAppLink, _lastAppLink;
+  DateTime? _lastAppLinkAt;
+  bool _appLinkScheduled = false;
   @override
   void initState() {
     super.initState();
@@ -81,7 +85,69 @@ class _ElBenchAppState extends State<ElBenchApp> with WidgetsBindingObserver {
     widget.settings.addListener(_changed);
     controller.addListener(_controllerChanged);
     WidgetsBinding.instance.addObserver(this);
+    _receiveAppLink(
+      WidgetsBinding.instance.platformDispatcher.defaultRouteName,
+    );
     unawaited(_initialize());
+  }
+
+  @override
+  Future<bool> didPushRoute(String route) async {
+    _receiveAppLink(route);
+    return true;
+  }
+
+  @override
+  Future<bool> didPushRouteInformation(
+    RouteInformation routeInformation,
+  ) async {
+    _receiveAppLink(routeInformation.uri.toString());
+    return true;
+  }
+
+  void _receiveAppLink(String location) {
+    final path = appLinkPath(location);
+    if (!mounted || path == null || path == _pendingAppLink) return;
+    if (controller.user != null &&
+        path == _lastAppLink &&
+        _lastAppLinkAt != null &&
+        DateTime.now().difference(_lastAppLinkAt!) <
+            const Duration(seconds: 2)) {
+      return;
+    }
+    _pendingAppLink = path;
+    _scheduleAppLink();
+  }
+
+  bool get _canOpenAppLink =>
+      mounted &&
+      !_initializing &&
+      _initializationError == null &&
+      !controller.starting &&
+      controller.startError == null &&
+      controller.user != null;
+
+  void _scheduleAppLink() {
+    if (_pendingAppLink == null || _appLinkScheduled || !_canOpenAppLink) {
+      return;
+    }
+    _appLinkScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _appLinkScheduled = false;
+      if (!_canOpenAppLink || _pendingAppLink == null) return;
+      if (navigator.currentState == null) {
+        _scheduleAppLink();
+        WidgetsBinding.instance.scheduleFrame();
+        return;
+      }
+      final path = _pendingAppLink!;
+      _pendingAppLink = null;
+      _lastAppLink = path;
+      _lastAppLinkAt = DateTime.now();
+      rootNavigator.currentState?.popUntil((route) => route.isFirst);
+      controller.open(path);
+    });
+    WidgetsBinding.instance.ensureVisualUpdate();
   }
 
   DateTime? _backgroundedAt;
@@ -125,6 +191,7 @@ class _ElBenchAppState extends State<ElBenchApp> with WidgetsBindingObserver {
           _initializing = false;
           _releaseLaunchIfReady();
         });
+        _scheduleAppLink();
       }
     }
   }
@@ -147,11 +214,13 @@ class _ElBenchAppState extends State<ElBenchApp> with WidgetsBindingObserver {
     if (next == _appState) return;
     _appState = next;
     _changed();
+    _scheduleAppLink();
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _pendingAppLink = null;
     widget.settings.removeListener(_changed);
     controller.removeListener(_controllerChanged);
     controller.dispose();
@@ -164,6 +233,7 @@ class _ElBenchAppState extends State<ElBenchApp> with WidgetsBindingObserver {
     debugShowCheckedModeBanner: false,
     scrollBehavior: const AppScrollBehavior(),
     navigatorKey: rootNavigator,
+    initialRoute: '/',
     theme: widget.settings.theme(Brightness.light),
     darkTheme: widget.settings.theme(Brightness.dark),
     themeMode: widget.settings.mode,

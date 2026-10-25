@@ -6,8 +6,10 @@ import 'package:flutter_file_dialog/flutter_file_dialog.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdfx/pdfx.dart';
 import 'api.dart';
+import 'app_toast.dart';
 import 'image_cache.dart';
 import 'main.dart' show AppController;
+import 'media_permissions.dart';
 import 'screens.dart';
 import 'web_home.dart' show webAgo, webBorder, webMuted, webSecondary;
 import 'web_style.dart';
@@ -170,7 +172,6 @@ class MaterialFiles {
     AppController c,
     Json material,
   ) async {
-    final messenger = ScaffoldMessenger.of(context);
     try {
       final file = await fetch(c, material);
       final saved = await FlutterFileDialog.saveFile(
@@ -182,13 +183,11 @@ class MaterialFiles {
           ),
         ),
       );
-      if (saved != null) {
-        messenger.showSnackBar(
-          SnackBar(content: Text(c.t('File saved.', 'الملف اتحفظ.'))),
-        );
+      if (saved != null && context.mounted) {
+        showAppToast(context, c.t('File saved.', 'الملف اتحفظ.'));
       }
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('$e')));
+      if (context.mounted) showAppToast(context, '$e');
     }
   }
 }
@@ -840,67 +839,70 @@ class _WebMaterialsState extends State<WebMaterials> {
   int get maxBytes =>
       int.tryParse('${p.data['max_bytes']}') ?? 30 * 1024 * 1024;
 
-  Future<void> upload() async {
-    final c = p.c, messenger = ScaffoldMessenger.of(context);
+  Future<void> upload({bool images = false}) async {
+    if (uploading ||
+        !yes(p.data['can_manage']) ||
+        !yes(p.data['storage_ready'])) {
+      return;
+    }
+    final c = p.c;
     final community = object(p.data['community']);
-    final String? path;
-    try {
-      path = await FlutterFileDialog.pickFile(
-        params: const OpenFileDialogParams(
-          fileExtensionsFilter: materialExtensions,
-          mimeTypesFilter: _materialMimeTypes,
-          allowedUtiTypes: _materialUtis,
-        ),
-      );
-    } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('$e')));
-      return;
-    }
-    if (path == null || !mounted) return;
-    final file = File(path);
-    final name = path.split(Platform.pathSeparator).last;
-    final extension = name.contains('.')
-        ? name.split('.').last.toLowerCase()
-        : '';
-    if (!materialExtensions.contains(extension)) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            c.t(
-              'This type of file is not allowed. Use PDF, JPG, PNG, WEBP, TXT, DOC, DOCX, XLS or XLSX.',
-              'نوع الملف ده مش مسموح. استخدم PDF أو JPG أو PNG أو WEBP أو TXT أو DOC أو DOCX أو XLS أو XLSX.',
-            ),
-          ),
-        ),
-      );
-      return;
-    }
-    final size = await file.length();
-    if (size == 0 || size > maxBytes) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            c.t('This file is larger than 30 MB.', 'الملف ده أكبر من 30 ميجا.'),
-          ),
-        ),
-      );
-      return;
-    }
-    if (!mounted) return;
-    final title = await _askTitle(context, c, name);
-    if (title == null || !mounted) return;
     setState(() => uploading = true);
     try {
+      final path = images
+          ? (await pickUploadImage(tr: c.t))?.path
+          : await FlutterFileDialog.pickFile(
+              params: const OpenFileDialogParams(
+                fileExtensionsFilter: materialExtensions,
+                mimeTypesFilter: _materialMimeTypes,
+                allowedUtiTypes: _materialUtis,
+              ),
+            );
+      if (path == null || !mounted) return;
+      final file = File(path);
+      final name = path.split(Platform.pathSeparator).last;
+      final extension = name.contains('.')
+          ? name.split('.').last.toLowerCase()
+          : '';
+      final allowed = images
+          ? const ['jpg', 'jpeg', 'png', 'webp']
+          : materialExtensions;
+      if (!allowed.contains(extension)) {
+        throw ApiFailure(
+          images
+              ? c.t(
+                  'Choose a JPEG, PNG or WebP image.',
+                  'اختار صورة بصيغة JPEG أو PNG أو WebP.',
+                )
+              : c.t(
+                  'This type of file is not allowed. Use PDF, JPG, PNG, WEBP, TXT, DOC, DOCX, XLS or XLSX.',
+                  'نوع الملف ده مش مسموح. استخدم PDF أو JPG أو PNG أو WEBP أو TXT أو DOC أو DOCX أو XLS أو XLSX.',
+                ),
+        );
+      }
+      final size = await file.length();
+      if (size == 0 || size > maxBytes) {
+        throw ApiFailure(
+          size == 0
+              ? c.t('This file is empty.', 'الملف ده فاضي.')
+              : c.t(
+                  'Choose a file up to ${_fileSize(maxBytes)}.',
+                  'اختار ملف حجمه بحد أقصى ${_fileSize(maxBytes)}.',
+                ),
+        );
+      }
+      if (!mounted) return;
+      final title = await _askTitle(context, c, name, image: images);
+      if (title == null || !mounted) return;
       await c.action('POST', '/community/${community['id']}/materials', {
         'title': title,
         'file': await MultipartFile.fromFile(path, filename: name),
       });
-      messenger.showSnackBar(
-        SnackBar(content: Text(c.t('Material uploaded.', 'الملف اترفع.'))),
-      );
+      if (!mounted) return;
+      showAppToast(context, c.t('Material uploaded.', 'الملف اترفع.'));
       if (mounted) await p.load();
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('$e')));
+      if (mounted) showAppToast(context, '$e');
     } finally {
       if (mounted) setState(() => uploading = false);
     }
@@ -938,11 +940,14 @@ class _WebMaterialsState extends State<WebMaterials> {
   @override
   void initState() {
     super.initState();
-    // Community page › Manage › Upload material goes straight to the picker.
-    if (Uri.parse(p.path).queryParameters['upload'] == '1' &&
+    // Community page › Manage opens the chosen native picker directly.
+    final requestedUpload = Uri.parse(p.path).queryParameters['upload'];
+    if ((requestedUpload == '1' || requestedUpload == 'images') &&
         yes(p.data['can_manage'])) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && yes(p.data['storage_ready'])) upload();
+        if (mounted && yes(p.data['storage_ready'])) {
+          upload(images: requestedUpload == 'images');
+        }
       });
     }
   }
@@ -980,12 +985,30 @@ class _WebMaterialsState extends State<WebMaterials> {
       'text' => c.t('Text', 'نص'),
       _ => kind,
     };
-    final uploadButton = _pill(
-      context,
-      uploading ? c.t('Uploading…', 'جاري الرفع…') : c.t('Upload', 'ارفع ملف'),
-      uploading || !ready ? null : upload,
-      icon: 'plus',
-      primary: true,
+    final uploadButtons = Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: [
+        KeyedSubtree(
+          key: const ValueKey('materials.upload.files'),
+          child: _pill(
+            context,
+            c.t('Upload Files', 'رفع ملفات'),
+            uploading || !ready ? null : () => upload(),
+            icon: 'file',
+            primary: true,
+          ),
+        ),
+        KeyedSubtree(
+          key: const ValueKey('materials.upload.images'),
+          child: _pill(
+            context,
+            c.t('Upload Images', 'رفع صور'),
+            uploading || !ready ? null : () => upload(images: true),
+            icon: 'image',
+          ),
+        ),
+      ],
     );
     return RefreshIndicator.adaptive(
       onRefresh: p.pullRefresh,
@@ -1005,56 +1028,43 @@ class _WebMaterialsState extends State<WebMaterials> {
             ),
           ),
           const SizedBox(height: 14),
-          if (materials.isNotEmpty || canManage)
-            Row(
-              children: [
-                if (materials.isNotEmpty)
-                  Expanded(
-                    child: SizedBox(
-                      height: 46,
-                      child: TextField(
-                        controller: search,
-                        onChanged: (_) => setState(() {}),
-                        textInputAction: TextInputAction.search,
-                        decoration: InputDecoration(
-                          hintText: c.t('Search files', 'دوّر في الملفات'),
-                          isDense: true,
-                          filled: true,
-                          fillColor: webSecondary(context),
-                          prefixIcon: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
-                            child: WebIcon(
-                              'search',
-                              size: 17,
-                              color: webMuted(context),
-                            ),
-                          ),
-                          prefixIconConstraints: const BoxConstraints(
-                            minWidth: 40,
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            vertical: 12,
-                          ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(99),
-                            borderSide: BorderSide(color: webBorder(context)),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(99),
-                            borderSide: BorderSide(color: webBorder(context)),
-                          ),
-                        ),
-                      ),
+          if (materials.isNotEmpty)
+            SizedBox(
+              height: 46,
+              child: TextField(
+                controller: search,
+                onChanged: (_) => setState(() {}),
+                textInputAction: TextInputAction.search,
+                decoration: InputDecoration(
+                  hintText: c.t('Search files', 'دوّر في الملفات'),
+                  isDense: true,
+                  filled: true,
+                  fillColor: webSecondary(context),
+                  prefixIcon: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: WebIcon(
+                      'search',
+                      size: 17,
+                      color: webMuted(context),
                     ),
-                  )
-                else
-                  const Spacer(),
-                if (canManage && materials.isNotEmpty) ...[
-                  const SizedBox(width: 10),
-                  uploadButton,
-                ],
-              ],
+                  ),
+                  prefixIconConstraints: const BoxConstraints(minWidth: 40),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(99),
+                    borderSide: BorderSide(color: webBorder(context)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(99),
+                    borderSide: BorderSide(color: webBorder(context)),
+                  ),
+                ),
+              ),
             ),
+          if (canManage) ...[
+            if (materials.isNotEmpty) const SizedBox(height: 12),
+            uploadButtons,
+          ],
           if (canManage && uploading)
             const Padding(
               padding: EdgeInsets.only(top: 12),
@@ -1116,7 +1126,6 @@ class _WebMaterialsState extends State<WebMaterials> {
                       'Files shared by the community admins will appear here.',
                       'الملفات اللي بيشاركها مسؤولين المجتمع هتظهر هنا.',
                     ),
-              action: canManage ? uploadButton : null,
             )
           else if (shown.isEmpty)
             Padding(
@@ -1237,17 +1246,49 @@ class _WebMaterialsState extends State<WebMaterials> {
 Future<String?> _askTitle(
   BuildContext context,
   AppController c,
-  String fileName,
-) {
-  final controller = TextEditingController(
-    text: fileName.contains('.')
-        ? fileName.substring(0, fileName.lastIndexOf('.'))
-        : fileName,
+  String fileName, {
+  bool image = false,
+}) => showDialog<String>(
+  context: context,
+  builder: (_) => _MaterialTitleDialog(c: c, fileName: fileName, image: image),
+);
+
+class _MaterialTitleDialog extends StatefulWidget {
+  const _MaterialTitleDialog({
+    required this.c,
+    required this.fileName,
+    required this.image,
+  });
+  final AppController c;
+  final String fileName;
+  final bool image;
+
+  @override
+  State<_MaterialTitleDialog> createState() => _MaterialTitleDialogState();
+}
+
+class _MaterialTitleDialogState extends State<_MaterialTitleDialog> {
+  late final controller = TextEditingController(
+    text: widget.fileName.contains('.')
+        ? widget.fileName.substring(0, widget.fileName.lastIndexOf('.'))
+        : widget.fileName,
   );
-  return showDialog<String>(
-    context: context,
-    builder: (context) => AlertDialog.adaptive(
-      title: Text(c.t('Upload a file', 'رفع ملف')),
+
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = widget.c;
+    return AlertDialog.adaptive(
+      title: Text(
+        widget.image
+            ? c.t('Upload an image', 'رفع صورة')
+            : c.t('Upload a file', 'رفع ملف'),
+      ),
       content: Material(
         color: Colors.transparent,
         child: TextField(
@@ -1267,8 +1308,8 @@ Future<String?> _askTitle(
           child: Text(c.t('Upload', 'ارفع')),
         ),
       ],
-    ),
-  ).whenComplete(controller.dispose);
+    );
+  }
 }
 
 /// Opens one material inside the app: PDFs and images from a cached copy of

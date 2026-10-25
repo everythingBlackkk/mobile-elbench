@@ -35,6 +35,7 @@ class _WebProfileEditState extends State<WebProfileEdit> {
   String? major, city, job, level, group, section;
   int? day, month, year;
   bool imageBanner = false, saving = false, skillBusy = false;
+  bool selectingPhoto = false;
   String? error, success;
   Json fieldErrors = {};
   Uint8List? avatarBytes, bannerBytes, bannerOriginal;
@@ -224,6 +225,8 @@ class _WebProfileEditState extends State<WebProfileEdit> {
   }
 
   Future<void> pickPhoto(bool forBanner) async {
+    if (saving || selectingPhoto || !canUpload) return;
+    setState(() => selectingPhoto = true);
     try {
       final picked = await pickUploadImage(tr: tr);
       if (picked == null || !mounted) return;
@@ -274,6 +277,8 @@ class _WebProfileEditState extends State<WebProfileEdit> {
       }
     } catch (exception) {
       if (mounted) setState(() => error = '$exception');
+    } finally {
+      if (mounted) setState(() => selectingPhoto = false);
     }
   }
 
@@ -490,7 +495,12 @@ class _WebProfileEditState extends State<WebProfileEdit> {
                     color: const Color(0xa6000000),
                     borderRadius: BorderRadius.circular(999),
                     child: InkWell(
-                      onTap: () => setState(() => panel = 'banner'),
+                      key: const ValueKey('profile.edit.banner.camera'),
+                      onTap: saving || selectingPhoto
+                          ? null
+                          : canUpload
+                          ? () => pickPhoto(true)
+                          : () => setState(() => panel = 'banner'),
                       borderRadius: BorderRadius.circular(999),
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
@@ -540,7 +550,12 @@ class _WebProfileEditState extends State<WebProfileEdit> {
                         start: 0,
                         top: -35,
                         child: InkWell(
-                          onTap: () => setState(() => panel = 'avatar'),
+                          key: const ValueKey('profile.edit.avatar.camera'),
+                          onTap: saving || selectingPhoto
+                              ? null
+                              : canUpload
+                              ? () => pickPhoto(false)
+                              : () => setState(() => panel = 'avatar'),
                           customBorder: const CircleBorder(),
                           child: Container(
                             width: 80,
@@ -610,29 +625,6 @@ class _WebProfileEditState extends State<WebProfileEdit> {
                     ],
                   ),
                 ),
-                const SizedBox(width: 17),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Text(
-                        value(person['name']),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 18.08,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      Text(
-                        '@${value(person['university_id'])}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 13.12, color: colors.muted),
-                      ),
-                    ],
-                  ),
-                ),
               ],
             ),
           ),
@@ -666,33 +658,6 @@ class _WebProfileEditState extends State<WebProfileEdit> {
         tr(
           'Your details help people get to know you.',
           'بياناتك بتساعد الناس تتعرف عليك.',
-        ),
-      ),
-      // Identity comes from the university records and can't be edited.
-      _LockedField(
-        label: tr('Student ID', 'الرقم الجامعي'),
-        text: value(person['university_id']),
-        ltr: true,
-      ),
-      const SizedBox(height: 15),
-      _LockedField(label: tr('Name', 'الاسم'), text: value(person['name'])),
-      const SizedBox(height: 15),
-      _LockedField(
-        label: tr('Gender', 'النوع'),
-        text: switch (value(person['gender'])) {
-          'Male' => tr('Male', 'ذكر'),
-          'Female' => tr('Female', 'أنثى'),
-          _ => '—',
-        },
-      ),
-      Padding(
-        padding: const EdgeInsets.only(top: 8, bottom: 15),
-        child: Text(
-          tr(
-            'Your student ID, name and gender come from the university records and can’t be changed.',
-            'الرقم الجامعي والاسم والنوع جايين من سجلات الجامعة ومينفعش تغيّرهم.',
-          ),
-          style: TextStyle(fontSize: 12.5, height: 1.45, color: colors.muted),
         ),
       ),
       _EditSelect(
@@ -956,7 +921,9 @@ class _WebProfileEditState extends State<WebProfileEdit> {
                   ? tr('Upload a banner', 'ارفع صورة للغلاف')
                   : tr('Upload a photo', 'ارفع صورتك'),
               icon: forBanner ? Icons.image : Icons.camera_alt,
-              onTap: saving ? null : () => pickPhoto(forBanner),
+              onTap: saving || selectingPhoto
+                  ? null
+                  : () => pickPhoto(forBanner),
             ),
             if (forBanner && bannerOriginal != null)
               _textLink(
@@ -1356,46 +1323,6 @@ class _EditFieldLabel extends StatelessWidget {
       ],
     ],
   );
-}
-
-class _LockedField extends StatelessWidget {
-  const _LockedField({
-    required this.label,
-    required this.text,
-    this.ltr = false,
-  });
-  final String label, text;
-  final bool ltr;
-  @override
-  Widget build(BuildContext context) {
-    final colors = _EditColors(context);
-    return _EditFieldLabel(
-      label: label,
-      child: Container(
-        height: 47,
-        alignment: AlignmentDirectional.centerStart,
-        padding: const EdgeInsets.symmetric(horizontal: 14),
-        decoration: BoxDecoration(
-          color: colors.secondary,
-          border: Border.all(color: colors.border),
-          borderRadius: BorderRadius.circular(13),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                text,
-                textDirection: ltr ? TextDirection.ltr : null,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 16, color: colors.muted),
-              ),
-            ),
-            Icon(Icons.lock_outline, size: 16, color: colors.muted),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 class _EditSelect extends StatelessWidget {

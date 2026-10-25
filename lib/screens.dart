@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'api.dart';
+import 'app_toast.dart';
 import 'image_cache.dart';
 import 'main.dart';
 import 'forms.dart';
@@ -1518,9 +1519,7 @@ class NativePageState extends State<NativePage> with RouteAware {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('$e')));
+        showAppToast(context, '$e');
       }
     }
   }
@@ -1705,9 +1704,7 @@ class NativePageState extends State<NativePage> with RouteAware {
       _loadedGeneration = c.cacheGeneration;
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('$e')));
+        showAppToast(context, '$e');
       }
     }
   }
@@ -1850,6 +1847,55 @@ class NativePageState extends State<NativePage> with RouteAware {
       child: url.isEmpty
           ? Text(value(person['name'], '?').characters.first.toUpperCase())
           : null,
+    );
+  }
+
+  String? profilePath(Json person) {
+    final id = int.tryParse(value(person['id']));
+    if (id == null ||
+        id <= 0 ||
+        yes(person['is_anonymous']) ||
+        yes(person['anonymous'])) {
+      return null;
+    }
+    return '/users/$id';
+  }
+
+  /// Sender pictures have their own target, separate from the item's action.
+  Widget profileAvatar(
+    Json person, {
+    double radius = 22,
+    Key? key,
+    Widget? child,
+  }) {
+    final destination = profilePath(person);
+    final name = value(person['name'], c.t('Deleted user', 'مستخدم محذوف'));
+    final picture = SizedBox.square(
+      dimension: radius * 2 < 48 ? 48 : radius * 2,
+      child: Center(child: child ?? avatar(person, radius: radius)),
+    );
+    return Semantics(
+      key: key,
+      button: destination != null,
+      image: destination == null,
+      label: destination == null
+          ? name
+          : c.t('Open $name’s profile', 'افتح الملف الشخصي لـ$name'),
+      excludeSemantics: true,
+      child: destination == null
+          ? GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () {},
+              child: picture,
+            )
+          : Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () => c.open(destination),
+                borderRadius: BorderRadius.circular(28),
+                child: picture,
+              ),
+            ),
     );
   }
 
@@ -3729,9 +3775,7 @@ class NativePageState extends State<NativePage> with RouteAware {
         await c.logout();
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('$e')));
+          showAppToast(context, '$e');
         }
       }
     }, danger: true),

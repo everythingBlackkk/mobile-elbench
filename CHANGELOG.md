@@ -3,6 +3,15 @@
 The ElBench app for Android and iOS. Server changes are listed in the backend's changelog
 ([everythingBlackkk/myFamily](https://github.com/everythingBlackkk/myFamily/blob/main/CHANGELOG.md)).
 
+## 3.5.0 (17) — 2026-10-25
+
+- **Updates and notifications:** community updates show the sender's picture. Sender pictures open that person's profile while the notification itself still opens its post, comment, question or message. Anonymous senders stay private.
+- **Toasts:** in-app messages use one rounded light/dark popup that slides up from the bottom and disappears after about two seconds.
+- **Community uploads:** separate Upload Files and Upload Images buttons open the file picker and photo gallery respectively.
+- **Reports:** the matching backend update separates report limits from ordinary mobile requests, fixing false “Too many attempts” errors while keeping abuse protection.
+- **Profile editing:** avatar and banner camera controls open Photos directly; student ID, name and gender are hidden from the editor.
+- **Shared links:** Android App Links and app navigation preserve shared destinations through sign-in. iOS includes link handling and optional Universal Links configuration; HTTPS Universal Links require an Apple Developer team with Associated Domains support.
+
 ## 3.0.0 (16) — 2026-10-25
 
 - **Pull to refresh:** a subtle haptic confirms when a refresh starts; scrolling, canceled pulls and automatic reloads stay silent.

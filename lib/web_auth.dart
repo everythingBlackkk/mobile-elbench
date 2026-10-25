@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'api.dart';
+import 'app_toast.dart';
 import 'main.dart';
 import 'screens.dart' show AuthHeader, NativePage;
 import 'web_style.dart';
@@ -166,11 +167,8 @@ class _WebSignupPageState extends State<WebSignupPage> {
         });
         c.settings.preferences?.remove(_studentIdKey);
         if (mounted) {
-          final messenger = ScaffoldMessenger.of(context);
+          showAppToast(context, value(response['message']));
           Navigator.of(context).pop();
-          messenger.showSnackBar(
-            SnackBar(content: Text(value(response['message']))),
-          );
         }
       } else {
         await c.action('POST', '/signup', {

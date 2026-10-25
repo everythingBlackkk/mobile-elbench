@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'api.dart';
+import 'app_toast.dart';
 import 'image_cache.dart';
 import 'app_menus.dart';
 import 'screens.dart';
@@ -83,36 +84,41 @@ bool _containsId(dynamic collection, dynamic id) {
 String _name(NativePageState page, Json person) =>
     value(person['name'], page.c.t('Deleted user', 'مستخدم محذوف'));
 
-Widget _avatar(NativePageState page, Json person, double diameter) {
+Widget _avatar(NativePageState page, Json person, double diameter, {Key? key}) {
   if (person.isEmpty) {
     final cacheExtent = (diameter * MediaQuery.devicePixelRatioOf(page.context))
         .ceil();
-    return ClipOval(
-      child: networkImage(
-        page.c.api.media('/avatars/jko.webp'),
-        width: diameter,
-        height: diameter,
-        cacheWidth: cacheExtent,
-        cacheHeight: cacheExtent,
-        fit: BoxFit.cover,
-        errorBuilder: (_, _, _) => Container(
+    return page.profileAvatar(
+      person,
+      key: key,
+      radius: diameter / 2,
+      child: ClipOval(
+        child: networkImage(
+          page.c.api.media('/avatars/jko.webp'),
           width: diameter,
           height: diameter,
-          color: _Colors(page.context).secondary,
-          alignment: Alignment.center,
-          child: WebIcon('user', size: diameter / 2),
+          cacheWidth: cacheExtent,
+          cacheHeight: cacheExtent,
+          fit: BoxFit.cover,
+          errorBuilder: (_, _, _) => Container(
+            width: diameter,
+            height: diameter,
+            color: _Colors(page.context).secondary,
+            alignment: Alignment.center,
+            child: WebIcon('user', size: diameter / 2),
+          ),
         ),
       ),
     );
   }
-  return page.avatar(person, radius: diameter / 2);
+  return page.profileAvatar(person, key: key, radius: diameter / 2);
 }
 
 Widget _personName(NativePageState page, Json person, {double size = 14}) =>
     InkWell(
-      onTap: person['id'] == null
+      onTap: page.profilePath(person) == null
           ? null
-          : () => page.c.open('/users/${person['id']}'),
+          : () => page.c.open(page.profilePath(person)!),
       child: Text(
         _name(page, person),
         textDirection: TextDirection.ltr,
@@ -1035,7 +1041,12 @@ class _InboxCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              _avatar(page, participant, 44),
+              _avatar(
+                page,
+                participant,
+                44,
+                key: ValueKey('inbox.avatar.${item['id']}'),
+              ),
               const SizedBox(width: 11),
               Expanded(
                 child: Column(
@@ -1645,7 +1656,12 @@ class _NotificationRow extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         if (!scheduled) ...[
-                          _avatar(page, actor, 36),
+                          _avatar(
+                            page,
+                            actor,
+                            36,
+                            key: ValueKey('notification.avatar.${item['id']}'),
+                          ),
                           const SizedBox(height: 11),
                         ],
                         Text.rich(
@@ -1953,9 +1969,7 @@ Future<void> _deleteAnnouncement(
     if (page.mounted) await page.load(detail ? '/notifications' : null);
   } catch (error) {
     if (page.mounted) {
-      ScaffoldMessenger.of(
-        page.context,
-      ).showSnackBar(SnackBar(content: Text('$error')));
+      showAppToast(page.context, '$error');
     }
   }
 }

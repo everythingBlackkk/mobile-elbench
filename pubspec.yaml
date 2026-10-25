@@ -1,7 +1,7 @@
 name: elbench
 description: Native ElBench student community app for Android and iOS.
 publish_to: none
-version: 3.0.0+16
+version: 3.5.0+17
 
 environment:
   sdk: '>=3.12.2 <4.0.0'

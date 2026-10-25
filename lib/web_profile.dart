@@ -8,6 +8,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart' show DateFormat, NumberFormat;
 
 import 'api.dart';
+import 'app_toast.dart';
 import 'image_cache.dart';
 import 'app_menus.dart';
 import 'screens.dart';
@@ -1973,9 +1974,7 @@ class _WebPeopleState extends State<WebPeople> {
     } catch (error) {
       if (!mounted || current != request) return;
       setState(() => searching = false);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('$error')));
+      showAppToast(context, '$error');
     }
   }
 
@@ -2475,10 +2474,9 @@ Future<void> showWebAskComposer(
     builder: (_) => _AskComposer(page: page, recipient: recipient),
   );
   if (sent == true && context.mounted) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(page.c.t('Your question was sent.', 'تم إرسال سؤالك.')),
-      ),
+    showAppToast(
+      context,
+      page.c.t('Your question was sent.', 'تم إرسال سؤالك.'),
     );
   }
 }
@@ -2771,14 +2769,11 @@ Future<void> showWebProfileOptions(
                     if (!dialogContext.mounted) return;
                     Navigator.pop(dialogContext);
                     if (!context.mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          page.c.t(
-                            'Profile link copied.',
-                            'تم نسخ رابط الملف الشخصي.',
-                          ),
-                        ),
+                    showAppToast(
+                      context,
+                      page.c.t(
+                        'Profile link copied.',
+                        'تم نسخ رابط الملف الشخصي.',
                       ),
                     );
                   },
@@ -2827,18 +2822,14 @@ class _ProfileReportState extends State<_ProfileReport> {
         {'reason': reason.text.trim()},
       );
       if (!mounted) return;
-      final messenger = ScaffoldMessenger.of(context);
-      Navigator.pop(context);
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            widget.page.c.t(
-              'Your profile report was sent to the Super Admin.',
-              'بلاغ الملف الشخصي وصل لمسؤول الموقع الرئيسي.',
-            ),
-          ),
+      showAppToast(
+        context,
+        widget.page.c.t(
+          'Your profile report was sent to the Super Admin.',
+          'بلاغ الملف الشخصي وصل لمسؤول الموقع الرئيسي.',
         ),
       );
+      Navigator.pop(context);
     } catch (exception) {
       if (mounted) setState(() => error = '$exception');
     } finally {

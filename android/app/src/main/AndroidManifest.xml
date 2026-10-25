@@ -25,9 +25,46 @@
               android:name="io.flutter.embedding.android.NormalTheme"
               android:resource="@style/NormalTheme"
               />
+            <meta-data android:name="flutter_deeplinking_enabled" android:value="true"/>
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="https"/>
+                <data android:host="elbench.com"/>
+                <data android:pathPrefix="/users/"/>
+                <data android:pathPrefix="/community"/>
+                <data android:pathPrefix="/ask/"/>
+                <data android:path="/question"/>
+                <data android:path="/forum"/>
+                <data android:pathPrefix="/notifications/announcements/"/>
+                <data android:pathPrefix="/announcements/"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="https"/>
+                <data android:host="www.elbench.com"/>
+                <data android:host="sahbak.site"/>
+                <data android:host="www.sahbak.site"/>
+                <data android:pathPrefix="/users/"/>
+                <data android:pathPrefix="/community"/>
+                <data android:pathPrefix="/ask/"/>
+                <data android:path="/question"/>
+                <data android:path="/forum"/>
+                <data android:pathPrefix="/notifications/announcements/"/>
+                <data android:pathPrefix="/announcements/"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="elbench"/>
             </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.

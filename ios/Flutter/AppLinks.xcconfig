@@ -1,0 +1,5 @@
+// Enable only with an Apple Developer Program team and an associated-domain
+// provisioning profile, after hosting the AASA file on both production hosts.
+// Set ELBENCH_APP_LINKS = Links to include the associated-domains entitlement.
+// The empty default keeps Personal Team installs buildable.
+ELBENCH_APP_LINKS =

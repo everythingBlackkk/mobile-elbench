@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart' show DateFormat;
 import 'api.dart';
+import 'app_toast.dart';
 import 'image_cache.dart';
 import 'app_menus.dart';
 import 'screens.dart';
@@ -231,11 +232,17 @@ class _WebForumState extends State<WebForum> {
                 (
                   'upload',
                   'upload',
-                  c.t('Upload material', 'ارفع ملف'),
+                  c.t('Upload Files', 'ارفع ملفات'),
                   c.t(
                     'Share notes, sheets or slides',
                     'شارك ملخصات أو شيتات أو سلايدات',
                   ),
+                ),
+                (
+                  'upload-images',
+                  'image',
+                  c.t('Upload Images', 'ارفع صور'),
+                  c.t('Choose images from your gallery', 'اختار صور من المعرض'),
                 ),
                 (
                   'review',
@@ -321,14 +328,14 @@ class _WebForumState extends State<WebForum> {
         if (sent != null && page.mounted) {
           final message = value(sent['message']);
           if (message.isNotEmpty && mounted) {
-            ScaffoldMessenger.maybeOf(
-              context,
-            )?.showSnackBar(SnackBar(content: Text(message)));
+            showAppToast(context, message);
           }
           await page.load();
         }
       case 'upload':
         c.open('/community/$id/materials?upload=1');
+      case 'upload-images':
+        c.open('/community/$id/materials?upload=images');
       case 'review':
         c.open('/moderate?community_id=$id');
     }
@@ -2138,6 +2145,7 @@ class _ForumUpdates extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           _NoticeCard(
+            page: page,
             notice: notice,
             colors: colors,
             arabic: c.settings.language == 'ar',
@@ -2151,10 +2159,12 @@ class _ForumUpdates extends StatelessWidget {
 /// The latest update on the subject's page: a plain card with sender, time and message.
 class _NoticeCard extends StatelessWidget {
   const _NoticeCard({
+    required this.page,
     required this.notice,
     required this.colors,
     required this.arabic,
   });
+  final NativePageState page;
   final Json notice;
   final _ForumColors colors;
   final bool arabic;
@@ -2168,6 +2178,7 @@ class _NoticeCard extends StatelessWidget {
       border: Border.all(color: colors.border),
     ),
     child: _NoticeRow(
+      page: page,
       notice: notice,
       colors: colors,
       arabic: arabic,
@@ -2364,6 +2375,7 @@ class _WebCommunityNotificationsState extends State<WebCommunityNotifications> {
                   for (final (index, notice) in notices.indexed) ...[
                     if (index > 0) Divider(height: 1, color: colors.border),
                     _NoticeRow(
+                      page: page,
                       notice: notice,
                       colors: colors,
                       arabic: arabic,
@@ -2402,11 +2414,13 @@ class _WebCommunityNotificationsState extends State<WebCommunityNotifications> {
 /// One notification in a list: sender and time on one line, the message below.
 class _NoticeRow extends StatelessWidget {
   const _NoticeRow({
+    required this.page,
     required this.notice,
     required this.colors,
     required this.arabic,
     required this.unseen,
   });
+  final NativePageState page;
   final Json notice;
   final _ForumColors colors;
   final bool arabic, unseen;
@@ -2421,6 +2435,12 @@ class _NoticeRow extends StatelessWidget {
         children: [
           Row(
             children: [
+              page.profileAvatar(
+                object(notice['author']),
+                radius: 18,
+                key: ValueKey('notice.avatar.${notice['id']}'),
+              ),
+              const SizedBox(width: 8),
               if (unseen) ...[
                 Container(
                   width: 7,

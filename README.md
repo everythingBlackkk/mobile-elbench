@@ -8,7 +8,7 @@ the earlier Android WebView app and keeps its Google Play listing.
 | Android  | `com.sahbakwebview` |
 | iOS      | `com.sahbak.ios`    |
 
-Version: `pubspec.yaml` (`3.0.0+16`). The Android version code must stay above
+Version: `pubspec.yaml` (`3.5.0+17`). The Android version code must stay above
 the last published WebView build (5).
 
 ## Requirements
@@ -169,3 +169,20 @@ iOS push is off by default because Apple only allows it for apps signed by a pai
 4. Enable Push Notifications for the App ID `com.sahbak.ios` and sign with your paid team.
 
 Android push works with `google-services.json`.
+
+### Shared links
+
+Android verifies shared `https://elbench.com` links using
+`/.well-known/assetlinks.json` on the website. Its signing fingerprint must match
+the APK being installed. Profile, post, question and community links open their
+destination in the app, including after sign-in. Alternate and legacy domains
+are accepted by the app but are not advertised as verified hosts.
+
+iOS registers `elbench://` links and includes opt-in HTTPS Universal Links.
+Apple's free Personal Teams cannot use Associated Domains, so the current
+Personal Team build cannot open ordinary shared HTTPS links directly from other
+apps. With a paid team, enable Associated Domains for `com.sahbak.ios`, update
+the website's `/.well-known/apple-app-site-association` to that team's application
+identifier, and set **Xcode build setting** `ELBENCH_APP_LINKS = Links` in
+`ios/Flutter/AppLinks.xcconfig`. This setting selects the matching signing
+entitlements; it is not a Dart define. Leave it empty for a Personal Team build.
