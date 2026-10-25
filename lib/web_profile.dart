@@ -563,10 +563,10 @@ class _WebProfileState extends State<WebProfile>
     );
 
     return RefreshIndicator.adaptive(
-      onRefresh: () {
+      onRefresh: () => page.refreshFromPull(() {
         page.c.markAllStale();
         return fetchPanel(tab, force: true, refresh: true);
-      },
+      }),
       child: CustomScrollView(
         key: const ValueKey('profile.scroll'),
         controller: scroll,
@@ -2134,10 +2134,10 @@ class _WebPeopleState extends State<WebPeople> {
         ? 0
         : (people.isEmpty ? 1 : people.length) + (hasPagination ? 1 : 0);
     return RefreshIndicator.adaptive(
-      onRefresh: () {
+      onRefresh: () => page.refreshFromPull(() {
         page.c.markAllStale();
         return fetch(page.path, force: true);
-      },
+      }),
       child: ListView.builder(
         padding: EdgeInsets.fromLTRB(
           10,

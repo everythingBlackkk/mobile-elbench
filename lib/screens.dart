@@ -1315,15 +1315,21 @@ class NativePageState extends State<NativePage> with RouteAware {
     super.dispose();
   }
 
+  /// Confirm a triggered pull. Automatic reloads call their loaders directly.
+  Future<void> refreshFromPull(RefreshCallback refresh) {
+    if (!mounted) return Future.value();
+    unawaited(HapticFeedback.lightImpact());
+    return refresh();
+  }
+
   /// A user's pull-to-refresh: reload this screen and make every other
   /// retained screen fetch fresh content (and badge counts) when revealed.
-  Future<void> pullRefresh() {
-    if (!mounted) return Future.value();
+  Future<void> pullRefresh([String? destination]) => refreshFromPull(() {
     c.markAllStale();
     _loadedRefreshEpoch = c.refreshEpoch;
     _pullRefreshing = true;
-    return load().whenComplete(() => _pullRefreshing = false);
-  }
+    return load(destination).whenComplete(() => _pullRefreshing = false);
+  });
 
   Future<void> refreshHome() async {
     if (!mounted) return;

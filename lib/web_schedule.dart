@@ -150,7 +150,7 @@ class _WebScheduleState extends State<WebSchedule> {
       DateTime.tryParse(value(schedule['date'])) ?? DateTime.now();
 
   String _cacheKey(String path) =>
-      '${identityHashCode(p.c)}|${p.c.sessionGeneration}|${p.c.cacheGeneration}|$path';
+      '${identityHashCode(p.c)}|${p.c.sessionGeneration}|${p.c.cacheGeneration}|${p.c.refreshEpoch}|$path';
 
   Future<({DateTime at, Json schedule})?> _fetchDay(
     String path, {
@@ -396,10 +396,11 @@ class _WebScheduleState extends State<WebSchedule> {
     return ColoredBox(
       // Dark mode uses the same plain black as every other page.
       color: dark ? Colors.black : const Color(0xfff7f7fc),
-      child: RefreshIndicator(
-        onRefresh: () => p.load(_currentPath),
+      child: RefreshIndicator.adaptive(
+        onRefresh: () => p.pullRefresh(_currentPath),
         child: ListView(
           padding: const EdgeInsets.fromLTRB(18, 24, 18, 120),
+          physics: const AlwaysScrollableScrollPhysics(),
           children: [
             Row(
               children: [

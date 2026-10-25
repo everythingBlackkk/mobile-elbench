@@ -840,7 +840,7 @@ class WebInbox extends StatelessWidget {
           MediaQuery.disableAnimationsOf(context) ||
           MediaQuery.of(context).accessibleNavigation;
       return RefreshIndicator.adaptive(
-        onRefresh: activity.refresh,
+        onRefresh: () => page.refreshFromPull(activity.refresh),
         child: ListView(
           controller: activity.scroll,
           key: const ValueKey('activity.inbox.scroll'),
@@ -1387,7 +1387,7 @@ class _WebNotificationsState extends State<WebNotifications> {
       return Stack(
         children: [
           RefreshIndicator.adaptive(
-            onRefresh: activity.refresh,
+            onRefresh: () => page.refreshFromPull(activity.refresh),
             child: ListView(
               controller: activity.scroll,
               key: const ValueKey('activity.notifications.scroll'),

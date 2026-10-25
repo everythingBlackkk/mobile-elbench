@@ -3,6 +3,11 @@
 The ElBench app for Android and iOS. Server changes are listed in the backend's changelog
 ([everythingBlackkk/myFamily](https://github.com/everythingBlackkk/myFamily/blob/main/CHANGELOG.md)).
 
+## 2.5.3 (15) — 2026-10-25
+
+- **Pull to refresh:** a subtle haptic confirms when a refresh starts; scrolling, canceled pulls and automatic reloads stay silent.
+- **Schedule:** uses the same platform-adaptive refresh spinner as other pages, keeps the selected day and filters, and refreshes cached content and badges.
+
 ## 2.5.2 (14) — 2026-10-25
 
 - **Edit subjects:** Cancel (black) and Save (green) sit side by side across the full width, directly above the active-subjects summary. Save stays faded until you change something; saving takes you back to Home, and Cancel returns Home without saving.

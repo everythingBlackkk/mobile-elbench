@@ -8,7 +8,7 @@ the earlier Android WebView app and keeps its Google Play listing.
 | Android  | `com.sahbakwebview` |
 | iOS      | `com.sahbak.ios`    |
 
-Version: `pubspec.yaml` (`2.4.0+11`). The Android version code must stay above
+Version: `pubspec.yaml` (`2.5.3+15`). The Android version code must stay above
 the last published WebView build (5).
 
 ## Requirements
@@ -46,6 +46,8 @@ an older build is carried over on first launch, so users stay signed in.
 
 - **Pull to refresh:** every screen reloads its content and the notification
   and inbox badges. Other open screens are marked stale and refetch when shown.
+  A subtle haptic confirms when a pull triggers a refresh. Schedule uses the same
+  platform-adaptive spinner as the other pages and keeps the selected day.
   Returning to the app refreshes the badges; after 2+ minutes in the background
   the visible screen reloads too.
 - **Study materials:** each community has a Materials page. PDFs open inside
