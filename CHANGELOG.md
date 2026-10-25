@@ -3,6 +3,14 @@
 The ElBench app for Android and iOS. Server changes are listed in the backend's changelog
 ([everythingBlackkk/myFamily](https://github.com/everythingBlackkk/myFamily/blob/main/CHANGELOG.md)).
 
+## 4.0.0 (18) — 2026-10-26
+
+- **Home search:** displays only community posts as soon as typing starts, with a clear-search control and no stale results while a new search loads.
+- **Keyboard:** tapping outside an input dismisses the keyboard throughout Android and iOS, including dialogs and bottom sheets.
+- **Previous results:** quiz history uses clearer cards with aligned scores, time, status and date, responsive layouts and a full-width result action in light/dark themes and Arabic.
+- **Loading:** each page family has a skeleton shaped like its content, with a shared lightweight animation that respects reduced motion.
+- **Builds:** Android retains Shorebird; iOS continues to use standard Flutter without Shorebird. These UI improvements need no backend deployment.
+
 ## 3.5.0 (17) — 2026-10-25
 
 - **Updates and notifications:** community updates show the sender's picture. Sender pictures open that person's profile while the notification itself still opens its post, comment, question or message. Anonymous senders stay private.

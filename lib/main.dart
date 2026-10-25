@@ -241,38 +241,52 @@ class _ElBenchAppState extends State<ElBenchApp> with WidgetsBindingObserver {
     locale: Locale(widget.settings.language),
     supportedLocales: const [Locale('en'), Locale('ar')],
     localizationsDelegates: GlobalMaterialLocalizations.delegates,
-    builder: (context, child) => AnnotatedRegion<SystemUiOverlayStyle>(
-      value:
-          (Theme.of(context).brightness == Brightness.dark
-                  ? SystemUiOverlayStyle.light
-                  : SystemUiOverlayStyle.dark)
-              .copyWith(
-                statusBarColor: Colors.transparent,
-                systemNavigationBarColor: Theme.of(
-                  context,
-                ).scaffoldBackgroundColor,
-              ),
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          ExcludeSemantics(
-            excluding: _showLaunch,
-            child: child ?? const SizedBox.shrink(),
-          ),
-          if (_showLaunch)
-            Positioned.fill(
-              child: LaunchAnimation(
-                onFinished: () {
-                  if (mounted) {
-                    setState(() {
-                      _animationFinished = true;
-                      _releaseLaunchIfReady();
-                    });
-                  }
-                },
-              ),
+    builder: (context, child) => Actions(
+      actions: <Type, Action<Intent>>{
+        // Apply the same outside-tap behavior to inputs on mobile, including
+        // dialogs and sheets. Flutter keeps taps inside TextFieldTapRegion
+        // (such as field controls) associated with their input.
+        EditableTextTapOutsideIntent:
+            CallbackAction<EditableTextTapOutsideIntent>(
+              onInvoke: (intent) {
+                intent.focusNode.unfocus();
+                return null;
+              },
             ),
-        ],
+      },
+      child: AnnotatedRegion<SystemUiOverlayStyle>(
+        value:
+            (Theme.of(context).brightness == Brightness.dark
+                    ? SystemUiOverlayStyle.light
+                    : SystemUiOverlayStyle.dark)
+                .copyWith(
+                  statusBarColor: Colors.transparent,
+                  systemNavigationBarColor: Theme.of(
+                    context,
+                  ).scaffoldBackgroundColor,
+                ),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            ExcludeSemantics(
+              excluding: _showLaunch,
+              child: child ?? const SizedBox.shrink(),
+            ),
+            if (_showLaunch)
+              Positioned.fill(
+                child: LaunchAnimation(
+                  onFinished: () {
+                    if (mounted) {
+                      setState(() {
+                        _animationFinished = true;
+                        _releaseLaunchIfReady();
+                      });
+                    }
+                  },
+                ),
+              ),
+          ],
+        ),
       ),
     ),
     home: _initializationError != null

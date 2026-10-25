@@ -668,137 +668,10 @@ class WebQuizHistory extends StatelessWidget {
             style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
           ),
           const SizedBox(height: 13),
-          for (final a in rows(d['attempts']))
+          for (final attempt in rows(d['attempts']))
             Padding(
               padding: const EdgeInsets.only(bottom: 12),
-              child: quizSurface(
-                context,
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          width: 32,
-                          height: 32,
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            color: scheme.primaryContainer,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: QuizCategoryIcon(
-                            value(a['category_slug']),
-                            color: scheme.primary,
-                            size: 20,
-                          ),
-                        ),
-                        const SizedBox(width: 9),
-                        Expanded(
-                          child: Text(
-                            value(a['category_name']),
-                            textDirection: TextDirection.ltr,
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                        Column(
-                          children: [
-                            Text(
-                              value(a['score'], '0'),
-                              style: TextStyle(
-                                fontSize: 27,
-                                height: 1.1,
-                                fontWeight: FontWeight.w600,
-                                color:
-                                    (double.tryParse(value(a['score'])) ?? 0) >=
-                                        60
-                                    ? scheme.primary
-                                    : scheme.onSurface,
-                              ),
-                            ),
-                            Text(
-                              '/ 100',
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: scheme.onSurfaceVariant,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 13),
-                    Text(
-                      p.date(a['submitted_at'] ?? a['started_at']),
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: scheme.onSurfaceVariant,
-                      ),
-                    ),
-                    const SizedBox(height: 13),
-                    Row(
-                      children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              c.t('Status', 'الحالة'),
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: scheme.onSurfaceVariant,
-                              ),
-                            ),
-                            const SizedBox(height: 5),
-                            quizStatusPill(context, p, a['status']),
-                          ],
-                        ),
-                        const Spacer(),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Text(
-                              c.t('Time taken', 'الوقت المستغرق'),
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: scheme.onSurfaceVariant,
-                              ),
-                            ),
-                            const SizedBox(height: 5),
-                            Text(
-                              duration(a['time_taken_seconds']),
-                              style: const TextStyle(fontSize: 12),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton(
-                        onPressed: () => c.open('/quiz/${a['uuid']}'),
-                        style: OutlinedButton.styleFrom(
-                          backgroundColor: Theme.of(
-                            context,
-                          ).scaffoldBackgroundColor,
-                          minimumSize: const Size(0, 40),
-                        ),
-                        child: Text(
-                          c.t('Review', 'مراجعة'),
-                          style: const TextStyle(fontSize: 12),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                radius: 19,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 18,
-                ),
-              ),
+              child: QuizHistoryCard(page: p, attempt: attempt),
             ),
           if (rows(d['attempts']).isEmpty)
             p.empty(
@@ -809,6 +682,227 @@ class WebQuizHistory extends StatelessWidget {
             ),
           p.pagination(d['attempts']),
         ],
+      ),
+    );
+  }
+}
+
+/// One previous result, with enough room for long bank names and larger text.
+class QuizHistoryCard extends StatelessWidget {
+  const QuizHistoryCard({super.key, required this.page, required this.attempt});
+  final NativePageState page;
+  final Json attempt;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = page.c;
+    final scheme = Theme.of(context).colorScheme;
+    final uuid = value(attempt['uuid']);
+    final bank = value(attempt['category_name']);
+    final score = value(attempt['score'], '0');
+    final scoreColor = (double.tryParse(score) ?? 0) >= 60
+        ? scheme.primary
+        : scheme.onSurface;
+    final abandoned = attempt['status'] == 'abandoned';
+    final statusColor = abandoned ? scheme.error : scheme.primary;
+
+    Widget scoreSummary() => Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          c.t('Score', 'النتيجة'),
+          style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+        ),
+        const SizedBox(height: 4),
+        Text.rich(
+          key: ValueKey('quiz.history.score.$uuid'),
+          TextSpan(
+            text: score,
+            style: TextStyle(
+              fontSize: 30,
+              height: 1.2,
+              fontWeight: FontWeight.w700,
+              color: scoreColor,
+            ),
+            children: [
+              TextSpan(
+                text: ' / 100',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+          textDirection: TextDirection.ltr,
+          semanticsLabel: c.t(
+            'Score $score out of 100',
+            'النتيجة $score من ١٠٠',
+          ),
+        ),
+      ],
+    );
+    Widget timeSummary() => Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          c.t('Time taken', 'الوقت المستغرق'),
+          style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+        ),
+        const SizedBox(height: 7),
+        Text(
+          duration(attempt['time_taken_seconds']),
+          key: ValueKey('quiz.history.time.$uuid'),
+          textDirection: TextDirection.ltr,
+          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
+        ),
+      ],
+    );
+
+    return KeyedSubtree(
+      key: ValueKey('quiz.history.attempt.$uuid'),
+      child: quizSurface(
+        context,
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: scheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(13),
+                  ),
+                  child: QuizCategoryIcon(
+                    value(attempt['category_slug']),
+                    color: scheme.primary,
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    bank,
+                    key: ValueKey('quiz.history.bank.$uuid'),
+                    textDirection: contentDirection(bank),
+                    style: const TextStyle(
+                      fontSize: 16,
+                      height: 1.45,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 10,
+              runSpacing: 9,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Container(
+                  key: ValueKey('quiz.history.status.$uuid'),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: statusColor.withValues(alpha: .09),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    quizStatus(page, attempt['status']),
+                    style: TextStyle(
+                      fontSize: 11,
+                      height: 1.3,
+                      fontWeight: FontWeight.w600,
+                      color: statusColor,
+                    ),
+                  ),
+                ),
+                Text(
+                  page.date(attempt['submitted_at'] ?? attempt['started_at']),
+                  key: ValueKey('quiz.history.date.$uuid'),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Container(
+              key: ValueKey('quiz.history.summary.$uuid'),
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Theme.of(context).scaffoldBackgroundColor,
+                borderRadius: BorderRadius.circular(15),
+                border: Border.all(color: scheme.outlineVariant),
+              ),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final stacked =
+                      constraints.maxWidth < 260 ||
+                      MediaQuery.textScalerOf(context).scale(14) > 19.6;
+                  if (stacked) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        scoreSummary(),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          child: Divider(
+                            height: 1,
+                            color: scheme.outlineVariant,
+                          ),
+                        ),
+                        timeSummary(),
+                      ],
+                    );
+                  }
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Expanded(child: scoreSummary()),
+                      const SizedBox(width: 20),
+                      Expanded(child: timeSummary()),
+                    ],
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 14),
+            OutlinedButton.icon(
+              key: ValueKey('quiz.history.review.$uuid'),
+              onPressed: () => c.open(
+                '/quiz/$uuid',
+                seed: const {'loading_screen': 'quiz.result'},
+              ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: scheme.primary,
+                minimumSize: const Size(0, 46),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
+                ),
+                side: BorderSide(color: scheme.outlineVariant),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(13),
+                ),
+              ),
+              icon: const Icon(Icons.arrow_forward, size: 18),
+              iconAlignment: IconAlignment.end,
+              label: Text(c.t('View result', 'عرض النتيجة')),
+            ),
+          ],
+        ),
+        radius: 22,
+        padding: const EdgeInsets.all(16),
       ),
     );
   }

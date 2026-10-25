@@ -54,18 +54,24 @@ class WebHome extends StatefulWidget {
   State<WebHome> createState() => _WebHomeState();
 }
 
+String _postSearchTerm(String value) =>
+    value.trim().replaceAll(RegExp(r'\s+'), ' ');
+
 class _WebHomeState extends State<WebHome> {
   /// Home search matches post text only and runs on the server, across every
   /// post the viewer may see (not just the loaded ones).
-  late String search = Uri.parse(widget.page.path).queryParameters['q'] ?? '';
+  late String search = _postSearchTerm(
+    Uri.parse(widget.page.path).queryParameters['q'] ?? '',
+  );
   late final _searchField = TextEditingController(text: search);
   Timer? _searchTimer;
 
   void _searchChanged(String value) {
-    final term = value.trim();
+    final term = _postSearchTerm(value);
+    if (term == search) return;
     setState(() => search = term);
     _searchTimer?.cancel();
-    if (term.length == 1) return;
+    if (term.runes.length == 1) return;
     _searchTimer = Timer(const Duration(milliseconds: 400), () {
       if (!mounted || term != search) return;
       p.load(
@@ -163,11 +169,17 @@ class _WebHomeState extends State<WebHome> {
   @override
   Widget build(BuildContext context) {
     final c = p.c;
-    final searching = search.length >= 2;
-    // While searching, only matching posts are shown.
-    final events = searching ? <Json>[] : rows(p.data['featured_events']);
-    final communities = searching ? <Json>[] : rows(p.data['communities']);
-    final posts = rows(p.data['posts']);
+    final searching = search.isNotEmpty;
+    final shortSearch = searching && search.runes.length < 2;
+    // The path changes when a request starts; data.search identifies the
+    // completed results, including when an older request finishes mid-debounce.
+    final waitingForPosts =
+        !shortSearch && _postSearchTerm(value(p.data['search'])) != search;
+    final events = rows(p.data['featured_events']);
+    final communities = rows(p.data['communities']);
+    final posts = shortSearch || waitingForPosts
+        ? <Json>[]
+        : rows(p.data['posts']);
     _bottomClearance = MediaQuery.paddingOf(context).bottom + 12;
     _cachedFeedOffset = null;
     _checkFeedVisibility();
@@ -225,6 +237,7 @@ class _WebHomeState extends State<WebHome> {
       ),
       const SizedBox(height: 28),
       TextField(
+        key: const ValueKey('home.search'),
         textDirection: contentDirection(search),
         controller: _searchField,
         onChanged: _searchChanged,
@@ -237,6 +250,16 @@ class _WebHomeState extends State<WebHome> {
             padding: const EdgeInsets.all(16),
             child: WebIcon('search', size: 20, color: webMuted(context)),
           ),
+          suffixIcon: searching
+              ? IconButton(
+                  tooltip: c.t('Clear search', 'امسح البحث'),
+                  onPressed: () {
+                    _searchField.clear();
+                    _searchChanged('');
+                  },
+                  icon: const Icon(Icons.close_rounded, size: 20),
+                )
+              : null,
           contentPadding: const EdgeInsets.symmetric(
             vertical: 16,
             horizontal: 16,
@@ -256,7 +279,7 @@ class _WebHomeState extends State<WebHome> {
         ),
       ),
       const SizedBox(height: 48),
-      if (object(p.data['scheduleSummary']).isNotEmpty && !searching) ...[
+      if (object(p.data['scheduleSummary']).isNotEmpty) ...[
         HomeScheduleCard(
           schedule: object(p.data['scheduleSummary']),
           controller: c,
@@ -317,7 +340,7 @@ class _WebHomeState extends State<WebHome> {
           ),
         ],
       ),
-      if (!searching && communities.isEmpty && yes(p.data['has_communities']))
+      if (communities.isEmpty && yes(p.data['has_communities']))
         Padding(
           padding: const EdgeInsets.only(top: 16),
           child: Text(
@@ -340,17 +363,29 @@ class _WebHomeState extends State<WebHome> {
       _FeedHeading(
         key: _feedKey,
         child: section(
-          c.t('Community feed', 'منشورات المجتمع'),
-          c.t(
-            'Share a thought. Start a conversation.',
-            'شارك فكرة وافتح كلام مع أصحابك.',
-          ),
+          searching
+              ? c.t('Search results', 'نتائج البحث')
+              : c.t('Community feed', 'منشورات المجتمع'),
+          searching
+              ? c.t('Community posts', 'منشورات المجتمع')
+              : c.t(
+                  'Share a thought. Start a conversation.',
+                  'شارك فكرة وافتح كلام مع أصحابك.',
+                ),
           size: 20,
         ),
       ),
       const SizedBox(height: 16),
     ];
     final feedHeadingIndex = headerItems.length - 2;
+    if (searching) {
+      // Keep the field at its existing child index so entering search does
+      // not recreate it or dismiss the keyboard. Empty Home is unchanged.
+      for (var i = 0; i < feedHeadingIndex; i++) {
+        if (i != 2) headerItems[i] = const SizedBox.shrink();
+      }
+      headerItems[3] = const SizedBox(height: 24);
+    }
     final postItemCount = posts.isEmpty ? 1 : posts.length;
     final totalCount = headerItems.length + postItemCount + 1;
     return Stack(
@@ -437,6 +472,19 @@ class _WebHomeState extends State<WebHome> {
                     }
                     final postIndex = index - headerItems.length;
                     if (posts.isEmpty && postIndex == 0) {
+                      if (shortSearch) {
+                        return p.empty(
+                          c.t(
+                            'Type at least 2 characters to search posts.',
+                            'اكتب حرفين على الأقل للبحث في المنشورات.',
+                          ),
+                        );
+                      }
+                      if (waitingForPosts) {
+                        return const PostSkeleton(
+                          key: ValueKey('home.search.loading'),
+                        );
+                      }
                       return p.empty(
                         searching
                             ? c.t(
@@ -456,7 +504,9 @@ class _WebHomeState extends State<WebHome> {
                       );
                     }
                     // Search results are paginated by the server too.
-                    return p.more('posts');
+                    return shortSearch || waitingForPosts
+                        ? const SizedBox.shrink()
+                        : p.more('posts');
                   },
                   childCount: totalCount,
                   feedHeadingIndex: feedHeadingIndex,
@@ -472,7 +522,7 @@ class _WebHomeState extends State<WebHome> {
             dockHidden: c.dockHidden,
             label: c.t('Create post', 'إنشاء منشور'),
             onTap: compose,
-            visible: visible,
+            visible: visible && !searching,
             animate: true,
           ),
         ),

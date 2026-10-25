@@ -1030,34 +1030,7 @@ class NativePageState extends State<NativePage> with RouteAware {
     headerCollapsed.value = offset >= 108;
     _pageScroll = ScrollController(initialScrollOffset: offset);
     if (cached == null) {
-      screen = switch (Uri.parse(path).path) {
-        '/community' => 'community.index',
-        '/people' => 'people.index',
-        '/quiz' => 'quiz.index',
-        '/schedule' => 'schedule.index',
-        '/notifications' => 'notifications.index',
-        '/inbox' => 'ask.inbox',
-        '/profile' => 'profile.show',
-        '/menu' => 'content.menu',
-        '/hall-of-fame' => 'content.hall',
-        '/community/subjects' => 'community.subjects',
-        final route
-            when RegExp(r'^/community/\d+/materials/?$').hasMatch(route) =>
-          'community.materials',
-        final route
-            when RegExp(r'^/community/\d+/notifications/?$').hasMatch(route) =>
-          'community.notifications',
-        '/campus' => 'content.campus',
-        '/admin/feed' => 'admin.feed',
-        final route
-            when RegExp(r'^/community/materials/\d+/?$').hasMatch(route) =>
-          'community.material',
-        final route when RegExp(r'^/community/posts/\d+/?$').hasMatch(route) =>
-          'community.post',
-        final route when RegExp(r'^/users/[^/]+/?$').hasMatch(route) =>
-          'profile.user',
-        _ => '',
-      };
+      screen = initialScreenForPath(path);
     }
     var fresh = false;
     if (cached != null) {
@@ -1077,6 +1050,9 @@ class NativePageState extends State<NativePage> with RouteAware {
       // A tapped row (for example a feed post) renders at once; the full
       // document, including comments, replaces it when it arrives.
       final seed = c.takeSeed(path);
+      if (seed != null && value(seed['loading_screen']).isNotEmpty) {
+        screen = value(seed['loading_screen']);
+      }
       if (seed != null && value(seed['screen']).isNotEmpty) {
         envelope = seed;
         data = object(seed['data']);
@@ -2246,7 +2222,7 @@ class NativePageState extends State<NativePage> with RouteAware {
     final body = error != null
         ? ErrorPanel(error: error!, retry: load, retrying: loading)
         : loading && envelope.isEmpty
-        ? PageSkeleton(screen: screen)
+        ? PageSkeleton(screen: screen, path: path)
         : content();
     final modal = ModalRoute.of(context);
     final route = modal is WebPageRoute ? modal : null;
