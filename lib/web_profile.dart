@@ -3332,15 +3332,15 @@ String _relativeTime(NativePageState page, dynamic input) {
   );
 }
 
-/// Level and section pills under the profile handle.
+/// The level pill under the profile handle (section and group stay private).
 class _StudyPlacement extends StatelessWidget {
   const _StudyPlacement({required this.page, required this.person});
   final NativePageState page;
   final Json person;
   @override
   Widget build(BuildContext context) {
-    final level = value(person['level']), section = value(person['section']);
-    if (level.isEmpty && section.isEmpty) return const SizedBox(height: 4);
+    final level = value(person['level']);
+    if (level.isEmpty) return const SizedBox(height: 4);
     final colors = _Colors(context);
     Widget pill(String text, {bool accent = false, IconData? icon}) =>
         Container(
@@ -3381,8 +3381,6 @@ class _StudyPlacement extends StatelessWidget {
               accent: true,
               icon: Icons.layers_outlined,
             ),
-          if (section.isNotEmpty)
-            pill(page.c.t('Section $section', 'سكشن $section')),
         ],
       ),
     );

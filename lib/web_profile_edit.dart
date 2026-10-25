@@ -4,10 +4,10 @@ import 'dart:ui' as ui;
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart' show DateFormat;
 
 import 'api.dart';
+import 'media_permissions.dart';
 import 'image_cache.dart';
 import 'app_menus.dart';
 import 'screens.dart';
@@ -222,7 +222,7 @@ class _WebProfileEditState extends State<WebProfileEdit> {
 
   Future<void> pickPhoto(bool forBanner) async {
     try {
-      final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
+      final picked = await pickUploadImage(tr: tr);
       if (picked == null || !mounted) return;
       final data = await picked.readAsBytes();
       if (data.length > 5 * 1024 * 1024) {

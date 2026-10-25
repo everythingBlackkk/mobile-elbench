@@ -34,6 +34,10 @@ class WebVisitMotion {
         milliseconds: 220,
       );
     }
+    // "View Full Schedule" on Home slides the timetable in.
+    if (a == '/community' && b == '/schedule') {
+      return WebVisitMotion(pixels: 48 * sign, opacity: .5, milliseconds: 300);
+    }
     if (b == '/menu' && a != '/menu' && !a.startsWith('/menu/')) {
       return const WebVisitMotion(fraction: 1, milliseconds: 260, menu: true);
     }

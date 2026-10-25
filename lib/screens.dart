@@ -15,6 +15,9 @@ import 'admin.dart';
 import 'text_direction.dart';
 import 'web_style.dart';
 import 'web_home.dart';
+import 'web_schedule.dart';
+import 'schedule_admin.dart';
+import 'schedule_appearance_admin.dart';
 import 'web_messages.dart';
 import 'web_profile.dart';
 import 'native_glass.dart';
@@ -733,7 +736,7 @@ class _WebBottomNavState extends State<WebBottomNav> {
       if (c.enabled('community'))
         ('/community', 'home', c.t('Home', 'الرئيسية')),
       ('/people', 'compass', c.t('Find People', 'اكتشف الناس')),
-      if (c.enabled('quiz')) ('/quiz', 'graduation', c.t('Quiz', 'الاختبارات')),
+      ('/schedule', 'calendar', c.t('Schedule', 'الجدول')),
       ('/notifications', 'bell', c.t('Notifications', 'الإشعارات')),
       ('/inbox', 'inbox', c.t('Inbox', 'الوارد')),
       ('/profile', 'profile', c.t('Profile', 'البروفايل')),
@@ -1028,6 +1031,7 @@ class NativePageState extends State<NativePage> with RouteAware {
         '/community' => 'community.index',
         '/people' => 'people.index',
         '/quiz' => 'quiz.index',
+        '/schedule' => 'schedule.index',
         '/notifications' => 'notifications.index',
         '/inbox' => 'ask.inbox',
         '/profile' => 'profile.show',
@@ -1867,6 +1871,12 @@ class NativePageState extends State<NativePage> with RouteAware {
     return switch (screen) {
       'community.index' => c.t('Home', 'الرئيسية'),
       'people.index' => c.t('Find People', 'اكتشف الناس'),
+      'schedule.index' => c.t('Schedule', 'الجدول'),
+      'admin.schedule' => c.t('Manage schedule', 'إدارة الجدول'),
+      'admin.schedule-appearance' => c.t(
+        'Day off appearance',
+        'شكل يوم الإجازة',
+      ),
       'ask.inbox' => c.t('Inbox', 'الوارد'),
       'profile.show' => c.t('Your profile', 'ملفك الشخصي'),
       'profile.edit' => c.t('Edit profile', 'تعديل الملف'),
@@ -2250,6 +2260,11 @@ class NativePageState extends State<NativePage> with RouteAware {
 
   Widget _buildContent() {
     if (screen == 'community.index') return WebHome(page: this);
+    if (screen == 'schedule.index') return WebSchedule(page: this);
+    if (screen == 'admin.schedule') return ScheduleAdminContent(page: this);
+    if (screen == 'admin.schedule-appearance') {
+      return ScheduleAppearanceAdminContent(page: this);
+    }
     if (screen.startsWith('ai.')) return WebAiChat(page: this);
     if (screen == 'community.forum') return WebForum(page: this);
     if (screen == 'community.question') return WebCommunityQuestion(page: this);
@@ -3577,6 +3592,7 @@ class NativePageState extends State<NativePage> with RouteAware {
     ),
   );
   List<Widget> menu() => [
+    menuRow('calendar', c.t('Schedule', 'الجدول'), () => c.open('/schedule')),
     menuRow(
       'compass',
       c.t('Find People', 'اكتشف الناس'),
@@ -3663,6 +3679,12 @@ class NativePageState extends State<NativePage> with RouteAware {
         'book',
         c.t('Quiz question bank', 'بنك أسئلة الاختبارات'),
         () => c.open('/quiz/manage'),
+      ),
+    if (c.permission('schedule.manage'))
+      menuRow(
+        'calendar',
+        c.t('Manage schedule', 'إدارة الجدول'),
+        () => c.open('/admin/schedule'),
       ),
     const SizedBox(height: 10),
     menuRow('logout', c.t('Logout', 'تسجيل الخروج'), () async {

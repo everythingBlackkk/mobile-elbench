@@ -29,6 +29,8 @@ class _WebNotificationSettingsState extends State<WebNotificationSettings> {
     preferences = object(
       p.data['preferences'],
     ).map((key, v) => MapEntry(key, yes(v)));
+    preferences.putIfAbsent('schedule_lectures', () => true);
+    preferences.putIfAbsent('schedule_sections', () => true);
   }
 
   Future<void> flush() {
@@ -92,6 +94,20 @@ class _WebNotificationSettingsState extends State<WebNotificationSettings> {
   }
 
   (String, String) copy(String key) => switch (key) {
+    'schedule_lectures' => (
+      p.c.t('Lecture reminders', 'إشعارات المحاضرات'),
+      p.c.t(
+        '10 minutes before and when your lecture starts, using your profile schedule.',
+        'قبل المحاضرة بعشر دقائق وعند بدايتها، حسب بيانات ملفك الشخصي.',
+      ),
+    ),
+    'schedule_sections' => (
+      p.c.t('Section reminders', 'إشعارات السكاشن'),
+      p.c.t(
+        '10 minutes before and when your section starts, using your profile schedule.',
+        'قبل السكشن بعشر دقائق وعند بدايته، حسب بيانات ملفك الشخصي.',
+      ),
+    ),
     'inbox' => (
       p.c.t('Inbox', 'صندوق الوارد'),
       p.c.t(

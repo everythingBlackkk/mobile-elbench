@@ -1559,13 +1559,24 @@ class _NotificationRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = _Colors(context), c = page.c;
     final announcement = item['kind'] == 'announcement';
+    final scheduled = [
+      'schedule_lecture',
+      'schedule_section',
+    ].contains(item['type']);
+    final scheduleMeta = object(item['schedule_meta']);
     final actor = object(item[announcement ? 'author' : 'actor']);
     final unread = announcement
         ? !_containsId(page.data['readAnnouncementIds'], item['id'])
         : item['read_at'] == null;
     final canDelete = announcement && _canDeleteAnnouncement(page, item);
     final reaction = ['post_like', 'comment_like'].contains(item['type']);
-    final preview = announcement
+    final preview = scheduled
+        ? [
+            value(scheduleMeta['subject']),
+            value(scheduleMeta['location']),
+            value(scheduleMeta['instructor']),
+          ].where((v) => v.isNotEmpty).join(' · ')
+        : announcement
         ? value(item['details'])
         : value(
             object(item['comment'])['content'] ??
@@ -1611,7 +1622,9 @@ class _NotificationRow extends StatelessWidget {
                     height: 36,
                     child: Center(
                       child: _TypeIcon(
-                        kind: announcement
+                        kind: scheduled
+                            ? 'schedule'
+                            : announcement
                             ? 'update'
                             : reaction
                             ? 'reaction'
@@ -1624,21 +1637,42 @@ class _NotificationRow extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _avatar(page, actor, 36),
-                        const SizedBox(height: 11),
+                        if (!scheduled) ...[
+                          _avatar(page, actor, 36),
+                          const SizedBox(height: 11),
+                        ],
                         Text.rich(
                           TextSpan(
                             children: [
                               TextSpan(
-                                text: _name(page, actor),
+                                text: scheduled
+                                    ? item['type'] == 'schedule_lecture'
+                                          ? c.t(
+                                              'Lecture reminder',
+                                              'تذكير بالمحاضرة',
+                                            )
+                                          : c.t(
+                                              'Section reminder',
+                                              'تذكير بالسكشن',
+                                            )
+                                    : _name(page, actor),
                                 style: const TextStyle(
                                   fontWeight: FontWeight.w700,
                                 ),
                               ),
                               if (!announcement)
                                 TextSpan(
-                                  text:
-                                      ' ${_notificationLabel(page, value(item['type']))}',
+                                  text: scheduled
+                                      ? scheduleMeta['phase'] == 'start'
+                                            ? c.t(
+                                                ' · Starting now',
+                                                ' · تبدأ الآن',
+                                              )
+                                            : c.t(
+                                                ' · Starts in 10 minutes',
+                                                ' · تبدأ بعد ١٠ دقائق',
+                                              )
+                                      : ' ${_notificationLabel(page, value(item['type']))}',
                                 ),
                               TextSpan(
                                 text: ' · ',
@@ -1749,6 +1783,13 @@ class _TypeIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (kind == 'schedule') {
+      return const Icon(
+        Icons.calendar_month_outlined,
+        color: Color(0xff2e855d),
+        size: 28,
+      );
+    }
     final svg = kind == 'reaction'
         ? _reactionSvg
         : kind == 'reply'

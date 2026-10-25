@@ -29,7 +29,9 @@ Future<void> editWebComment(
   Json comment,
   String endpoint,
 ) async {
-  final changed = await Navigator.of(context).push<bool>(
+  // The root navigator sits above the shared navigation header and dock.
+  // An editor in the inner navigator had its save/cancel row covered by them.
+  final changed = await Navigator.of(context, rootNavigator: true).push<bool>(
     MaterialPageRoute(
       fullscreenDialog: true,
       builder: (_) =>
@@ -420,6 +422,7 @@ class _WebCommentEditorState extends State<WebCommentEditor> {
               child: Row(
                 children: [
                   TextButton(
+                    key: const ValueKey('comment.editor.cancel'),
                     onPressed: busy ? null : () => Navigator.pop(context),
                     style: TextButton.styleFrom(
                       padding: EdgeInsets.zero,
@@ -451,7 +454,7 @@ class _WebCommentEditorState extends State<WebCommentEditor> {
                             child: Text(
                               busy
                                   ? c.t('Saving…', 'جاري الحفظ…')
-                                  : c.t('Save changes', 'احفظ التعديل'),
+                                  : c.t('Save Changes', 'حفظ التغييرات'),
                               style: const TextStyle(
                                 fontSize: 14,
                                 height: 1.5,

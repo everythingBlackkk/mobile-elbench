@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'api.dart';
+import 'media_permissions.dart';
 import 'app_menus.dart';
 import 'main.dart';
 import 'text_direction.dart';
@@ -209,13 +210,22 @@ class _ActionFormState extends State<ActionForm> {
                           onPressed: busy
                               ? null
                               : () async {
-                                  final file = await ImagePicker().pickImage(
-                                    source: ImageSource.gallery,
-                                    maxWidth: 2400,
-                                    imageQuality: 90,
-                                  );
-                                  if (file != null && mounted) {
-                                    setState(() => selected[f.key] = file);
+                                  try {
+                                    final file = await pickUploadImage(
+                                      tr: c.t,
+                                      maxWidth: 2400,
+                                      imageQuality: 90,
+                                    );
+                                    if (file != null && mounted) {
+                                      setState(() {
+                                        selected[f.key] = file;
+                                        error = null;
+                                      });
+                                    }
+                                  } catch (exception) {
+                                    if (mounted) {
+                                      setState(() => error = '$exception');
+                                    }
                                   }
                                 },
                         )

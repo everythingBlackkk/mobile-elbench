@@ -13,6 +13,7 @@ import 'web_style.dart';
 import 'native_share.dart';
 import 'web_event.dart';
 import 'web_comments.dart';
+import 'web_schedule.dart';
 import 'web_reactions.dart';
 import 'comment_thread_rails.dart';
 import 'floating_add.dart';
@@ -255,6 +256,12 @@ class _WebHomeState extends State<WebHome> {
         ),
       ),
       const SizedBox(height: 48),
+      if (object(p.data['scheduleSummary']).isNotEmpty && !searching) ...[
+        HomeScheduleCard(
+          schedule: object(p.data['scheduleSummary']),
+          controller: c,
+        ),
+      ],
       section(
         c.t('Upcoming Events', 'ايفنتات جاية'),
         c.t("Don't miss out on campus activities", 'ماتفوتش أنشطة الجامعة'),

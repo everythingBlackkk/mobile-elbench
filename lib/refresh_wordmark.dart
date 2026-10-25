@@ -183,8 +183,8 @@ class _ElBenchHeaderLogoState extends State<ElBenchHeaderLogo>
       header: true,
       child: RepaintBoundary(
         child: SizedBox(
-          width: 158,
-          height: 44,
+          width: 144,
+          height: 40,
           child: CustomPaint(
             // Preserve the existing integration key while using the real logo.
             key: const ValueKey('header.home.cursive'),

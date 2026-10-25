@@ -8,7 +8,7 @@ the earlier Android WebView app and keeps its Google Play listing.
 | Android  | `com.sahbakwebview` |
 | iOS      | `com.sahbak.ios`    |
 
-Version: `pubspec.yaml` (`2.1.0+8`). The Android version code must stay above
+Version: `pubspec.yaml` (`2.2.0+9`). The Android version code must stay above
 the last published WebView build (5).
 
 ## Requirements

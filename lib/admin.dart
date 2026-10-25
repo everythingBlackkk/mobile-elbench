@@ -3,9 +3,10 @@ import 'dart:ui' as ui;
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
+import 'package:image_picker/image_picker.dart' show XFile;
 import 'package:intl/intl.dart' show DateFormat;
 import 'api.dart';
+import 'media_permissions.dart';
 import 'image_cache.dart';
 import 'app_menus.dart';
 import 'screens.dart';
@@ -72,6 +73,13 @@ class AdminContent extends StatelessWidget {
           scrollDirection: Axis.horizontal,
           child: Row(
             children: [
+              if (c.permission('schedule.manage'))
+                _tab(
+                  context,
+                  c.t('Manage schedule', 'إدارة الجدول'),
+                  false,
+                  () => c.open('/admin/schedule'),
+                ),
               if (c.permission('quiz.manage') && c.enabled('quiz'))
                 _tab(
                   context,
@@ -523,29 +531,7 @@ class AdminContent extends StatelessWidget {
               page: p,
               path: '/admin/events',
               submit: t('create_event'),
-              fields: [
-                _AdminField('title', t('name'), required: true, maxLength: 255),
-                _AdminField(
-                  'arenas',
-                  t('arenas'),
-                  required: true,
-                  maxLength: 255,
-                ),
-                _AdminField(
-                  'event_date',
-                  t('event_date'),
-                  required: true,
-                  kind: _FieldKind.date,
-                ),
-                _AdminField('image_url', t('image_url'), maxLength: 500),
-                _AdminField('link_url', t('link_url'), maxLength: 500),
-                _AdminField(
-                  'details',
-                  t('description'),
-                  lines: 4,
-                  maxLength: 5000,
-                ),
-              ],
+              fields: _eventFields(),
             ),
           ],
         ),
@@ -631,6 +617,56 @@ class AdminContent extends StatelessWidget {
     for (final role in ['student', 'community_admin', 'admin', 'super_admin'])
       role: t('roles.$role'),
   };
+  List<_AdminField> _eventFields([Json event = const {}]) => [
+    _AdminField(
+      'title',
+      t('name'),
+      initial: event['title'],
+      required: true,
+      maxLength: 255,
+    ),
+    _AdminField(
+      'arenas',
+      t('arenas'),
+      initial: event['arenas'],
+      required: true,
+      maxLength: 255,
+    ),
+    _AdminField(
+      'event_date',
+      t('event_date'),
+      initial: value(event['event_date']).isEmpty
+          ? null
+          : value(event['event_date']).substring(0, 10),
+      required: true,
+      kind: _FieldKind.date,
+    ),
+    _AdminField(
+      'image_upload',
+      page.c.t('Upload event image', 'رفع صورة الفعالية'),
+      kind: _FieldKind.image,
+      initial: event['image_url'],
+    ),
+    _AdminField(
+      'image_url',
+      t('image_url'),
+      initial: event['image_url'],
+      maxLength: 500,
+    ),
+    _AdminField(
+      'link_url',
+      t('link_url'),
+      initial: event['link_url'],
+      maxLength: 500,
+    ),
+    _AdminField(
+      'details',
+      t('description'),
+      initial: event['details'],
+      lines: 4,
+      maxLength: 5000,
+    ),
+  ];
   Map<String, String> _permissions() => object(
     page.data['permissionCatalog'],
   ).map((key, label) => MapEntry(key, value(label)));
@@ -851,6 +887,19 @@ class AdminContent extends StatelessWidget {
               _paragraph(
                 '${record['event_date']} · ${record['arenas']}',
                 context,
+              ),
+              _AdminExpansion(
+                title: page.c.t('Edit event', 'تعديل الفعالية'),
+                plain: true,
+                children: [
+                  _AdminForm(
+                    page: page,
+                    path: '/admin/events/${record['id']}',
+                    method: 'PATCH',
+                    submit: page.c.t('Save changes', 'حفظ التغييرات'),
+                    fields: _eventFields(record),
+                  ),
+                ],
               ),
               if (value(record['link_url']).isNotEmpty)
                 Padding(
@@ -1123,7 +1172,7 @@ class AdminContent extends StatelessWidget {
   }
 }
 
-enum _FieldKind { text, select, checkbox, multiple, date }
+enum _FieldKind { text, select, checkbox, multiple, date, image }
 
 class _AdminField {
   const _AdminField(
@@ -1194,7 +1243,9 @@ class _AdminFormState extends State<_AdminForm> {
     _error = null;
     _status = null;
     for (final field in widget.fields) {
-      if (field.kind == _FieldKind.checkbox) {
+      if (field.kind == _FieldKind.image) {
+        _values[field.name] = null;
+      } else if (field.kind == _FieldKind.checkbox) {
         _values[field.name] = yes(field.initial);
       } else if (field.kind == _FieldKind.multiple) {
         _values[field.name] =
@@ -1248,27 +1299,6 @@ class _AdminFormState extends State<_AdminForm> {
       widget.page.c.t('Please complete this field.', 'من فضلك أكمل هذا الحقل.');
   Future<void> _save() async {
     if (_busy || !(_form.currentState?.validate() ?? false)) return;
-    final result = <String, dynamic>{...widget.fixed};
-    for (final field in widget.fields) {
-      if (!(field.visible?.call(_values) ?? true)) continue;
-      dynamic current = _values[field.name];
-      if (field.kind == _FieldKind.checkbox) {
-        current = current == true ? 1 : 0;
-      } else if (field.kind == _FieldKind.multiple) {
-        current = (current as Set<String>).toList();
-      } else {
-        current = _controllers[field.name]?.text ?? current;
-      }
-      // Laravel expects the same nested structure as features[key] on the web.
-      final parts = field.name.split('.');
-      if (parts.length == 2) {
-        final nested = object(result[parts.first]);
-        nested[parts.last] = current;
-        result[parts.first] = nested;
-      } else {
-        result[field.name] = current;
-      }
-    }
     setState(() {
       _busy = true;
       _errors = {};
@@ -1276,6 +1306,33 @@ class _AdminFormState extends State<_AdminForm> {
       _status = null;
     });
     try {
+      final result = <String, dynamic>{...widget.fixed};
+      for (final field in widget.fields) {
+        if (!(field.visible?.call(_values) ?? true)) continue;
+        dynamic current = _values[field.name];
+        if (field.kind == _FieldKind.image) {
+          if (current is! XFile) continue;
+          current = await MultipartFile.fromFile(
+            current.path,
+            filename: current.name,
+          );
+        } else if (field.kind == _FieldKind.checkbox) {
+          current = current == true ? 1 : 0;
+        } else if (field.kind == _FieldKind.multiple) {
+          current = (current as Set<String>).toList();
+        } else {
+          current = _controllers[field.name]?.text ?? current;
+        }
+        // Laravel expects the same nested structure as features[key] on the web.
+        final parts = field.name.split('.');
+        if (parts.length == 2) {
+          final nested = object(result[parts.first]);
+          nested[parts.last] = current;
+          result[parts.first] = nested;
+        } else {
+          result[field.name] = current;
+        }
+      }
       final response = await widget.page.c.action(
         widget.method,
         widget.path,
@@ -1350,6 +1407,72 @@ class _AdminFormState extends State<_AdminForm> {
   }
 
   Widget _field(BuildContext context, _AdminField field) {
+    if (field.kind == _FieldKind.image) {
+      final file = _values[field.name] as XFile?;
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (value(field.initial).isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: networkImage(
+                widget.page.c.api.media(value(field.initial)),
+                height: 120,
+                width: double.infinity,
+                fit: BoxFit.cover,
+              ),
+            ),
+          OutlinedButton.icon(
+            key: ValueKey('admin.image.${field.name}'),
+            onPressed: _busy
+                ? null
+                : () async {
+                    try {
+                      final selected = await pickUploadImage(
+                        tr: widget.page.c.t,
+                      );
+                      if (selected == null || !mounted) return;
+                      if (await selected.length() > 5 * 1024 * 1024) {
+                        throw ApiFailure(
+                          widget.page.c.t(
+                            'Choose an image up to 5 MB.',
+                            'اختر صورة بحجم أقصى ٥ ميجابايت.',
+                          ),
+                        );
+                      }
+                      if (mounted) {
+                        setState(() {
+                          _values[field.name] = selected;
+                          _error = null;
+                        });
+                      }
+                    } catch (error) {
+                      if (mounted) setState(() => _error = '$error');
+                    }
+                  },
+            icon: const Icon(Icons.add_photo_alternate_outlined),
+            label: Text(file?.name ?? field.label),
+          ),
+          if (file != null)
+            TextButton(
+              onPressed: _busy
+                  ? null
+                  : () => setState(() => _values[field.name] = null),
+              child: Text(
+                widget.page.c.t(
+                  'Cancel image selection',
+                  'إلغاء اختيار الصورة',
+                ),
+              ),
+            ),
+          if (_fieldError(field.name) != null)
+            Text(
+              _fieldError(field.name)!,
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+        ],
+      );
+    }
     if (field.kind == _FieldKind.checkbox) {
       return _AdminOption(
         label: field.label,
@@ -2252,10 +2375,7 @@ class _AdminCommunityEditorState extends State<_AdminCommunityEditor> {
       _status = null;
     });
     try {
-      final picked = await ImagePicker().pickImage(
-        source: ImageSource.gallery,
-        requestFullMetadata: false,
-      );
+      final picked = await pickUploadImage(tr: widget.page.c.t);
       if (picked == null || !mounted) return;
       if (await picked.length() > 5 * 1024 * 1024) {
         throw ApiFailure(t('community_image_size'));

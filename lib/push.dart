@@ -128,6 +128,9 @@ class PushService extends ChangeNotifier {
           _pending = object(jsonDecode(launch!.notificationResponse!.payload!));
         } catch (_) {}
       }
+      if (status.authorizationStatus == AuthorizationStatus.notDetermined) {
+        await enable();
+      }
     } catch (_) {
       state = 'Push notifications are not configured for this build yet.';
     }
@@ -185,6 +188,7 @@ class PushService extends ChangeNotifier {
           settings.authorizationStatus == AuthorizationStatus.authorized ||
           settings.authorizationStatus == AuthorizationStatus.provisional;
       if (enabled) {
+        state = 'Notifications are enabled.';
         await _register();
       } else {
         state =
@@ -245,7 +249,7 @@ class PushService extends ChangeNotifier {
     try {
       final path = api.safePath(value(data['url'], '/notifications'));
       if (RegExp(
-        r'^/(notifications(?:/|\?|$)|ask/\d+|community/posts/\d+|question\?|profile(?:\?|$)|users/\d+)',
+        r'^/(schedule(?:/|\?|$)|notifications(?:/|\?|$)|ask/\d+|community/posts/\d+|question\?|profile(?:\?|$)|users/\d+)',
       ).hasMatch(path)) {
         navigate(path);
       }

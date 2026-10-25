@@ -27,17 +27,17 @@ class _WebReactionButtonState extends State<WebReactionButton> {
     final origin = box.localToGlobal(Offset.zero, ancestor: overlay);
     final anchor = origin & box.size;
     final safeTop = MediaQuery.paddingOf(navigator.context).top;
-    final above = anchor.top - safeTop >= 88;
+    final above = anchor.top - safeTop >= 76;
     final ar = Directionality.of(context) == TextDirection.rtl;
     setState(() => _open = true);
     try {
       final reaction = await showAppMenu<String>(
         context: context,
         anchorRect: above
-            ? Rect.fromLTWH(anchor.left, anchor.top - 82, anchor.width, 0)
+            ? Rect.fromLTWH(anchor.left, anchor.top - 70, anchor.width, 0)
             : anchor,
-        menuWidth: 180,
-        menuMaxHeight: 76,
+        menuWidth: 164,
+        menuMaxHeight: 64,
         semanticLabel: ar ? 'اختر تفاعل' : 'Choose a reaction',
         items: [_ReactionPaletteEntry(selected: widget.selected, arabic: ar)],
       );
@@ -126,7 +126,7 @@ class _ReactionPaletteEntry extends PopupMenuEntry<String> {
   final String? selected;
   final bool arabic;
   @override
-  double get height => 60;
+  double get height => 48;
   @override
   bool represents(String? value) => false;
   @override
@@ -164,7 +164,7 @@ class _ReactionPaletteEntryState extends State<_ReactionPaletteEntry>
   @override
   Widget build(BuildContext context) => SizedBox(
     key: const ValueKey('reaction.palette'),
-    height: 60,
+    height: 48,
     child: Row(
       children: [
         for (final (i, type) in ['like', 'love', 'funny'].indexed)
@@ -249,14 +249,14 @@ class _ReactionChoiceState extends State<_ReactionChoice> {
               onTap: () =>
                   Navigator.of(context, rootNavigator: true).pop(widget.type),
               child: SizedBox(
-                height: 52,
+                height: 44,
                 child: Center(
                   child: Text(
                     _emoji(widget.type),
                     textScaler: MediaQuery.textScalerOf(
                       context,
                     ).clamp(maxScaleFactor: 1.25),
-                    style: const TextStyle(fontSize: 28),
+                    style: const TextStyle(fontSize: 25),
                   ),
                 ),
               ),
