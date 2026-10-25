@@ -48,6 +48,16 @@ an older build is carried over on first launch, so users stay signed in.
   and inbox badges. Other open screens are marked stale and refetch when shown.
   Returning to the app refreshes the badges; after 2+ minutes in the background
   the visible screen reloads too.
+- **Study materials:** each community has a Materials page. PDFs open inside
+  the app (`pdfx`, the platform's own PDF renderer) and images in a zoomable
+  viewer; both are downloaded once through a short-lived signed link and kept
+  in the app's private cache (up to 400 MB, cleared on sign-out). Text, Word
+  (DOCX) and Excel (XLSX) files show the server's preview. **Download** saves
+  the file through the system's save dialog (`flutter_file_dialog`), so no
+  storage permission is needed. Community admins can upload and delete files
+  and send notifications to a subject's followers.
+- **Subjects:** Home › Edit subjects chooses which communities appear on Home
+  and send notifications, from either level.
 - **Infinite scrolling:** the home feed, post comments, community questions,
   answers and profile activity load the next page as you approach the end,
   showing skeleton cards while it loads. Rows survive reactions and other

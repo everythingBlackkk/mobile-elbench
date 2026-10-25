@@ -24,6 +24,8 @@ dependencies:
   intl: ^0.20.2
   webview_flutter: ^4.14.1
   path_provider: ^2.1.5
+  pdfx: ^2.11.0
+  flutter_file_dialog: ^3.3.3
 
 dev_dependencies:
   flutter_test:

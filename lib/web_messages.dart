@@ -1578,6 +1578,13 @@ class _NotificationRow extends StatelessWidget {
           ].where((v) => v.isNotEmpty).join(' · ')
         : announcement
         ? value(item['details'])
+        : item['type'] == 'community_notice'
+        ? [
+            value(
+              object(object(item['community_notice'])['community'])['name'],
+            ),
+            value(object(item['community_notice'])['title']),
+          ].where((v) => v.isNotEmpty).join(' · ')
         : value(
             object(item['comment'])['content'] ??
                 object(item['post'])['content'] ??
@@ -1768,6 +1775,7 @@ String _notificationLabel(NativePageState page, String type) => switch (type) {
     'جاوب على سؤالك في المجتمع',
   ),
   'answer_received' => page.c.t('answered your question', 'جاوب على سؤالك'),
+  'community_notice' => page.c.t('posted an update', 'نزّل تحديث'),
   _ => '',
 };
 

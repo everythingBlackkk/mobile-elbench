@@ -23,6 +23,7 @@ import 'web_profile.dart';
 import 'native_glass.dart';
 import 'web_settings.dart';
 import 'web_forum.dart';
+import 'web_materials.dart';
 import 'web_motion.dart';
 import 'web_profile_edit.dart';
 import 'web_hall.dart';
@@ -1037,6 +1038,13 @@ class NativePageState extends State<NativePage> with RouteAware {
         '/profile' => 'profile.show',
         '/menu' => 'content.menu',
         '/hall-of-fame' => 'content.hall',
+        '/community/subjects' => 'community.subjects',
+        final route
+            when RegExp(r'^/community/\d+/materials/?$').hasMatch(route) =>
+          'community.materials',
+        final route
+            when RegExp(r'^/community/materials/\d+/?$').hasMatch(route) =>
+          'community.material',
         final route when RegExp(r'^/community/posts/\d+/?$').hasMatch(route) =>
           'community.post',
         final route when RegExp(r'^/users/[^/]+/?$').hasMatch(route) =>
@@ -1887,6 +1895,12 @@ class NativePageState extends State<NativePage> with RouteAware {
         'Community',
       ),
       'community.question' => c.t('Question', 'السؤال'),
+      'community.subjects' => c.t('Your subjects', 'موادك'),
+      'community.materials' => value(
+        object(data['community'])['name'],
+        c.t('Materials', 'الملفات'),
+      ),
+      'community.material' => c.t('Material', 'ملف'),
       'notifications.index' => c.t('Notifications', 'الإشعارات'),
       'notifications.settings' => c.t(
         'Notification settings',
@@ -2267,6 +2281,9 @@ class NativePageState extends State<NativePage> with RouteAware {
     }
     if (screen.startsWith('ai.')) return WebAiChat(page: this);
     if (screen == 'community.forum') return WebForum(page: this);
+    if (screen == 'community.subjects') return WebSubjects(page: this);
+    if (screen == 'community.materials') return WebMaterials(page: this);
+    if (screen == 'community.material') return WebMaterialViewer(page: this);
     if (screen == 'community.question') return WebCommunityQuestion(page: this);
     if (screen == 'community.ask') return WebCommunityAsk(page: this);
     if (screen == 'community.moderate') return WebModerate(page: this);

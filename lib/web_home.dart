@@ -283,20 +283,60 @@ class _WebHomeState extends State<WebHome> {
           ),
         ),
       const SizedBox(height: 72),
-      section(
-        c.t('Featured Communities', 'مجتمعات مميزة'),
-        c.t('Join and grow with like-minded peers', 'انضم واكبر مع زمايلك'),
+      Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: section(
+              c.t('Featured Communities', 'مجتمعات مميزة'),
+              c.t(
+                'Join and grow with like-minded peers',
+                'انضم واكبر مع زمايلك',
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          OutlinedButton.icon(
+            onPressed: () => c.open('/community/subjects'),
+            icon: WebIcon(
+              'sliders',
+              size: 16,
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
+            label: Text(c.t('Edit subjects', 'تعديل المواد')),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.onSurface,
+              backgroundColor: webSecondary(context),
+              side: BorderSide(color: webBorder(context)),
+              shape: const StadiumBorder(),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              textStyle: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
       ),
-      const SizedBox(height: 40),
-      SizedBox(
-        height: 312,
-        child: ListView.separated(
-          scrollDirection: Axis.horizontal,
-          itemCount: communities.length,
-          separatorBuilder: (_, _) => const SizedBox(width: 24),
-          itemBuilder: (_, i) => community(communities[i]),
+      if (!searching && communities.isEmpty && yes(p.data['has_communities']))
+        Padding(
+          padding: const EdgeInsets.only(top: 16),
+          child: Text(
+            c.t('You turned off all subjects.', 'انت قافل كل المواد.'),
+            style: TextStyle(color: webMuted(context), fontSize: 14),
+          ),
         ),
-      ),
+      const SizedBox(height: 40),
+      if (communities.isNotEmpty)
+        SizedBox(
+          height: 312,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: communities.length,
+            separatorBuilder: (_, _) => const SizedBox(width: 24),
+            itemBuilder: (_, i) => community(communities[i]),
+          ),
+        ),
       const SizedBox(height: 92),
       _FeedHeading(
         key: _feedKey,

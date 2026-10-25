@@ -13,6 +13,7 @@ import 'web_motion.dart';
 import 'launch_experience.dart';
 import 'page_store.dart';
 import 'scroll_physics.dart';
+import 'web_materials.dart' show MaterialFiles;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -800,6 +801,8 @@ class AppController extends ChangeNotifier {
 
   Future<void> expired() async {
     unawaited(pageStore?.clear());
+    // Study materials downloaded by the previous account stay private to it.
+    unawaited(MaterialFiles.clear());
     // Stop showing the previous account's notifications on this device.
     if (enablePush && user != null) unawaited(push.unbind().catchError((_) {}));
     _sessionGeneration++;

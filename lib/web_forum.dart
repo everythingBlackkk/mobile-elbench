@@ -6,6 +6,7 @@ import 'image_cache.dart';
 import 'app_menus.dart';
 import 'screens.dart';
 import 'infinite_feed.dart';
+import 'forms.dart' show FieldSpec;
 import 'text_direction.dart';
 import 'web_style.dart';
 import 'web_home.dart' show webAgo, webMuted;
@@ -196,6 +197,110 @@ class _WebForumState extends State<WebForum> {
     }
   }
 
+  /// Admin tools live in one sheet so the page keeps a single main action.
+  Future<void> manage(Object? id) async {
+    final c = page.c, colors = _ForumColors(context);
+    final pending = int.tryParse(value(page.data['pending_count'])) ?? 0;
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      useRootNavigator: true,
+      showDragHandle: true,
+      backgroundColor: colors.main,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final (key, icon, title, subtitle) in [
+                (
+                  'notify',
+                  'bell',
+                  c.t('Send notification', 'ابعت إشعار'),
+                  c.t(
+                    'Message everyone who follows this subject',
+                    'رسالة لكل اللي متابعين المادة',
+                  ),
+                ),
+                (
+                  'upload',
+                  'upload',
+                  c.t('Upload material', 'ارفع ملف'),
+                  c.t(
+                    'Share notes, sheets or slides',
+                    'شارك ملخصات أو شيتات أو سلايدات',
+                  ),
+                ),
+                (
+                  'review',
+                  'check',
+                  c.t('Review questions', 'مراجعة الأسئلة'),
+                  pending == 0
+                      ? c.t('Nothing waiting', 'مفيش حاجة مستنية')
+                      : c.t(
+                          '$pending waiting for approval',
+                          '$pending مستنيين موافقة',
+                        ),
+                ),
+              ])
+                ListTile(
+                  onTap: () => Navigator.pop(context, key),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  leading: Container(
+                    width: 42,
+                    height: 42,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: colors.accent.withValues(alpha: .12),
+                      borderRadius: BorderRadius.circular(13),
+                    ),
+                    child: WebIcon(icon, size: 20, color: colors.accent),
+                  ),
+                  title: Text(
+                    title,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: colors.text,
+                    ),
+                  ),
+                  subtitle: Text(
+                    subtitle,
+                    style: TextStyle(color: colors.muted, fontSize: 13),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (!mounted) return;
+    switch (choice) {
+      case 'notify':
+        await page.form(
+          c.t('Notify followers', 'إشعار للمتابعين'),
+          '/community/$id/notices',
+          [
+            FieldSpec('title', c.t('Title', 'العنوان')),
+            FieldSpec(
+              'body',
+              c.t('Message', 'الرسالة'),
+              lines: 5,
+              hint: c.t(
+                'Everyone who follows this subject gets this notification, whatever their level.',
+                'كل اللي متابعين المادة دي هيوصلهم الإشعار، أياً كانت فرقتهم.',
+              ),
+            ),
+          ],
+        );
+      case 'upload':
+        c.open('/community/$id/materials?upload=1');
+      case 'review':
+        c.open('/moderate?community_id=$id');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = _ForumColors(context), c = page.c;
@@ -297,8 +402,37 @@ class _WebForumState extends State<WebForum> {
                 icon: 'user',
                 border: colors.border,
               ),
+              if (yes(page.data['can_moderate']))
+                _forumButton(
+                  context,
+                  (int.tryParse(value(page.data['pending_count'])) ?? 0) > 0
+                      ? '${c.t('Manage', 'إدارة')} · ${page.data['pending_count']}'
+                      : c.t('Manage', 'إدارة'),
+                  () => manage(id),
+                  icon: 'settings',
+                  border: colors.border,
+                ),
             ],
           ),
+          const SizedBox(height: 20),
+          _MaterialsTile(
+            colors: colors,
+            title: c.t('Materials', 'الملفات'),
+            subtitle: switch (int.tryParse(
+                  value(page.data['materials_count']),
+                ) ??
+                0) {
+              0 => c.t(
+                'Lecture notes and sheets will appear here',
+                'الملخصات والشيتات هتظهر هنا',
+              ),
+              1 => c.t('1 file', 'ملف واحد'),
+              final count => c.t('$count files', '$count ملفات'),
+            },
+            onTap: () => c.open('/community/$id/materials'),
+          ),
+          if (rows(page.data['notices']).isNotEmpty)
+            _ForumUpdates(page: page, colors: colors),
           const SizedBox(height: 32),
           _forumStatus(page),
           SizedBox(
@@ -1823,6 +1957,214 @@ class _ModerationButton extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// The way into a community's study materials: one clear card instead of
+/// another button.
+class _MaterialsTile extends StatelessWidget {
+  const _MaterialsTile({
+    required this.colors,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+  final _ForumColors colors;
+  final String title, subtitle;
+  final VoidCallback onTap;
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: colors.secondary,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(color: colors.border),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: colors.fill,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const WebIcon('book', size: 22, color: Colors.white),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: colors.text,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: TextStyle(fontSize: 13, color: colors.muted),
+                    ),
+                  ],
+                ),
+              ),
+              Directionality.of(context) == TextDirection.rtl
+                  ? Transform.flip(
+                      flipX: true,
+                      child: WebIcon(
+                        'chevron-right',
+                        size: 18,
+                        color: colors.muted,
+                      ),
+                    )
+                  : WebIcon('chevron-right', size: 18, color: colors.muted),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A community's latest updates: the newest one in full, older ones behind
+/// "Show more".
+class _ForumUpdates extends StatefulWidget {
+  const _ForumUpdates({required this.page, required this.colors});
+  final NativePageState page;
+  final _ForumColors colors;
+  @override
+  State<_ForumUpdates> createState() => _ForumUpdatesState();
+}
+
+class _ForumUpdatesState extends State<_ForumUpdates> {
+  bool expanded = false;
+  @override
+  Widget build(BuildContext context) {
+    final c = widget.page.c, colors = widget.colors;
+    final notices = rows(widget.page.data['notices']);
+    final shown = expanded ? notices : notices.take(1).toList();
+    return Padding(
+      padding: const EdgeInsets.only(top: 22),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              WebIcon('bell', size: 15, color: colors.muted),
+              const SizedBox(width: 6),
+              Text(
+                c.t('Updates', 'التحديثات'),
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: colors.muted,
+                ),
+              ),
+            ],
+          ),
+          for (final (index, notice) in shown.indexed)
+            Container(
+              margin: const EdgeInsets.only(top: 10),
+              clipBehavior: Clip.antiAlias,
+              decoration: BoxDecoration(
+                color: colors.secondary,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: colors.border),
+              ),
+              child: IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Container(
+                      width: 4,
+                      color: index == 0 ? colors.fill : colors.border,
+                    ),
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    value(notice['title']),
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w700,
+                                      color: colors.text,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Text(
+                                  webAgo(
+                                    notice['created_at'],
+                                    c.settings.language == 'ar',
+                                  ),
+                                  style: TextStyle(
+                                    fontSize: 11.5,
+                                    color: colors.muted,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            SelectableText(
+                              value(notice['body']),
+                              style: TextStyle(
+                                fontSize: 14.5,
+                                height: 1.6,
+                                color: colors.text,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              value(object(notice['author'])['name']),
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: colors.muted,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          if (!expanded && notices.length > 1)
+            TextButton(
+              onPressed: () => setState(() => expanded = true),
+              style: TextButton.styleFrom(
+                foregroundColor: colors.accent,
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+              ),
+              child: Text(
+                notices.length == 2
+                    ? c.t('Show 1 more update', 'اعرض تحديث كمان')
+                    : c.t(
+                        'Show ${notices.length - 1} more updates',
+                        'اعرض ${notices.length - 1} تحديثات كمان',
+                      ),
+              ),
+            ),
+        ],
       ),
     );
   }
