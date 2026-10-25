@@ -72,6 +72,8 @@ String _approvalHelp(NativePageState page) => page.c.t(
       : 'سيتم نشر سؤالك فورًا.',
 );
 
+const _actionPadding = EdgeInsets.symmetric(horizontal: 8, vertical: 10);
+
 Widget _forumButton(
   BuildContext context,
   String text,
@@ -83,8 +85,21 @@ Widget _forumButton(
   double radius = 14,
   EdgeInsets padding = const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
   double minHeight = 42,
+  // Only for buttons given a fixed share of a row: long labels end in "…" instead of overflowing.
+  bool fill = false,
 }) {
   final colors = _ForumColors(context);
+  final label = Text(
+    text,
+    maxLines: 1,
+    overflow: fill ? TextOverflow.ellipsis : null,
+    style: TextStyle(
+      fontSize: 14,
+      height: 1.5,
+      fontWeight: FontWeight.w700,
+      color: foreground ?? colors.text,
+    ),
+  );
   return Material(
     color: background ?? colors.secondary,
     borderRadius: BorderRadius.circular(radius),
@@ -106,15 +121,7 @@ Widget _forumButton(
               WebIcon(icon, size: 16, color: foreground ?? colors.text),
               const SizedBox(width: 6),
             ],
-            Text(
-              text,
-              style: TextStyle(
-                fontSize: 14,
-                height: 1.5,
-                fontWeight: FontWeight.w700,
-                color: foreground ?? colors.text,
-              ),
-            ),
+            if (fill) Flexible(child: label) else label,
           ],
         ),
       ),
@@ -395,7 +402,7 @@ class _WebForumState extends State<WebForum> {
             ),
           ),
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Expanded(
                 child: Text(
@@ -429,35 +436,49 @@ class _WebForumState extends State<WebForum> {
             ),
           ),
           const SizedBox(height: 16),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
+          // Ask and My questions share the row equally; admins get Manage as a third equal column.
+          Row(
             children: [
-              _forumButton(
-                context,
-                c.t('Ask Question', 'اسأل سؤال'),
-                compose,
-                icon: 'plus',
-                background: colors.dark ? Colors.white : Colors.black,
-                foreground: colors.main,
-              ),
-              _forumButton(
-                context,
-                c.t('My Questions', 'أسئلتي'),
-                () => page.query({'my_questions': 1}),
-                icon: 'user',
-                border: colors.border,
-              ),
-              if (yes(page.data['can_moderate']))
-                _forumButton(
+              Expanded(
+                child: _forumButton(
                   context,
-                  (int.tryParse(value(page.data['pending_count'])) ?? 0) > 0
-                      ? '${c.t('Manage', 'إدارة')} · ${page.data['pending_count']}'
-                      : c.t('Manage', 'إدارة'),
-                  () => manage(id),
-                  icon: 'settings',
-                  border: colors.border,
+                  c.t('Ask Question', 'اسأل سؤال'),
+                  compose,
+                  icon: 'plus',
+                  background: colors.dark ? Colors.white : Colors.black,
+                  foreground: colors.main,
+                  padding: _actionPadding,
+                  fill: true,
                 ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _forumButton(
+                  context,
+                  c.t('My Questions', 'أسئلتي'),
+                  () => page.query({'my_questions': 1}),
+                  icon: 'user',
+                  border: colors.border,
+                  padding: _actionPadding,
+                  fill: true,
+                ),
+              ),
+              if (yes(page.data['can_moderate'])) ...[
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _forumButton(
+                    context,
+                    (int.tryParse(value(page.data['pending_count'])) ?? 0) > 0
+                        ? '${c.t('Manage', 'إدارة')} · ${page.data['pending_count']}'
+                        : c.t('Manage', 'إدارة'),
+                    () => manage(id),
+                    icon: 'settings',
+                    border: colors.border,
+                    padding: _actionPadding,
+                    fill: true,
+                  ),
+                ),
+              ],
             ],
           ),
           const SizedBox(height: 20),
@@ -478,11 +499,7 @@ class _WebForumState extends State<WebForum> {
             onTap: () => c.open('/community/$id/materials'),
           ),
           if (rows(page.data['notices']).isNotEmpty)
-            _ForumUpdates(
-              page: page,
-              colors: colors,
-              onSeeAll: () => openNotices(id),
-            ),
+            _ForumUpdates(page: page, colors: colors),
           const SizedBox(height: 32),
           _forumStatus(page),
           SizedBox(
@@ -2090,16 +2107,11 @@ class _MaterialsTile extends StatelessWidget {
 
 /// A community's latest updates: the newest one in full, older ones behind
 /// "Show more".
-/// The subject's latest update; the bell and "See all" open the whole history.
+/// The subject's latest update; the bell beside the subject's name opens the whole history.
 class _ForumUpdates extends StatelessWidget {
-  const _ForumUpdates({
-    required this.page,
-    required this.colors,
-    required this.onSeeAll,
-  });
+  const _ForumUpdates({required this.page, required this.colors});
   final NativePageState page;
   final _ForumColors colors;
-  final VoidCallback onSeeAll;
 
   @override
   Widget build(BuildContext context) {
@@ -2114,26 +2126,12 @@ class _ForumUpdates extends StatelessWidget {
             children: [
               WebIcon('bell', size: 15, color: colors.muted),
               const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  c.t('Updates', 'التحديثات'),
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: colors.muted,
-                  ),
-                ),
-              ),
-              TextButton(
-                onPressed: onSeeAll,
-                style: TextButton.styleFrom(
-                  foregroundColor: colors.accent,
-                  padding: const EdgeInsets.symmetric(horizontal: 6),
-                  minimumSize: const Size(44, 36),
-                ),
-                child: Text(
-                  c.t('See all', 'عرض الكل'),
-                  style: const TextStyle(fontWeight: FontWeight.w700),
+              Text(
+                c.t('Updates', 'التحديثات'),
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: colors.muted,
                 ),
               ),
             ],

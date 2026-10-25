@@ -394,7 +394,8 @@ class _WebScheduleState extends State<WebSchedule> {
     }
 
     return ColoredBox(
-      color: dark ? const Color(0xff101119) : const Color(0xfff7f7fc),
+      // Dark mode uses the same plain black as every other page.
+      color: dark ? Colors.black : const Color(0xfff7f7fc),
       child: RefreshIndicator(
         onRefresh: () => p.load(_currentPath),
         child: ListView(

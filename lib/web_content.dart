@@ -8,6 +8,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'api.dart';
+import 'infinite_feed.dart' show ShapeSkeleton, ShapeSkeletonKind;
 import 'screens.dart';
 import 'text_direction.dart';
 import 'web_style.dart';
@@ -133,8 +134,22 @@ class _WebCampusState extends State<WebCampus> {
     }
   }
 
+  /// Parsed map pictures by map version and theme, kept for the app's lifetime so reopening the map is instant.
+  /// They are never disposed: another map page in the back stack may still be painting them.
+  static final _parsed = <String, (PictureInfo, PictureInfo)>{};
+
   Future<void> loadArtwork() async {
     final current = ++generation;
+    final key = '${value(widget.page.data['map_version'])}|$dark';
+    final kept = _parsed[key];
+    if (kept != null && _font != null) {
+      setState(() {
+        artwork = kept.$1;
+        environment = kept.$2;
+        error = null;
+      });
+      return;
+    }
     try {
       _font ??= () async {
         try {
@@ -208,15 +223,9 @@ class _WebCampusState extends State<WebCampus> {
         vg.loadPicture(SvgStringLoader(source), null, clipViewbox: false),
         vg.loadPicture(SvgStringLoader(surroundings), null, clipViewbox: false),
       ]);
-      if (!mounted || current != generation) {
-        for (final picture in pictures) {
-          picture.picture.dispose();
-        }
-        return;
-      }
+      _parsed[key] = (pictures[0], pictures[1]);
+      if (!mounted || current != generation) return;
       setState(() {
-        artwork?.picture.dispose();
-        environment?.picture.dispose();
         artwork = pictures[0];
         environment = pictures[1];
         error = null;
@@ -271,8 +280,6 @@ class _WebCampusState extends State<WebCampus> {
   @override
   void dispose() {
     generation++;
-    artwork?.picture.dispose();
-    environment?.picture.dispose();
     for (final pin in pins) {
       pin.dispose();
     }
@@ -455,9 +462,7 @@ class _WebCampusState extends State<WebCampus> {
                   return ErrorPanel(error: error!, retry: loadArtwork);
                 }
                 if (artwork == null || environment == null) {
-                  return const Center(
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  );
+                  return const ShapeSkeleton(ShapeSkeletonKind.block);
                 }
                 _syncPins();
                 return Semantics(

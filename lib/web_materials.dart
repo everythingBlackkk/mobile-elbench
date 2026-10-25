@@ -350,363 +350,347 @@ class _WebSubjectsState extends State<WebSubjects> {
     String levelName(Object? value) => value == null
         ? c.t('Both levels', 'الفرقتين')
         : c.t('Level $value', 'الفرقة $value');
-    final bottom = MediaQuery.paddingOf(context).bottom + 86;
-    return Stack(
+    final bottom = MediaQuery.paddingOf(context).bottom + 92;
+    return ListView(
+      padding: EdgeInsets.fromLTRB(12, 12, 12, bottom + 24),
       children: [
-        ListView(
-          padding: EdgeInsets.fromLTRB(12, 12, 12, bottom + 90),
-          children: [
-            Text(
-              c.t('Pick what shows on Home.', 'اختار المواد اللي تظهرلك.'),
-              style: TextStyle(color: webMuted(context), fontSize: 14.5),
-            ),
-            const SizedBox(height: 14),
-            // How many subjects are on, at a glance.
-            Container(
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-              decoration: BoxDecoration(
-                color: webSecondary(context),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: webBorder(context)),
-              ),
-              child: Row(
-                children: [
-                  Text.rich(
+        Text(
+          c.t('Pick what shows on Home.', 'اختار المواد اللي تظهرلك.'),
+          style: TextStyle(color: webMuted(context), fontSize: 14.5),
+        ),
+        const SizedBox(height: 14),
+        // How many subjects are on, at a glance.
+        Container(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+          decoration: BoxDecoration(
+            color: webSecondary(context),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: webBorder(context)),
+          ),
+          child: Row(
+            children: [
+              Text.rich(
+                TextSpan(
+                  children: [
                     TextSpan(
-                      children: [
-                        TextSpan(
-                          text: '${enabled.length}',
-                          style: TextStyle(
-                            fontSize: 30,
-                            fontWeight: FontWeight.w800,
-                            color: accent,
-                          ),
-                        ),
-                        TextSpan(
-                          text: ' / ${all.length}',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                            color: webMuted(context),
-                          ),
-                        ),
-                      ],
-                    ),
-                    textDirection: TextDirection.ltr,
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          c.t('subjects on', 'مادة مفعّلة'),
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: webMuted(context),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(99),
-                          child: TweenAnimationBuilder<double>(
-                            tween: Tween(
-                              end: all.isEmpty
-                                  ? 0
-                                  : enabled.length / all.length,
-                            ),
-                            duration: const Duration(milliseconds: 250),
-                            builder: (context, value, _) =>
-                                LinearProgressIndicator(
-                                  value: value,
-                                  minHeight: 8,
-                                  color: accent,
-                                  backgroundColor: webBorder(context),
-                                ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 14),
-            // Level selector, one segment per level.
-            Container(
-              padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                color: webSecondary(context),
-                borderRadius: BorderRadius.circular(999),
-                border: Border.all(color: webBorder(context)),
-              ),
-              child: Row(
-                children: [
-                  for (final (key, label) in [
-                    ('all', c.t('All', 'الكل')),
-                    ('1', levelName(1)),
-                    ('2', levelName(2)),
-                  ])
-                    Expanded(
-                      child: GestureDetector(
-                        key: ValueKey('subjects.filter.$key'),
-                        onTap: () => setState(() => filter = key),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 180),
-                          padding: const EdgeInsets.symmetric(vertical: 9),
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            color: filter == key
-                                ? Theme.of(context).colorScheme.surface
-                                : Colors.transparent,
-                            borderRadius: BorderRadius.circular(999),
-                            boxShadow: filter == key
-                                ? const [
-                                    BoxShadow(
-                                      color: Color(0x1f000000),
-                                      blurRadius: 4,
-                                      offset: Offset(0, 1),
-                                    ),
-                                  ]
-                                : null,
-                          ),
-                          child: Text.rich(
-                            TextSpan(
-                              text: label,
-                              children: [
-                                if ('$level' == key)
-                                  TextSpan(
-                                    text: ' • ${c.t('Mine', 'فرقتي')}',
-                                    style: TextStyle(color: accent),
-                                  ),
-                              ],
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: filter == key
-                                  ? Theme.of(context).colorScheme.onSurface
-                                  : webMuted(context),
-                            ),
-                          ),
-                        ),
+                      text: '${enabled.length}',
+                      style: TextStyle(
+                        fontSize: 30,
+                        fontWeight: FontWeight.w800,
+                        color: accent,
                       ),
                     ),
-                ],
-              ),
-            ),
-            if (communities.isNotEmpty)
-              Align(
-                alignment: AlignmentDirectional.centerEnd,
-                child: Wrap(
-                  children: [
-                    TextButton(
-                      onPressed: () => setVisible(communities, true),
-                      style: TextButton.styleFrom(foregroundColor: accent),
-                      child: Text(c.t('All on', 'فعّل الكل')),
+                    TextSpan(
+                      text: ' / ${all.length}',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: webMuted(context),
+                      ),
                     ),
-                    TextButton(
-                      onPressed: () => setVisible(communities, false),
-                      style: TextButton.styleFrom(foregroundColor: accent),
-                      child: Text(c.t('All off', 'اقفل الكل')),
+                  ],
+                ),
+                textDirection: TextDirection.ltr,
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      c.t('subjects on', 'مادة مفعّلة'),
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: webMuted(context),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(99),
+                      child: TweenAnimationBuilder<double>(
+                        tween: Tween(
+                          end: all.isEmpty ? 0 : enabled.length / all.length,
+                        ),
+                        duration: const Duration(milliseconds: 250),
+                        builder: (context, value, _) => LinearProgressIndicator(
+                          value: value,
+                          minHeight: 8,
+                          color: accent,
+                          backgroundColor: webBorder(context),
+                        ),
+                      ),
                     ),
                   ],
                 ),
               ),
-            if (communities.isEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 12),
-                child: _emptyState(
-                  context,
-                  'book',
-                  c.t('No subjects yet.', 'مفيش مواد لسه.'),
-                  '',
-                ),
-              ),
-            // Picture tiles; a tick marks the subjects that are on.
-            GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: communities.length,
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                mainAxisSpacing: 10,
-                crossAxisSpacing: 10,
-                childAspectRatio: .86,
-              ),
-              itemBuilder: (context, index) {
-                final community = communities[index];
-                final id = '${community['id']}';
-                final on = enabled.contains(id);
-                return Semantics(
-                  checked: on,
-                  button: true,
-                  label: value(community['name']),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+        // Level selector, one segment per level.
+        Container(
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            color: webSecondary(context),
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: webBorder(context)),
+          ),
+          child: Row(
+            children: [
+              for (final (key, label) in [
+                ('all', c.t('All', 'الكل')),
+                ('1', levelName(1)),
+                ('2', levelName(2)),
+              ])
+                Expanded(
                   child: GestureDetector(
-                    key: ValueKey('subject.$id'),
-                    onTap: () => setState(() {
-                      dirty = true;
-                      status = '';
-                      on ? enabled.remove(id) : enabled.add(id);
-                    }),
+                    key: ValueKey('subjects.filter.$key'),
+                    onTap: () => setState(() => filter = key),
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 180),
-                      clipBehavior: Clip.antiAlias,
+                      padding: const EdgeInsets.symmetric(vertical: 9),
+                      alignment: Alignment.center,
                       decoration: BoxDecoration(
-                        color: on
-                            ? accent.withValues(alpha: .08)
-                            : webSecondary(context),
-                        borderRadius: BorderRadius.circular(18),
-                        border: Border.all(
-                          color: on ? accent : webBorder(context),
-                          width: 1.5,
-                        ),
+                        color: filter == key
+                            ? Theme.of(context).colorScheme.surface
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(999),
+                        boxShadow: filter == key
+                            ? const [
+                                BoxShadow(
+                                  color: Color(0x1f000000),
+                                  blurRadius: 4,
+                                  offset: Offset(0, 1),
+                                ),
+                              ]
+                            : null,
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Expanded(
-                            child: Stack(
-                              fit: StackFit.expand,
-                              children: [
-                                AnimatedOpacity(
-                                  duration: const Duration(milliseconds: 180),
-                                  opacity: on ? 1 : .45,
-                                  child: networkImage(
-                                    c.api.media(value(community['image_url'])),
-                                    fit: BoxFit.cover,
-                                    cacheWidth:
-                                        (200 *
-                                                MediaQuery.devicePixelRatioOf(
-                                                  context,
-                                                ))
-                                            .ceil(),
-                                    errorBuilder: (_, _, _) =>
-                                        ColoredBox(color: webBorder(context)),
-                                  ),
-                                ),
-                                PositionedDirectional(
-                                  top: 8,
-                                  end: 8,
-                                  child: AnimatedContainer(
-                                    duration: const Duration(milliseconds: 180),
-                                    width: 26,
-                                    height: 26,
-                                    decoration: BoxDecoration(
-                                      color: on ? accent : Colors.black26,
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
-                                        color: Colors.white,
-                                        width: 2,
-                                      ),
-                                    ),
-                                    child: on
-                                        ? const Icon(
-                                            Icons.check_rounded,
-                                            size: 16,
-                                            color: Colors.white,
-                                          )
-                                        : null,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  value(community['name']),
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w700,
-                                    height: 1.3,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  levelName(community['level']),
-                                  style: TextStyle(
-                                    fontSize: 11.5,
-                                    fontWeight: FontWeight.w600,
-                                    color: webMuted(context),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
+                      child: Text.rich(
+                        TextSpan(
+                          text: label,
+                          children: [
+                            if ('$level' == key)
+                              TextSpan(
+                                text: ' • ${c.t('Mine', 'فرقتي')}',
+                                style: TextStyle(color: accent),
+                              ),
+                          ],
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: filter == key
+                              ? Theme.of(context).colorScheme.onSurface
+                              : webMuted(context),
+                        ),
                       ),
                     ),
                   ),
-                );
-              },
-            ),
-          ],
+                ),
+            ],
+          ),
         ),
-        PositionedDirectional(
-          start: 10,
-          end: 10,
-          bottom: bottom,
-          child: AnimatedSlide(
-            offset: dirty || saving || status.isNotEmpty
-                ? Offset.zero
-                : const Offset(0, 1.6),
-            duration: const Duration(milliseconds: 220),
-            curve: Curves.easeOutCubic,
-            child: Material(
-              elevation: 8,
-              shadowColor: Colors.black26,
-              color: Theme.of(context).colorScheme.surface,
-              shape: StadiumBorder(side: BorderSide(color: webBorder(context))),
-              child: Padding(
-                padding: const EdgeInsetsDirectional.fromSTEB(18, 8, 8, 8),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        dirty
-                            ? c.t(
-                                'You have unsaved changes',
-                                'فيه تغييرات لسه ماتحفظتش',
-                              )
-                            : status,
-                        style: const TextStyle(
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.w600,
+        if (communities.isNotEmpty)
+          Align(
+            alignment: AlignmentDirectional.centerEnd,
+            child: Wrap(
+              children: [
+                TextButton(
+                  onPressed: () => setVisible(communities, true),
+                  style: TextButton.styleFrom(foregroundColor: accent),
+                  child: Text(c.t('All on', 'فعّل الكل')),
+                ),
+                TextButton(
+                  onPressed: () => setVisible(communities, false),
+                  style: TextButton.styleFrom(foregroundColor: accent),
+                  child: Text(c.t('All off', 'اقفل الكل')),
+                ),
+              ],
+            ),
+          ),
+        if (communities.isEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 12),
+            child: _emptyState(
+              context,
+              'book',
+              c.t('No subjects yet.', 'مفيش مواد لسه.'),
+              '',
+            ),
+          ),
+        // Picture tiles; a tick marks the subjects that are on.
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: communities.length,
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            mainAxisSpacing: 10,
+            crossAxisSpacing: 10,
+            childAspectRatio: .86,
+          ),
+          itemBuilder: (context, index) {
+            final community = communities[index];
+            final id = '${community['id']}';
+            final on = enabled.contains(id);
+            return Semantics(
+              checked: on,
+              button: true,
+              label: value(community['name']),
+              child: GestureDetector(
+                key: ValueKey('subject.$id'),
+                onTap: () => setState(() {
+                  dirty = true;
+                  status = '';
+                  on ? enabled.remove(id) : enabled.add(id);
+                }),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  clipBehavior: Clip.antiAlias,
+                  decoration: BoxDecoration(
+                    color: on
+                        ? accent.withValues(alpha: .08)
+                        : webSecondary(context),
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(
+                      color: on ? accent : webBorder(context),
+                      width: 1.5,
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            AnimatedOpacity(
+                              duration: const Duration(milliseconds: 180),
+                              opacity: on ? 1 : .45,
+                              child: networkImage(
+                                c.api.media(value(community['image_url'])),
+                                fit: BoxFit.cover,
+                                cacheWidth:
+                                    (200 *
+                                            MediaQuery.devicePixelRatioOf(
+                                              context,
+                                            ))
+                                        .ceil(),
+                                errorBuilder: (_, _, _) =>
+                                    ColoredBox(color: webBorder(context)),
+                              ),
+                            ),
+                            PositionedDirectional(
+                              top: 8,
+                              end: 8,
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 180),
+                                width: 26,
+                                height: 26,
+                                decoration: BoxDecoration(
+                                  color: on ? accent : Colors.black26,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: Colors.white,
+                                    width: 2,
+                                  ),
+                                ),
+                                child: on
+                                    ? const Icon(
+                                        Icons.check_rounded,
+                                        size: 16,
+                                        color: Colors.white,
+                                      )
+                                    : null,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ),
-                    FilledButton(
-                      onPressed: saving || !dirty ? null : save,
-                      style: FilledButton.styleFrom(
-                        backgroundColor: accent,
-                        minimumSize: const Size(96, 42),
-                        shape: const StadiumBorder(),
-                      ),
-                      child: saving
-                          ? const SizedBox.square(
-                              dimension: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              value(community['name']),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                height: 1.3,
                               ),
-                            )
-                          : Text(c.t('Save', 'احفظ')),
-                    ),
-                  ],
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              levelName(community['level']),
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w600,
+                                color: webMuted(context),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
+              ),
+            );
+          },
+        ),
+        // A plain Save button at the end of the list, shown once a subject is switched on or off.
+        if (dirty || saving)
+          Padding(
+            padding: const EdgeInsets.only(top: 22),
+            child: SizedBox(
+              height: 50,
+              child: FilledButton(
+                key: const ValueKey('subjects.save'),
+                onPressed: saving ? null : save,
+                style: FilledButton.styleFrom(
+                  backgroundColor: accent,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                child: saving
+                    ? const SizedBox.square(
+                        dimension: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : Text(
+                        c.t('Save changes', 'احفظ التغييرات'),
+                        style: const TextStyle(
+                          fontSize: 15.5,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+              ),
+            ),
+          )
+        else if (status.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 22),
+            child: Text(
+              status,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: webMuted(context),
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),
-        ),
       ],
     );
   }

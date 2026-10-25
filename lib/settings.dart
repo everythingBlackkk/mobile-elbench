@@ -187,6 +187,14 @@ class AppSettings extends ChangeNotifier {
       dividerColor: border,
       splashFactory: NoSplash.splashFactory,
       highlightColor: Colors.transparent,
+      // Android's pull-to-refresh: the brand green arc with rounded ends on a chip matching the page
+      // (iOS uses its native spinner through RefreshIndicator.adaptive).
+      progressIndicatorTheme: ProgressIndicatorThemeData(
+        color: accentText,
+        refreshBackgroundColor: dark ? const Color(0xff1c1c1e) : Colors.white,
+        strokeWidth: 3,
+        strokeCap: StrokeCap.round,
+      ),
       appBarTheme: AppBarTheme(
         centerTitle: true,
         elevation: 0,

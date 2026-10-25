@@ -1044,6 +1044,11 @@ class NativePageState extends State<NativePage> with RouteAware {
             when RegExp(r'^/community/\d+/materials/?$').hasMatch(route) =>
           'community.materials',
         final route
+            when RegExp(r'^/community/\d+/notifications/?$').hasMatch(route) =>
+          'community.notifications',
+        '/campus' => 'content.campus',
+        '/admin/feed' => 'admin.feed',
+        final route
             when RegExp(r'^/community/materials/\d+/?$').hasMatch(route) =>
           'community.material',
         final route when RegExp(r'^/community/posts/\d+/?$').hasMatch(route) =>
@@ -1065,7 +1070,8 @@ class NativePageState extends State<NativePage> with RouteAware {
               AppController.freshPageAge &&
           // These two reflect read state and keep their own revalidation.
           screen != 'ask.inbox' &&
-          screen != 'notifications.index';
+          screen != 'notifications.index' &&
+          screen != 'community.notifications';
     } else {
       // A tapped row (for example a feed post) renders at once; the full
       // document, including comments, replaces it when it arrives.
@@ -2188,7 +2194,7 @@ class NativePageState extends State<NativePage> with RouteAware {
     final body = error != null
         ? ErrorPanel(error: error!, retry: load, retrying: loading)
         : loading && envelope.isEmpty
-        ? const PageSkeleton()
+        ? PageSkeleton(screen: screen)
         : content();
     final modal = ModalRoute.of(context);
     final route = modal is WebPageRoute ? modal : null;
