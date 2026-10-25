@@ -308,14 +308,14 @@ class _WebSubjectsState extends State<WebSubjects> {
       status = '';
     });
     try {
-      final response = await p.c.action('PUT', '/community/subjects', {
+      await p.c.action('PUT', '/community/subjects', {
         'community_ids': enabled.map(int.parse).toList(),
       });
       if (!mounted) return;
-      setState(() {
-        dirty = false;
-        status = value(response['message'], p.c.t('Saved.', 'اتحفظ.'));
-      });
+      setState(() => dirty = false);
+      // Saved: back to Home, which now shows the chosen subjects.
+      p.c.open('/community');
+      return;
     } catch (e) {
       if (mounted) setState(() => status = '$e');
     } finally {
@@ -358,6 +358,75 @@ class _WebSubjectsState extends State<WebSubjects> {
           c.t('Pick what shows on Home.', 'اختار المواد اللي تظهرلك.'),
           style: TextStyle(color: webMuted(context), fontSize: 14.5),
         ),
+        const SizedBox(height: 14),
+        // Cancel and Save share the row; Save stays faded until something changes.
+        Row(
+          children: [
+            Expanded(
+              child: SizedBox(
+                height: 48,
+                child: FilledButton(
+                  key: const ValueKey('subjects.cancel'),
+                  onPressed: saving ? null : () => p.c.open('/community'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: Colors.black,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      side: const BorderSide(color: Color(0x33ffffff)),
+                    ),
+                  ),
+                  child: Text(
+                    c.t('Cancel', 'إلغاء'),
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: SizedBox(
+                height: 48,
+                child: FilledButton(
+                  key: const ValueKey('subjects.save'),
+                  onPressed: dirty && !saving ? save : null,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: accent,
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor: accent.withValues(alpha: .35),
+                    disabledForegroundColor: Colors.white.withValues(
+                      alpha: .75,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  child: saving
+                      ? const SizedBox.square(
+                          dimension: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : Text(
+                          c.t('Save', 'احفظ'),
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        if (status.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text(
+              status,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: webMuted(context), fontSize: 13),
+            ),
+          ),
         const SizedBox(height: 14),
         // How many subjects are on, at a glance.
         Container(
@@ -644,53 +713,6 @@ class _WebSubjectsState extends State<WebSubjects> {
             );
           },
         ),
-        // A plain Save button at the end of the list, shown once a subject is switched on or off.
-        if (dirty || saving)
-          Padding(
-            padding: const EdgeInsets.only(top: 22),
-            child: SizedBox(
-              height: 50,
-              child: FilledButton(
-                key: const ValueKey('subjects.save'),
-                onPressed: saving ? null : save,
-                style: FilledButton.styleFrom(
-                  backgroundColor: accent,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                ),
-                child: saving
-                    ? const SizedBox.square(
-                        dimension: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : Text(
-                        c.t('Save changes', 'احفظ التغييرات'),
-                        style: const TextStyle(
-                          fontSize: 15.5,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-              ),
-            ),
-          )
-        else if (status.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.only(top: 22),
-            child: Text(
-              status,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: webMuted(context),
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
       ],
     );
   }

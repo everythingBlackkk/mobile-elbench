@@ -3,6 +3,10 @@
 The ElBench app for Android and iOS. Server changes are listed in the backend's changelog
 ([everythingBlackkk/myFamily](https://github.com/everythingBlackkk/myFamily/blob/main/CHANGELOG.md)).
 
+## 2.5.2 (14) — 2026-10-25
+
+- **Edit subjects:** Cancel (black) and Save (green) sit side by side across the full width, directly above the active-subjects summary. Save stays faded until you change something; saving takes you back to Home, and Cancel returns Home without saving.
+
 ## 2.5.1 (13) — 2026-10-25
 
 Needs backend v8.11.2 or later. Replaces 2.5.0, which was tagged but never shipped.
