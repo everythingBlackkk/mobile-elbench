@@ -3,10 +3,11 @@
 The ElBench app for Android and iOS. Server changes are listed in the backend's changelog
 ([everythingBlackkk/myFamily](https://github.com/everythingBlackkk/myFamily/blob/main/CHANGELOG.md)).
 
-## 2.5.3 (15) — 2026-10-25
+## 3.0.0 (16) — 2026-10-25
 
 - **Pull to refresh:** a subtle haptic confirms when a refresh starts; scrolling, canceled pulls and automatic reloads stay silent.
 - **Schedule:** uses the same platform-adaptive refresh spinner as other pages, keeps the selected day and filters, and refreshes cached content and badges.
+- **Releases:** Android uses Shorebird for signed over-the-air updates. iOS uses standard Flutter builds without the Shorebird updater.
 
 ## 2.5.2 (14) — 2026-10-25
 

@@ -8,7 +8,7 @@ the earlier Android WebView app and keeps its Google Play listing.
 | Android  | `com.sahbakwebview` |
 | iOS      | `com.sahbak.ios`    |
 
-Version: `pubspec.yaml` (`2.5.3+15`). The Android version code must stay above
+Version: `pubspec.yaml` (`3.0.0+16`). The Android version code must stay above
 the last published WebView build (5).
 
 ## Requirements
@@ -121,36 +121,41 @@ uploaded by mistake.
 
 ```sh
 flutter pub get
-# Google Play (App Bundle)
-flutter build appbundle --release
-# App Store (archive, then upload with Xcode Organizer or Transporter)
+# Google Play (Shorebird App Bundle)
+./shorebird.sh release android
+# App Store (standard Flutter archive; upload with Xcode Organizer or Transporter)
 flutter build ipa --release
+# Install the standard Flutter iOS app on a connected iPhone
+flutter build ios --release
+flutter install --release -d IPHONE_DEVICE_ID
 ```
 
 Outputs:
 - `build/app/outputs/bundle/release/app-release.aab`
 - `build/ios/ipa/`
+- `build/ios/iphoneos/Runner.app`
 
-### Over-the-air updates (Shorebird)
+Use `flutter devices` to find the iPhone device ID. iOS builds use the standard Flutter SDK and do not
+include the Shorebird updater; iOS updates require a new app build and installation.
 
-Store builds go through Shorebird, so later UI and logic changes reach phones without a new store version.
+### Android over-the-air updates (Shorebird)
+
+Android releases go through Shorebird, so later UI and logic changes reach Android phones without a new store version.
 One-time setup: `shorebird login`, then `shorebird init` (adds the public `shorebird.yaml`).
 
 ```sh
 ./shorebird.sh release android   # upload build/app/outputs/bundle/release/app-release.aab to Google Play
-./shorebird.sh release ios       # upload build/ios/ipa/*.ipa to App Store Connect
 ./shorebird.sh patch android     # after changing Dart code; phones get it on their next launch
-./shorebird.sh patch ios
+./shorebird.sh preview android   # test the release and latest patch on an Android device
 ```
 
-A patch can change any Dart code: every screen, layout, colour, text and behaviour. It cannot change Swift/Kotlin,
-native plugins, `Info.plist`/`AndroidManifest.xml` or files in `assets/`. Those need a new store release; Shorebird
-warns before uploading such a patch. Images a patch needs must come from the server. The iOS liquid-glass surface
-is native; a patch can set `nativeGlassEnabled` in `lib/native_glass.dart` to `false` to draw it in Flutter instead.
+A patch can change Android Dart code: every screen, layout, colour, text and behaviour. It cannot change Kotlin,
+native plugins, `AndroidManifest.xml` or files in `assets/`. Those need a new store release; Shorebird
+warns before uploading such a patch. Images a patch needs must come from the server.
 Releases keep all Material icons (`--no-tree-shake-icons`), so patches can use any of them. Patches are signed:
 releases embed `~/Documents/secret-app/shorebird/public.pem` and accept only patches signed with the matching
-`private.pem`, which stays on the release Mac (never commit it). Patched code runs in an
-interpreter on iOS, and patches are tested on a real device (`./shorebird.sh preview`), not the simulator.
+`private.pem`, which stays on the release Mac (never commit it). Test patches on an Android device with
+`./shorebird.sh preview android`. The helper rejects iOS release, patch and preview requests.
 
 ### Push notifications
 
