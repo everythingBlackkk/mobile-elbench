@@ -9,7 +9,6 @@ import 'main.dart';
 import 'native_glass.dart';
 import 'screens.dart';
 import 'text_direction.dart';
-import 'web_motion.dart';
 
 const _lectureBlue = Color(0xff3185c2);
 const _sectionOrange = Color(0xffce8b46);
@@ -380,6 +379,20 @@ class _WebScheduleState extends State<WebSchedule> {
     );
     final muted = theme.colorScheme.onSurfaceVariant;
     final motion = !MediaQuery.disableAnimationsOf(context);
+    void swipe(DragEndDetails details) {
+      final velocity = details.primaryVelocity ?? 0;
+      if (velocity.abs() < 280) return;
+      // Swiping toward the start of the reading direction shows the next day.
+      final forward = (velocity < 0) != ar;
+      _open(
+        date: DateTime.utc(
+          date.year,
+          date.month,
+          date.day + (forward ? 1 : -1),
+        ),
+      );
+    }
+
     return ColoredBox(
       color: dark ? const Color(0xff101119) : const Color(0xfff7f7fc),
       child: RefreshIndicator(
@@ -467,146 +480,165 @@ class _WebScheduleState extends State<WebSchedule> {
               ),
             ),
             const SizedBox(height: 24),
-            Container(
-              padding: const EdgeInsets.fromLTRB(16, 22, 16, 20),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surface,
-                borderRadius: BorderRadius.circular(28),
-              ),
-              // The card grows or shrinks smoothly to the new day while the
-              // old day fades out and the new one slides in from its side.
-              child: AnimatedSize(
-                duration: motion
-                    ? const Duration(milliseconds: 320)
-                    : Duration.zero,
-                curve: WebVisitMotion.curve,
-                alignment: Alignment.topCenter,
-                child: AnimatedSwitcher(
+            GestureDetector(
+              key: const ValueKey('schedule.swipe'),
+              behavior: HitTestBehavior.translucent,
+              onHorizontalDragEnd: swipe,
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(16, 22, 16, 20),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surface,
+                  borderRadius: BorderRadius.circular(28),
+                ),
+                // The card grows or shrinks smoothly to the new day while the
+                // old day fades out and the new one slides in from its side.
+                // One continuous motion per day change: the card's height goes
+                // straight to the new day's height (the leaving day is laid out
+                // over it, not beside it) while the old day slides out one way
+                // and the new day slides in from the other.
+                child: AnimatedSize(
                   duration: motion
-                      ? const Duration(milliseconds: 260)
+                      ? const Duration(milliseconds: 380)
                       : Duration.zero,
-                  switchInCurve: WebVisitMotion.curve,
-                  switchOutCurve: Curves.easeOut,
-                  layoutBuilder: (current, previous) => Stack(
-                    alignment: Alignment.topCenter,
-                    children: [...previous, ?current],
-                  ),
-                  transitionBuilder: (child, animation) {
-                    final entering =
-                        child.key == ValueKey(_dayContentKey(schedule));
-                    final shift = (ar ? -1.0 : 1.0) * _direction * .06;
-                    return FadeTransition(
-                      opacity: animation,
-                      child: entering
-                          ? SlideTransition(
-                              position: Tween(
-                                begin: Offset(shift, 0),
-                                end: Offset.zero,
-                              ).animate(animation),
-                              child: child,
-                            )
-                          : child,
-                    );
-                  },
-                  child: KeyedSubtree(
-                    key: ValueKey(_dayContentKey(schedule)),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                  curve: Curves.easeInOutCubic,
+                  alignment: Alignment.topCenter,
+                  child: AnimatedSwitcher(
+                    duration: motion
+                        ? const Duration(milliseconds: 380)
+                        : Duration.zero,
+                    reverseDuration: motion
+                        ? const Duration(milliseconds: 240)
+                        : Duration.zero,
+                    switchInCurve: Curves.easeOutCubic,
+                    switchOutCurve: Curves.easeInCubic,
+                    layoutBuilder: (current, previous) => Stack(
+                      alignment: Alignment.topCenter,
                       children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                isToday
-                                    ? c.t('Today', 'اليوم')
-                                    : '${_dayName(date, ar)}${ar ? '،' : ','} ${_displayDate(date, ar)}',
-                                style: const TextStyle(
-                                  fontSize: 25,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                            ),
-                            if (value(filters['level']).isNotEmpty)
-                              _ScheduleTag(
-                                label:
-                                    '${c.t('Level', 'الفرقة')} ${filters['level']}',
-                                color: const Color(0xff8275ce),
-                              ),
-                          ],
+                        for (final child in previous)
+                          Positioned(top: 0, left: 0, right: 0, child: child),
+                        ?current,
+                      ],
+                    ),
+                    transitionBuilder: (child, animation) {
+                      final entering =
+                          child.key == ValueKey(_dayContentKey(schedule));
+                      final shift = (ar ? -1.0 : 1.0) * _direction * .18;
+                      return FadeTransition(
+                        opacity: animation,
+                        child: SlideTransition(
+                          position: Tween(
+                            begin: Offset(entering ? shift : -shift, 0),
+                            end: Offset.zero,
+                          ).animate(animation),
+                          child: ScaleTransition(
+                            scale: Tween(
+                              begin: .985,
+                              end: 1.0,
+                            ).animate(animation),
+                            child: child,
+                          ),
                         ),
-                        if (isScheduleDayOff(schedule))
-                          ScheduleDayOff(
-                            controller: c,
-                            today: isToday,
-                            appearance: object(schedule['day_off']),
-                          )
-                        else ...[
-                          const SizedBox(height: 8),
-                          Text(
-                            entries.length == 1
-                                ? c.t(
-                                    '1 class scheduled',
-                                    'حصة واحدة في الجدول',
-                                  )
-                                : c.t(
-                                    '${entries.length} classes scheduled',
-                                    entries.length == 2
-                                        ? 'حصتين في الجدول'
-                                        : '${entries.length} حصص في الجدول',
-                                  ),
-                            style: TextStyle(color: muted, fontSize: 13),
-                          ),
-                          const SizedBox(height: 24),
-                          Text(
-                            c.t(
-                              'Your next classes',
-                              'المحاضرات والسكاشن القادمة',
-                            ),
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
+                      );
+                    },
+                    child: KeyedSubtree(
+                      key: ValueKey(_dayContentKey(schedule)),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
                           Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Expanded(
-                                child: ScheduleClassCard(
-                                  entry: object(schedule['next_lecture']),
-                                  lecture: true,
-                                  controller: c,
-                                  now: now,
+                                child: Text(
+                                  isToday
+                                      ? c.t('Today', 'اليوم')
+                                      : '${_dayName(date, ar)}${ar ? '،' : ','} ${_displayDate(date, ar)}',
+                                  style: const TextStyle(
+                                    fontSize: 25,
+                                    fontWeight: FontWeight.w800,
+                                  ),
                                 ),
                               ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: ScheduleClassCard(
-                                  entry: object(schedule['next_section']),
-                                  lecture: false,
-                                  controller: c,
-                                  now: now,
+                              if (value(filters['level']).isNotEmpty)
+                                _ScheduleTag(
+                                  label:
+                                      '${c.t('Level', 'الفرقة')} ${filters['level']}',
+                                  color: const Color(0xff8275ce),
                                 ),
-                              ),
                             ],
                           ),
-                          const SizedBox(height: 26),
-                          Text(
-                            c.t('Day’s schedule', 'جدول اليوم'),
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          for (final entry in entries)
-                            _ScheduleTimelineEntry(
-                              entry: entry,
-                              next: entry['id'] == next['id'],
+                          if (isScheduleDayOff(schedule))
+                            ScheduleDayOff(
                               controller: c,
+                              today: isToday,
+                              appearance: object(schedule['day_off']),
+                            )
+                          else ...[
+                            const SizedBox(height: 8),
+                            Text(
+                              entries.length == 1
+                                  ? c.t(
+                                      '1 class scheduled',
+                                      'حصة واحدة في الجدول',
+                                    )
+                                  : c.t(
+                                      '${entries.length} classes scheduled',
+                                      entries.length == 2
+                                          ? 'حصتين في الجدول'
+                                          : '${entries.length} حصص في الجدول',
+                                    ),
+                              style: TextStyle(color: muted, fontSize: 13),
                             ),
+                            const SizedBox(height: 24),
+                            Text(
+                              c.t(
+                                'Your next classes',
+                                'المحاضرات والسكاشن القادمة',
+                              ),
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            _EqualHeightRow(
+                              children: [
+                                Expanded(
+                                  child: ScheduleClassCard(
+                                    entry: object(schedule['next_lecture']),
+                                    lecture: true,
+                                    controller: c,
+                                    now: now,
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: ScheduleClassCard(
+                                    entry: object(schedule['next_section']),
+                                    lecture: false,
+                                    controller: c,
+                                    now: now,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 26),
+                            Text(
+                              c.t('Day’s schedule', 'جدول اليوم'),
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            for (final entry in entries)
+                              _ScheduleTimelineEntry(
+                                entry: entry,
+                                next: entry['id'] == next['id'],
+                                controller: c,
+                              ),
+                          ],
                         ],
-                      ],
+                      ),
                     ),
                   ),
                 ),
@@ -734,15 +766,24 @@ class _DayPill extends StatelessWidget {
         key: ValueKey('schedule.day.${day['date']}'),
         onTap: onTap,
         borderRadius: BorderRadius.circular(19),
-        child: Container(
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 240),
+          curve: Curves.easeOutCubic,
           decoration: BoxDecoration(
-            color: theme.colorScheme.surface,
+            color: selected
+                ? Color.alphaBlend(
+                    const Color(0xff7b6aec).withValues(alpha: .08),
+                    theme.colorScheme.surface,
+                  )
+                : theme.colorScheme.surface,
             borderRadius: BorderRadius.circular(19),
           ),
           clipBehavior: Clip.antiAlias,
           child: Column(
             children: [
-              Container(
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 240),
+                curve: Curves.easeOutCubic,
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 color: color.withValues(alpha: selected ? 1 : .14),
@@ -862,6 +903,8 @@ class ScheduleClassCard extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               subject,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
               textDirection: contentDirection(subject),
               style: const TextStyle(
                 fontSize: 13,
@@ -874,6 +917,8 @@ class ScheduleClassCard extends StatelessWidget {
               home
                   ? value(entry['location'])
                   : '${_time(value(entry['start_time']), c)} · ${value(entry['location'])}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               textDirection: contentDirection(value(entry['location'])),
               style: TextStyle(
                 color: theme.colorScheme.onSurfaceVariant,
@@ -884,6 +929,8 @@ class ScheduleClassCard extends StatelessWidget {
               const SizedBox(height: 4),
               Text(
                 value(entry['source_label']),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 textDirection: contentDirection(value(entry['source_label'])),
                 style: TextStyle(
                   color: theme.colorScheme.onSurfaceVariant,
@@ -892,6 +939,8 @@ class ScheduleClassCard extends StatelessWidget {
               ),
             ],
             if (home) ...[
+              // The pill sits at the bottom so both cards in a row line up.
+              const Spacer(),
               const SizedBox(height: 10),
               _ScheduleTag(label: _countdown(entry, now, c), color: color),
             ],
@@ -900,6 +949,21 @@ class ScheduleClassCard extends StatelessWidget {
       ),
     );
   }
+}
+
+/// The next-lecture and next-section cards always share one height, so a
+/// card with a longer subject never leaves its neighbour shorter.
+class _EqualHeightRow extends StatelessWidget {
+  const _EqualHeightRow({required this.children});
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) => IntrinsicHeight(
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: children,
+    ),
+  );
 }
 
 class _ScheduleTag extends StatelessWidget {
@@ -1161,8 +1225,7 @@ class _HomeScheduleCardState extends State<HomeScheduleCard> {
               ),
             ],
             const SizedBox(height: 16),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            _EqualHeightRow(
               children: [
                 Expanded(
                   child: ScheduleClassCard(

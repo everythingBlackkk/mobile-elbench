@@ -32,7 +32,7 @@ class _WebProfileEditState extends State<WebProfileEdit> {
   late Json person;
   late List<Json> skills;
   late String panel, avatar, banner;
-  String? major, city, job, level, section;
+  String? major, city, job, level, group, section;
   int? day, month, year;
   bool imageBanner = false, saving = false, skillBusy = false;
   String? error, success;
@@ -58,6 +58,7 @@ class _WebProfileEditState extends State<WebProfileEdit> {
     imageBanner = banner.isNotEmpty;
     major = _selected(person['major']);
     level = _selected(person['level']);
+    group = _selected(person['group_number']);
     section = _selected(person['section']);
     city = _selected(person['city']);
     job = _selected(person['job']);
@@ -108,6 +109,7 @@ class _WebProfileEditState extends State<WebProfileEdit> {
       final data = <String, dynamic>{
         'major': major,
         'level': level,
+        'group_number': group,
         'section': section,
         'city': city,
         'job': job,
@@ -144,6 +146,7 @@ class _WebProfileEditState extends State<WebProfileEdit> {
           if ([
             'major',
             'level',
+            'group_number',
             'section',
             'city',
             'birthdate',
@@ -713,6 +716,16 @@ class _WebProfileEditState extends State<WebProfileEdit> {
       ),
       const SizedBox(height: 15),
       _EditSelect(
+        label: tr('Group', 'الجروب'),
+        hint: tr('Choose your group', 'اختار الجروب'),
+        selected: group,
+        options: const ['1', '2'],
+        translate: (n) => tr('Group $n', 'جروب $n'),
+        onChanged: saving ? null : (v) => setState(() => group = v),
+        error: errorFor('group_number'),
+      ),
+      const SizedBox(height: 15),
+      _EditSelect(
         label: tr('Section', 'السكشن'),
         hint: tr('Choose your section', 'اختار السكشن'),
         selected: section,
@@ -721,17 +734,6 @@ class _WebProfileEditState extends State<WebProfileEdit> {
         onChanged: saving ? null : (v) => setState(() => section = v),
         error: errorFor('section'),
       ),
-      if (section != null)
-        Padding(
-          padding: const EdgeInsets.only(top: 6),
-          child: Text(
-            tr(
-              'Group ${int.parse(section!).isOdd ? 1 : 2} (set by your section)',
-              'جروب ${int.parse(section!).isOdd ? 1 : 2} (بيتحدد من السكشن)',
-            ),
-            style: TextStyle(fontSize: 12.5, color: colors.muted),
-          ),
-        ),
       const SizedBox(height: 15),
       _EditSelect(
         label: tr('City', 'المحافظة'),
