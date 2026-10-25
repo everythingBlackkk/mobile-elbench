@@ -6,6 +6,7 @@ import 'media_permissions.dart';
 import 'app_menus.dart';
 import 'main.dart';
 import 'text_direction.dart';
+import 'upload_progress.dart';
 
 class FieldSpec {
   const FieldSpec(
@@ -85,6 +86,8 @@ class _ActionFormState extends State<ActionForm> {
   final Map<String, TextEditingController> controllers = {};
   final Json selected = {};
   bool busy = false;
+  bool _uploading = false;
+  double? _uploadProgress;
   String? error;
   Json fieldErrors = {};
   @override
@@ -123,11 +126,13 @@ class _ActionFormState extends State<ActionForm> {
   }
 
   Future<void> save() async {
-    if (!key.currentState!.validate()) return;
+    if (busy || !key.currentState!.validate()) return;
     setState(() {
       busy = true;
       error = null;
       fieldErrors = {};
+      _uploading = false;
+      _uploadProgress = null;
     });
     try {
       final data = <String, dynamic>{...widget.fixed};
@@ -153,11 +158,22 @@ class _ActionFormState extends State<ActionForm> {
         }
         setNested(data, f.key, val);
       }
-      final result = await widget.controller.action(
-        widget.method,
-        widget.path,
-        data,
-      );
+      if (!mounted) return;
+      final hasUpload = data.values.any((value) => value is MultipartFile);
+      if (hasUpload) {
+        setState(() {
+          _uploading = true;
+          _uploadProgress = 0;
+        });
+      }
+      final result = hasUpload
+          ? await widget.controller.actionWithProgress(
+              widget.method,
+              widget.path,
+              data,
+              onSendProgress: _updateUploadProgress,
+            )
+          : await widget.controller.action(widget.method, widget.path, data);
       if (!mounted) return;
       Navigator.pop(context, result);
     } on ApiFailure catch (e) {
@@ -170,8 +186,26 @@ class _ActionFormState extends State<ActionForm> {
     } catch (e) {
       if (mounted) setState(() => error = '$e');
     } finally {
-      if (mounted) setState(() => busy = false);
+      if (mounted) {
+        setState(() {
+          busy = false;
+          _uploading = false;
+        });
+      }
     }
+  }
+
+  void _updateUploadProgress(int sent, int total) {
+    if (!mounted || !_uploading) return;
+    final next = total > 0 ? (sent / total).clamp(0.0, 1.0) : null;
+    if (next == null && _uploadProgress == null ||
+        next != null &&
+            _uploadProgress != null &&
+            uploadProgressPercent(next) ==
+                uploadProgressPercent(_uploadProgress)) {
+      return;
+    }
+    setState(() => _uploadProgress = next);
   }
 
   @override
@@ -323,6 +357,16 @@ class _ActionFormState extends State<ActionForm> {
                     style: TextStyle(
                       color: Theme.of(context).colorScheme.error,
                     ),
+                  ),
+                ),
+              if (_uploading)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: UploadProgressIndicator(
+                    key: const ValueKey('action.upload.progress'),
+                    value: _uploadProgress,
+                    label: c.t('Uploading photo…', 'جاري رفع الصورة…'),
+                    finishingLabel: c.t('Saving photo…', 'جاري حفظ الصورة…'),
                   ),
                 ),
               FilledButton(

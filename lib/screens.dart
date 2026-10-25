@@ -1967,6 +1967,7 @@ class NativePageState extends State<NativePage> with RouteAware {
       screen == 'terms' ||
       screen == 'community.question' ||
       screen == 'community.post' ||
+      screen == 'community.material' ||
       screen == 'quiz.attempt' ||
       screen.startsWith('ai.');
   Color chromeBackground(BuildContext context) => screen == 'content.hall'

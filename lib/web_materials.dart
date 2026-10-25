@@ -11,6 +11,7 @@ import 'image_cache.dart';
 import 'main.dart' show AppController;
 import 'media_permissions.dart';
 import 'screens.dart';
+import 'upload_progress.dart';
 import 'web_home.dart' show webAgo, webBorder, webMuted, webSecondary;
 import 'web_style.dart';
 
@@ -835,6 +836,9 @@ class WebMaterials extends StatefulWidget {
 class _WebMaterialsState extends State<WebMaterials> {
   NativePageState get p => widget.page;
   bool uploading = false;
+  bool transferring = false;
+  double? uploadProgress;
+  int _uploadGeneration = 0;
 
   int get maxBytes =>
       int.tryParse('${p.data['max_bytes']}') ?? 30 * 1024 * 1024;
@@ -847,7 +851,12 @@ class _WebMaterialsState extends State<WebMaterials> {
     }
     final c = p.c;
     final community = object(p.data['community']);
-    setState(() => uploading = true);
+    final generation = ++_uploadGeneration;
+    setState(() {
+      uploading = true;
+      transferring = false;
+      uploadProgress = null;
+    });
     try {
       final path = images
           ? (await pickUploadImage(tr: c.t))?.path
@@ -894,17 +903,46 @@ class _WebMaterialsState extends State<WebMaterials> {
       if (!mounted) return;
       final title = await _askTitle(context, c, name, image: images);
       if (title == null || !mounted) return;
-      await c.action('POST', '/community/${community['id']}/materials', {
-        'title': title,
-        'file': await MultipartFile.fromFile(path, filename: name),
-      });
+      final multipart = await MultipartFile.fromFile(path, filename: name);
       if (!mounted) return;
+      setState(() {
+        transferring = true;
+        uploadProgress = 0;
+      });
+      await c.actionWithProgress(
+        'POST',
+        '/community/${community['id']}/materials',
+        {'title': title, 'file': multipart},
+        onSendProgress: (sent, total) {
+          if (!mounted || !transferring || generation != _uploadGeneration) {
+            return;
+          }
+          final progress = total > 0 ? (sent / total).clamp(0.0, 1.0) : null;
+          final percent = uploadProgressPercent(progress);
+          final previousPercent = uploadProgressPercent(uploadProgress);
+          if (percent != previousPercent ||
+              (progress == null) != (uploadProgress == null)) {
+            setState(() => uploadProgress = progress);
+          }
+        },
+      );
+      if (!mounted) return;
+      setState(() {
+        transferring = false;
+        uploadProgress = null;
+      });
       showAppToast(context, c.t('Material uploaded.', 'الملف اترفع.'));
       if (mounted) await p.load();
     } catch (e) {
       if (mounted) showAppToast(context, '$e');
     } finally {
-      if (mounted) setState(() => uploading = false);
+      if (mounted) {
+        setState(() {
+          uploading = false;
+          transferring = false;
+          uploadProgress = null;
+        });
+      }
     }
   }
 
@@ -1065,10 +1103,15 @@ class _WebMaterialsState extends State<WebMaterials> {
             if (materials.isNotEmpty) const SizedBox(height: 12),
             uploadButtons,
           ],
-          if (canManage && uploading)
-            const Padding(
-              padding: EdgeInsets.only(top: 12),
-              child: LinearProgressIndicator(),
+          if (canManage && transferring)
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: UploadProgressIndicator(
+                key: const ValueKey('materials.upload.progress'),
+                value: uploadProgress,
+                label: c.t('Uploading…', 'جاري الرفع…'),
+                finishingLabel: c.t('Finishing upload…', 'جاري إنهاء الرفع…'),
+              ),
             ),
           if (canManage && !ready)
             Padding(
@@ -1424,7 +1467,12 @@ class _WebMaterialViewerState extends State<WebMaterialViewer> {
     // A row tapped in the list opens at once; its preview arrives with the
     // full page a moment later.
     if (p.provisional) return const Center(child: CircularProgressIndicator());
-    final padding = const EdgeInsets.fromLTRB(16, 16, 16, 120);
+    final padding = EdgeInsets.fromLTRB(
+      16,
+      16,
+      16,
+      MediaQuery.paddingOf(context).bottom + 16,
+    );
     switch (value(preview['type'])) {
       case 'text':
         return SingleChildScrollView(
@@ -1647,7 +1695,7 @@ class _WebMaterialViewerState extends State<WebMaterialViewer> {
 
 /// The in-app PDF reader: pages as white sheets on a calm background, pinch
 /// and double-tap zoom, and a floating bar with the page counter (tap it to
-/// jump to a page) and previous/next buttons. The bar stays above the dock.
+/// jump to a page) and previous/next buttons above the device's safe area.
 class _PdfReader extends StatefulWidget {
   const _PdfReader({
     super.key,
@@ -1794,18 +1842,10 @@ class _PdfReaderState extends State<_PdfReader> {
             ),
           ),
           if (pages > 0)
-            ValueListenableBuilder<bool>(
-              valueListenable: c.dockHidden,
-              builder: (context, dockHidden, child) => AnimatedPositioned(
-                duration: const Duration(milliseconds: 220),
-                curve: Curves.easeOutCubic,
-                left: 0,
-                right: 0,
-                bottom:
-                    MediaQuery.paddingOf(context).bottom +
-                    (dockHidden ? 16 : 92),
-                child: child!,
-              ),
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: MediaQuery.paddingOf(context).bottom + 16,
               child: Center(
                 child: Material(
                   key: const ValueKey('pdf.toolbar'),

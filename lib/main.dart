@@ -858,11 +858,34 @@ class AppController extends ChangeNotifier {
     String path, [
     Json data = const {},
     bool invalidate = true,
-  ]) async {
+  ]) => _action(method, path, data, invalidate);
+
+  Future<Json> actionWithProgress(
+    String method,
+    String path,
+    Json data, {
+    required UploadProgress onSendProgress,
+    bool invalidate = true,
+  }) => _action(method, path, data, invalidate, onSendProgress: onSendProgress);
+
+  Future<Json> _action(
+    String method,
+    String path,
+    Json data,
+    bool invalidate, {
+    UploadProgress? onSendProgress,
+  }) async {
     final session = _sessionGeneration, viewer = user?['id'];
     mutationEpoch++;
     try {
-      final response = await api.send(method, localized(path), data);
+      final response = onSendProgress == null
+          ? await api.send(method, localized(path), data)
+          : await api.sendWithProgress(
+              method,
+              localized(path),
+              data,
+              onSendProgress: onSendProgress,
+            );
       mutationEpoch++;
       if (session == _sessionGeneration && viewer == user?['id']) {
         if (invalidate) {

@@ -1,4 +1,4 @@
-# Last version v4.0.0
+# Last version v4.5.0
 
 Use **Flutter 3.44.2** with **Dart 3.12.2**, as pinned in `.fvmrc`.
 iOS uses the standard Flutter SDK with **no Shorebird**. Shorebird is for Android only.

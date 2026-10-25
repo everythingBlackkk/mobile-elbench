@@ -3,6 +3,12 @@
 The ElBench app for Android and iOS. Server changes are listed in the backend's changelog
 ([everythingBlackkk/myFamily](https://github.com/everythingBlackkk/myFamily/blob/main/CHANGELOG.md)).
 
+## 4.5.0 (19) — 2026-10-26
+
+- **Photo uploads:** the Upload Images button displays the photo icon consistently in community upload controls.
+- **Upload progress:** files and images show a real byte-based progress bar and percentage, with a finishing state while the server completes the request and clean reset after completion or failure.
+- **File viewing:** the bottom navigation is hidden while a material is open and restored when returning to the file list.
+
 ## 4.0.0 (18) — 2026-10-26
 
 - **Home search:** displays only community posts as soon as typing starts, with a clear-search control and no stale results while a new search loads.

@@ -13,6 +13,7 @@ import 'app_menus.dart';
 import 'screens.dart';
 import 'text_direction.dart';
 import 'web_style.dart';
+import 'upload_progress.dart';
 
 /// Native form with the same mobile layout and controls as profile-edit.css.
 class WebProfileEdit extends StatefulWidget {
@@ -36,6 +37,8 @@ class _WebProfileEditState extends State<WebProfileEdit> {
   int? day, month, year;
   bool imageBanner = false, saving = false, skillBusy = false;
   bool selectingPhoto = false;
+  bool _uploading = false;
+  double? _uploadProgress;
   String? error, success;
   Json fieldErrors = {};
   Uint8List? avatarBytes, bannerBytes, bannerOriginal;
@@ -102,6 +105,8 @@ class _WebProfileEditState extends State<WebProfileEdit> {
       error = null;
       success = null;
       fieldErrors = {};
+      _uploading = false;
+      _uploadProgress = null;
     });
     try {
       if (!imageBanner && _parseColor(hex.text) == null) {
@@ -136,7 +141,21 @@ class _WebProfileEditState extends State<WebProfileEdit> {
           filename: 'banner.png',
         );
       }
-      final result = await page.c.action('PUT', '/profile', data);
+      final hasUpload = data.values.any((value) => value is MultipartFile);
+      if (hasUpload) {
+        setState(() {
+          _uploading = true;
+          _uploadProgress = 0;
+        });
+      }
+      final result = hasUpload
+          ? await page.c.actionWithProgress(
+              'PUT',
+              '/profile',
+              data,
+              onSendProgress: _updateUploadProgress,
+            )
+          : await page.c.action('PUT', '/profile', data);
       if (!mounted) return;
       page.c.leaveTo(value(result['redirect_url'], '/profile'), page);
     } on ApiFailure catch (exception) {
@@ -165,8 +184,26 @@ class _WebProfileEditState extends State<WebProfileEdit> {
     } catch (exception) {
       if (mounted) setState(() => error = '$exception');
     } finally {
-      if (mounted) setState(() => saving = false);
+      if (mounted) {
+        setState(() {
+          saving = false;
+          _uploading = false;
+        });
+      }
     }
+  }
+
+  void _updateUploadProgress(int sent, int total) {
+    if (!mounted || !_uploading) return;
+    final next = total > 0 ? (sent / total).clamp(0.0, 1.0) : null;
+    if (next == null && _uploadProgress == null ||
+        next != null &&
+            _uploadProgress != null &&
+            uploadProgressPercent(next) ==
+                uploadProgressPercent(_uploadProgress)) {
+      return;
+    }
+    setState(() => _uploadProgress = next);
   }
 
   Future<void> updateSkill({Json? remove}) async {
@@ -373,6 +410,16 @@ class _WebProfileEditState extends State<WebProfileEdit> {
             ),
           ),
         if (mobile && !hideSave) ...[actions, const SizedBox(height: 14)],
+        if (_uploading)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: UploadProgressIndicator(
+              key: const ValueKey('profile.upload.progress'),
+              value: _uploadProgress,
+              label: tr('Uploading photo…', 'جاري رفع الصورة…'),
+              finishingLabel: tr('Saving photo…', 'جاري حفظ الصورة…'),
+            ),
+          ),
         _preview(colors),
         const SizedBox(height: 20),
         Wrap(
@@ -530,7 +577,7 @@ class _WebProfileEditState extends State<WebProfileEdit> {
                     ),
                   ),
                 ),
-                if (saving && bannerBytes != null)
+                if (_uploading && imageBanner && bannerBytes != null)
                   Positioned.fill(child: _uploadOverlay()),
               ],
             ),
@@ -613,7 +660,7 @@ class _WebProfileEditState extends State<WebProfileEdit> {
                                     ),
                                   ),
                                 ),
-                                if (saving && avatarBytes != null)
+                                if (_uploading && avatarBytes != null)
                                   Positioned.fill(
                                     child: ClipOval(child: _uploadOverlay()),
                                   ),
@@ -635,11 +682,15 @@ class _WebProfileEditState extends State<WebProfileEdit> {
 
   Widget _uploadOverlay() => ColoredBox(
     color: const Color(0x73000000),
-    child: const Center(
+    child: Center(
       child: SizedBox(
         width: 24,
         height: 24,
-        child: CircularProgressIndicator(strokeWidth: 3, color: Colors.white),
+        child: CircularProgressIndicator(
+          value: _uploadProgress,
+          strokeWidth: 3,
+          color: Colors.white,
+        ),
       ),
     ),
   );

@@ -5,6 +5,7 @@ import 'package:dio/io.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 typedef Json = Map<String, dynamic>;
+typedef UploadProgress = void Function(int sentBytes, int totalBytes);
 Json object(dynamic value) =>
     value is Map ? Map<String, dynamic>.from(value) : {};
 List<Json> rows(dynamic value) {
@@ -81,6 +82,16 @@ abstract class MobileApi {
   Uri get baseUri;
   Future<Json> get(String path);
   Future<Json> send(String method, String path, [Json data = const {}]);
+
+  /// Transmitted request bytes, including multipart framing. A total of zero
+  /// or less means the transport cannot determine its size yet.
+  /// Clients without transport progress retain their existing send behavior.
+  Future<Json> sendWithProgress(
+    String method,
+    String path,
+    Json data, {
+    required UploadProgress onSendProgress,
+  }) => send(method, path, data);
   Future<void> clearSession();
 
   /// Resolve [path] against the server, mapping the production site's former
@@ -244,15 +255,35 @@ class LaravelApi extends MobileApi {
   @override
   Future<Json> send(String method, String path, [Json data = const {}]) =>
       _request(method, path, data);
-  Future<Json> _request(String method, String path, Json data) {
-    final task = _queue.then((_) => _execute(method, path, data));
+  @override
+  Future<Json> sendWithProgress(
+    String method,
+    String path,
+    Json data, {
+    required UploadProgress onSendProgress,
+  }) => _request(method, path, data, onSendProgress: onSendProgress);
+
+  Future<Json> _request(
+    String method,
+    String path,
+    Json data, {
+    UploadProgress? onSendProgress,
+  }) {
+    final task = _queue.then(
+      (_) => _execute(method, path, data, onSendProgress: onSendProgress),
+    );
     if (method != 'GET') {
       _queue = task.then<void>((_) {}, onError: (Object _, StackTrace _) {});
     }
     return task;
   }
 
-  Future<Json> _execute(String method, String path, Json data) async {
+  Future<Json> _execute(
+    String method,
+    String path,
+    Json data, {
+    UploadProgress? onSendProgress,
+  }) async {
     await (_loaded ??= _load());
     if (method != 'GET' && _csrf == null) {
       await _execute('GET', '/mobile/session', {});
@@ -292,6 +323,7 @@ class LaravelApi extends MobileApi {
           uri.toString(),
           data: method == 'GET' ? null : payload,
           options: Options(method: hasFile ? 'POST' : method, headers: headers),
+          onSendProgress: method == 'GET' ? null : onSendProgress,
         );
       } on DioException catch (e) {
         final kind = switch (e.type) {

@@ -8,6 +8,7 @@ import 'api.dart';
 import 'image_cache.dart';
 import 'media_permissions.dart';
 import 'screens.dart';
+import 'upload_progress.dart';
 
 class ScheduleAppearanceAdminContent extends StatefulWidget {
   const ScheduleAppearanceAdminContent({super.key, required this.page});
@@ -26,6 +27,8 @@ class _ScheduleAppearanceAdminContentState
   Uint8List? _image;
   String _filename = 'day-off.jpg';
   bool _removeImage = false, _picking = false, _saving = false;
+  bool _uploading = false;
+  double? _uploadProgress;
   String? _error, _status;
 
   String tr(String en, String ar) => widget.page.c.t(en, ar);
@@ -122,14 +125,30 @@ class _ScheduleAppearanceAdminContentState
       _saving = true;
       _error = null;
       _status = null;
+      _uploading = _image != null && _mode == 'image';
+      _uploadProgress = _uploading ? 0 : null;
     });
     try {
-      await widget.page.c.action('PUT', '/admin/schedule-appearance', {
+      final payload = <String, dynamic>{
         'mode': _mode,
         if (_removeImage) 'remove_image': 1,
         if (_image != null && _mode == 'image')
           'image': MultipartFile.fromBytes(_image!, filename: _filename),
-      });
+      };
+      if (_uploading) {
+        await widget.page.c.actionWithProgress(
+          'PUT',
+          '/admin/schedule-appearance',
+          payload,
+          onSendProgress: _updateUploadProgress,
+        );
+      } else {
+        await widget.page.c.action(
+          'PUT',
+          '/admin/schedule-appearance',
+          payload,
+        );
+      }
       if (!mounted) return;
       await widget.page.load();
       if (!mounted) return;
@@ -159,8 +178,26 @@ class _ScheduleAppearanceAdminContentState
         );
       }
     } finally {
-      if (mounted) setState(() => _saving = false);
+      if (mounted) {
+        setState(() {
+          _saving = false;
+          _uploading = false;
+        });
+      }
     }
+  }
+
+  void _updateUploadProgress(int sent, int total) {
+    if (!mounted || !_uploading) return;
+    final next = total > 0 ? (sent / total).clamp(0.0, 1.0) : null;
+    if (next == null && _uploadProgress == null ||
+        next != null &&
+            _uploadProgress != null &&
+            uploadProgressPercent(next) ==
+                uploadProgressPercent(_uploadProgress)) {
+      return;
+    }
+    setState(() => _uploadProgress = next);
   }
 
   Widget _preview() {
@@ -327,6 +364,16 @@ class _ScheduleAppearanceAdminContentState
           const SizedBox(height: 16),
           Semantics(liveRegion: true, child: Text(_status!)),
         ],
+        if (_uploading)
+          Padding(
+            padding: const EdgeInsets.only(top: 16),
+            child: UploadProgressIndicator(
+              key: const ValueKey('schedule.image.upload.progress'),
+              value: _uploadProgress,
+              label: tr('Uploading image…', 'جاري رفع الصورة…'),
+              finishingLabel: tr('Saving image…', 'جاري حفظ الصورة…'),
+            ),
+          ),
         const SizedBox(height: 22),
         FilledButton.icon(
           key: const ValueKey('schedule.appearance.save'),

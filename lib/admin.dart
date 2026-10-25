@@ -12,6 +12,7 @@ import 'app_menus.dart';
 import 'screens.dart';
 import 'text_direction.dart';
 import 'web_style.dart';
+import 'upload_progress.dart';
 
 /// Native rendering of admin/index.blade.php and CSS/admin.css.
 class AdminContent extends StatelessWidget {
@@ -1227,6 +1228,8 @@ class _AdminFormState extends State<_AdminForm> {
   Json _errors = {};
   String? _error, _status;
   bool _busy = false;
+  bool _uploading = false;
+  double? _uploadProgress;
   @override
   void initState() {
     super.initState();
@@ -1304,6 +1307,8 @@ class _AdminFormState extends State<_AdminForm> {
       _errors = {};
       _error = null;
       _status = null;
+      _uploading = false;
+      _uploadProgress = null;
     });
     try {
       final result = <String, dynamic>{...widget.fixed};
@@ -1333,11 +1338,22 @@ class _AdminFormState extends State<_AdminForm> {
           result[field.name] = current;
         }
       }
-      final response = await widget.page.c.action(
-        widget.method,
-        widget.path,
-        result,
-      );
+      if (!mounted) return;
+      final hasUpload = result.values.any((value) => value is MultipartFile);
+      if (hasUpload) {
+        setState(() {
+          _uploading = true;
+          _uploadProgress = 0;
+        });
+      }
+      final response = hasUpload
+          ? await widget.page.c.actionWithProgress(
+              widget.method,
+              widget.path,
+              result,
+              onSendProgress: _updateUploadProgress,
+            )
+          : await widget.page.c.action(widget.method, widget.path, result);
       if (!mounted) return;
       setState(
         () => _status = value(
@@ -1364,8 +1380,26 @@ class _AdminFormState extends State<_AdminForm> {
         );
       }
     } finally {
-      if (mounted) setState(() => _busy = false);
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _uploading = false;
+        });
+      }
     }
+  }
+
+  void _updateUploadProgress(int sent, int total) {
+    if (!mounted || !_uploading) return;
+    final next = total > 0 ? (sent / total).clamp(0.0, 1.0) : null;
+    if (next == null && _uploadProgress == null ||
+        next != null &&
+            _uploadProgress != null &&
+            uploadProgressPercent(next) ==
+                uploadProgressPercent(_uploadProgress)) {
+      return;
+    }
+    setState(() => _uploadProgress = next);
   }
 
   @override
@@ -1393,6 +1427,19 @@ class _AdminFormState extends State<_AdminForm> {
             Padding(
               padding: const EdgeInsets.only(bottom: 18),
               child: _AdminAlert(_status!),
+            ),
+          if (_uploading)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 18),
+              child: UploadProgressIndicator(
+                key: const ValueKey('admin.upload.progress'),
+                value: _uploadProgress,
+                label: widget.page.c.t('Uploading image…', 'جاري رفع الصورة…'),
+                finishingLabel: widget.page.c.t(
+                  'Saving image…',
+                  'جاري حفظ الصورة…',
+                ),
+              ),
             ),
           _AdminButton(
             label: widget.submit,
@@ -2358,6 +2405,8 @@ class _AdminCommunityEditorState extends State<_AdminCommunityEditor> {
   Uint8List? _image;
   Uint8List? _source;
   bool _remove = false, _busy = false, _picking = false;
+  bool _uploading = false;
+  double? _uploadProgress;
   String? _error, _status;
   String t(String key) => adminCopy(widget.page, key);
   @override
@@ -2491,6 +2540,8 @@ class _AdminCommunityEditorState extends State<_AdminCommunityEditor> {
       _busy = true;
       _error = null;
       _status = null;
+      _uploading = _image != null;
+      _uploadProgress = _uploading ? 0 : null;
     });
     try {
       final payload = <String, dynamic>{
@@ -2505,11 +2556,18 @@ class _AdminCommunityEditorState extends State<_AdminCommunityEditor> {
             contentType: DioMediaType('image', 'png'),
           ),
       };
-      final response = await widget.page.c.action(
-        'PUT',
-        '/admin/communities/${widget.community['id']}',
-        payload,
-      );
+      final response = _uploading
+          ? await widget.page.c.actionWithProgress(
+              'PUT',
+              '/admin/communities/${widget.community['id']}',
+              payload,
+              onSendProgress: _updateUploadProgress,
+            )
+          : await widget.page.c.action(
+              'PUT',
+              '/admin/communities/${widget.community['id']}',
+              payload,
+            );
       if (!mounted) return;
       setState(() {
         _status = value(response['message'] ?? response['status'], t('saved'));
@@ -2531,8 +2589,26 @@ class _AdminCommunityEditorState extends State<_AdminCommunityEditor> {
     } catch (_) {
       if (mounted) setState(() => _error = t('community_save_error'));
     } finally {
-      if (mounted) setState(() => _busy = false);
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _uploading = false;
+        });
+      }
     }
+  }
+
+  void _updateUploadProgress(int sent, int total) {
+    if (!mounted || !_uploading) return;
+    final next = total > 0 ? (sent / total).clamp(0.0, 1.0) : null;
+    if (next == null && _uploadProgress == null ||
+        next != null &&
+            _uploadProgress != null &&
+            uploadProgressPercent(next) ==
+                uploadProgressPercent(_uploadProgress)) {
+      return;
+    }
+    setState(() => _uploadProgress = next);
   }
 
   @override
@@ -2712,6 +2788,19 @@ class _AdminCommunityEditorState extends State<_AdminCommunityEditor> {
                     color: colors.onSurfaceVariant,
                     fontSize: 14,
                   ),
+                ),
+              ),
+            ),
+          if (_uploading)
+            Padding(
+              padding: const EdgeInsets.only(top: 18),
+              child: UploadProgressIndicator(
+                key: const ValueKey('community.image.upload.progress'),
+                value: _uploadProgress,
+                label: widget.page.c.t('Uploading image…', 'جاري رفع الصورة…'),
+                finishingLabel: widget.page.c.t(
+                  'Saving image…',
+                  'جاري حفظ الصورة…',
                 ),
               ),
             ),
