@@ -3,10 +3,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 
+/// Shorebird patches can only change Dart code. The glass below is drawn by Swift, so this switch is how a patch
+/// moves the dock and bars back to the Flutter-drawn style (`decoration`) when their look has to change.
+const bool nativeGlassEnabled = true;
+
 bool? _supportedSync;
 Future<bool>? _availability;
 Future<bool> nativeGlassAvailable() {
-  if (kIsWeb || defaultTargetPlatform != TargetPlatform.iOS) {
+  if (!nativeGlassEnabled ||
+      kIsWeb ||
+      defaultTargetPlatform != TargetPlatform.iOS) {
     return Future.value(false);
   }
   if (_supportedSync != null) return Future.value(_supportedSync!);
@@ -55,6 +61,7 @@ class NativeGlassSurface extends StatefulWidget {
 class _NativeGlassSurfaceState extends State<NativeGlassSurface> {
   static final ValueNotifier<double?> _noDrag = ValueNotifier<double?>(null);
   bool supported =
+      nativeGlassEnabled &&
       !kIsWeb &&
       defaultTargetPlatform == TargetPlatform.iOS &&
       _supportedSync == true;

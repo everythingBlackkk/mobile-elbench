@@ -6,7 +6,6 @@ import 'image_cache.dart';
 import 'app_menus.dart';
 import 'screens.dart';
 import 'infinite_feed.dart';
-import 'forms.dart' show FieldSpec;
 import 'text_direction.dart';
 import 'web_style.dart';
 import 'web_home.dart' show webAgo, webMuted;
@@ -278,27 +277,60 @@ class _WebForumState extends State<WebForum> {
     if (!mounted) return;
     switch (choice) {
       case 'notify':
-        await page.form(
-          c.t('Notify followers', 'إشعار للمتابعين'),
-          '/community/$id/notices',
-          [
-            FieldSpec('title', c.t('Title', 'العنوان')),
-            FieldSpec(
-              'body',
-              c.t('Message', 'الرسالة'),
-              lines: 5,
-              hint: c.t(
-                'Everyone who follows this subject gets this notification, whatever their level.',
-                'كل اللي متابعين المادة دي هيوصلهم الإشعار، أياً كانت فرقتهم.',
+        final community = object(page.data['community']);
+        final sent = await Navigator.of(context, rootNavigator: true)
+            .push<Json>(
+              PageRouteBuilder<Json>(
+                fullscreenDialog: true,
+                opaque: true,
+                transitionDuration: const Duration(milliseconds: 300),
+                reverseTransitionDuration: const Duration(milliseconds: 240),
+                pageBuilder: (context, animation, secondaryAnimation) =>
+                    _NoticeComposer(
+                      page: page,
+                      communityId: '$id',
+                      communityName: value(community['name']),
+                    ),
+                transitionsBuilder:
+                    (context, animation, secondaryAnimation, child) {
+                      if (MediaQuery.disableAnimationsOf(context)) return child;
+                      return SlideTransition(
+                        position:
+                            Tween<Offset>(
+                              begin: const Offset(0, 1),
+                              end: Offset.zero,
+                            ).animate(
+                              CurvedAnimation(
+                                parent: animation,
+                                curve: const Cubic(0.22, 1.0, 0.36, 1.0),
+                                reverseCurve: Curves.easeInCubic,
+                              ),
+                            ),
+                        child: child,
+                      );
+                    },
               ),
-            ),
-          ],
-        );
+            );
+        if (sent != null && page.mounted) {
+          final message = value(sent['message']);
+          if (message.isNotEmpty && mounted) {
+            ScaffoldMessenger.maybeOf(
+              context,
+            )?.showSnackBar(SnackBar(content: Text(message)));
+          }
+          await page.load();
+        }
       case 'upload':
         c.open('/community/$id/materials?upload=1');
       case 'review':
         c.open('/moderate?community_id=$id');
     }
+  }
+
+  /// The subject's notifications as a page of their own; opening it marks them all as seen.
+  void openNotices(Object? id) {
+    setState(() => page.data['notice_unread'] = 0);
+    page.c.open('/community/$id/notifications');
   }
 
   @override
@@ -362,15 +394,29 @@ class _WebForumState extends State<WebForum> {
               ],
             ),
           ),
-          Text(
-            value(community['name']),
-            style: TextStyle(
-              fontSize: 30,
-              height: 1.2,
-              fontWeight: FontWeight.w900,
-              letterSpacing: -.75,
-              color: colors.text,
-            ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Text(
+                  value(community['name']),
+                  style: TextStyle(
+                    fontSize: 30,
+                    height: 1.2,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -.75,
+                    color: colors.text,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              _NoticeBell(
+                colors: colors,
+                unread: int.tryParse(value(page.data['notice_unread'])) ?? 0,
+                label: c.t('Notifications', 'الإشعارات'),
+                onTap: () => openNotices(id),
+              ),
+            ],
           ),
           const SizedBox(height: 8),
           Text(
@@ -432,7 +478,11 @@ class _WebForumState extends State<WebForum> {
             onTap: () => c.open('/community/$id/materials'),
           ),
           if (rows(page.data['notices']).isNotEmpty)
-            _ForumUpdates(page: page, colors: colors),
+            _ForumUpdates(
+              page: page,
+              colors: colors,
+              onSeeAll: () => openNotices(id),
+            ),
           const SizedBox(height: 32),
           _forumStatus(page),
           SizedBox(
@@ -2040,21 +2090,21 @@ class _MaterialsTile extends StatelessWidget {
 
 /// A community's latest updates: the newest one in full, older ones behind
 /// "Show more".
-class _ForumUpdates extends StatefulWidget {
-  const _ForumUpdates({required this.page, required this.colors});
+/// The subject's latest update; the bell and "See all" open the whole history.
+class _ForumUpdates extends StatelessWidget {
+  const _ForumUpdates({
+    required this.page,
+    required this.colors,
+    required this.onSeeAll,
+  });
   final NativePageState page;
   final _ForumColors colors;
-  @override
-  State<_ForumUpdates> createState() => _ForumUpdatesState();
-}
+  final VoidCallback onSeeAll;
 
-class _ForumUpdatesState extends State<_ForumUpdates> {
-  bool expanded = false;
   @override
   Widget build(BuildContext context) {
-    final c = widget.page.c, colors = widget.colors;
-    final notices = rows(widget.page.data['notices']);
-    final shown = expanded ? notices : notices.take(1).toList();
+    final c = page.c;
+    final notice = rows(page.data['notices']).first;
     return Padding(
       padding: const EdgeInsets.only(top: 22),
       child: Column(
@@ -2064,107 +2114,598 @@ class _ForumUpdatesState extends State<_ForumUpdates> {
             children: [
               WebIcon('bell', size: 15, color: colors.muted),
               const SizedBox(width: 6),
-              Text(
-                c.t('Updates', 'التحديثات'),
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: colors.muted,
+              Expanded(
+                child: Text(
+                  c.t('Updates', 'التحديثات'),
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: colors.muted,
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: onSeeAll,
+                style: TextButton.styleFrom(
+                  foregroundColor: colors.accent,
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  minimumSize: const Size(44, 36),
+                ),
+                child: Text(
+                  c.t('See all', 'عرض الكل'),
+                  style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
               ),
             ],
           ),
-          for (final (index, notice) in shown.indexed)
+          const SizedBox(height: 4),
+          _NoticeCard(
+            notice: notice,
+            colors: colors,
+            arabic: c.settings.language == 'ar',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The latest update on the subject's page: a plain card with sender, time and message.
+class _NoticeCard extends StatelessWidget {
+  const _NoticeCard({
+    required this.notice,
+    required this.colors,
+    required this.arabic,
+  });
+  final Json notice;
+  final _ForumColors colors;
+  final bool arabic;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    clipBehavior: Clip.antiAlias,
+    decoration: BoxDecoration(
+      color: colors.main,
+      borderRadius: BorderRadius.circular(18),
+      border: Border.all(color: colors.border),
+    ),
+    child: _NoticeRow(
+      notice: notice,
+      colors: colors,
+      arabic: arabic,
+      unseen: false,
+    ),
+  );
+}
+
+/// The round bell beside the subject's name, with how many updates are unseen.
+class _NoticeBell extends StatelessWidget {
+  const _NoticeBell({
+    required this.colors,
+    required this.unread,
+    required this.label,
+    required this.onTap,
+  });
+  final _ForumColors colors;
+  final int unread;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    label: unread > 0 ? '$label · $unread' : label,
+    child: SizedBox(
+      width: 48,
+      height: 48,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned.fill(
+            child: Material(
+              color: colors.secondary,
+              shape: CircleBorder(side: BorderSide(color: colors.border)),
+              child: InkWell(
+                key: const ValueKey('forum.notices'),
+                customBorder: const CircleBorder(),
+                onTap: onTap,
+                child: Center(
+                  child: WebIcon('bell', size: 21, color: colors.text),
+                ),
+              ),
+            ),
+          ),
+          if (unread > 0)
+            PositionedDirectional(
+              top: -3,
+              end: -3,
+              child: IgnorePointer(
+                child: Container(
+                  constraints: const BoxConstraints(minWidth: 21),
+                  height: 21,
+                  padding: const EdgeInsets.symmetric(horizontal: 5),
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: const Color(0xffe5484d),
+                    borderRadius: BorderRadius.circular(11),
+                    border: Border.all(color: colors.main, width: 2),
+                  ),
+                  child: Text(
+                    unread > 99 ? '99+' : '$unread',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      height: 1,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    ),
+  );
+}
+
+/// A subject's notifications, newest first, stacked in one quiet container. The page arrives with the 10 newest;
+/// the next 10 load shortly before the reader reaches the end.
+class WebCommunityNotifications extends StatefulWidget {
+  const WebCommunityNotifications({super.key, required this.page});
+  final NativePageState page;
+
+  @override
+  State<WebCommunityNotifications> createState() =>
+      _WebCommunityNotificationsState();
+}
+
+class _WebCommunityNotificationsState extends State<WebCommunityNotifications> {
+  final scroll = ScrollController();
+  final older = <Json>[];
+  int? next;
+  bool loading = false, failed = false;
+  Object? _source;
+
+  NativePageState get page => widget.page;
+
+  @override
+  void initState() {
+    super.initState();
+    scroll.addListener(() {
+      if (scroll.position.extentAfter < 500) load();
+    });
+  }
+
+  @override
+  void dispose() {
+    scroll.dispose();
+    super.dispose();
+  }
+
+  /// A refreshed page starts the list again from its first 10.
+  void _sync() {
+    final source = page.data['notices'];
+    if (identical(source, _source)) return;
+    _source = source;
+    older.clear();
+    next = int.tryParse(value(page.data['next_before']));
+    failed = false;
+  }
+
+  Future<void> load() async {
+    final before = next;
+    if (loading || before == null) return;
+    setState(() {
+      loading = true;
+      failed = false;
+    });
+    try {
+      final id = object(page.data['community'])['id'];
+      final data = await page.c.api.get(
+        '/community/$id/notices?before=$before',
+      );
+      if (!mounted) return;
+      setState(() {
+        older.addAll(rows(data['notices']));
+        next = int.tryParse(value(data['next_before']));
+      });
+    } catch (_) {
+      if (mounted) setState(() => failed = true);
+    } finally {
+      if (mounted) setState(() => loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    _sync();
+    final colors = _ForumColors(context), c = page.c;
+    final arabic = c.settings.language == 'ar';
+    final notices = [...rows(page.data['notices']), ...older];
+    final unread = int.tryParse(value(page.data['unread'])) ?? 0;
+    return RefreshIndicator.adaptive(
+      onRefresh: page.pullRefresh,
+      child: ListView(
+        controller: scroll,
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(14, 16, 14, 120),
+        children: [
+          Padding(
+            padding: const EdgeInsetsDirectional.only(start: 4, bottom: 12),
+            child: Text(
+              value(object(page.data['community'])['name']),
+              style: TextStyle(
+                fontSize: 13.5,
+                fontWeight: FontWeight.w600,
+                color: colors.muted,
+              ),
+            ),
+          ),
+          if (notices.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 48),
+              child: Text(
+                c.t(
+                  'No notifications from this subject yet.',
+                  'مفيش إشعارات من المادة دي لسه.',
+                ),
+                textAlign: TextAlign.center,
+                style: TextStyle(color: colors.muted),
+              ),
+            )
+          else
             Container(
-              margin: const EdgeInsets.only(top: 10),
               clipBehavior: Clip.antiAlias,
               decoration: BoxDecoration(
-                color: colors.secondary,
-                borderRadius: BorderRadius.circular(18),
+                color: colors.main,
+                borderRadius: BorderRadius.circular(20),
                 border: Border.all(color: colors.border),
               ),
-              child: IntrinsicHeight(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Container(
-                      width: 4,
-                      color: index == 0 ? colors.fill : colors.border,
+              child: Column(
+                children: [
+                  for (final (index, notice) in notices.indexed) ...[
+                    if (index > 0) Divider(height: 1, color: colors.border),
+                    _NoticeRow(
+                      notice: notice,
+                      colors: colors,
+                      arabic: arabic,
+                      unseen: index < unread,
                     ),
+                  ],
+                ],
+              ),
+            ),
+          if (failed)
+            TextButton(
+              onPressed: load,
+              child: Text(
+                c.t(
+                  'Couldn’t load notifications. Try again',
+                  'معرفناش نحمّل الإشعارات. جرّب تاني',
+                ),
+              ),
+            )
+          else if (next != null)
+            const Padding(
+              padding: EdgeInsets.all(20),
+              child: Center(
+                child: SizedBox.square(
+                  dimension: 22,
+                  child: CircularProgressIndicator(strokeWidth: 2.4),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// One notification in a list: sender and time on one line, the message below.
+class _NoticeRow extends StatelessWidget {
+  const _NoticeRow({
+    required this.notice,
+    required this.colors,
+    required this.arabic,
+    required this.unseen,
+  });
+  final Json notice;
+  final _ForumColors colors;
+  final bool arabic, unseen;
+
+  @override
+  Widget build(BuildContext context) => ColoredBox(
+    color: unseen ? colors.secondary : Colors.transparent,
+    child: Padding(
+      padding: const EdgeInsets.fromLTRB(18, 15, 18, 15),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              if (unseen) ...[
+                Container(
+                  width: 7,
+                  height: 7,
+                  decoration: BoxDecoration(
+                    color: colors.fill,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ],
+              Expanded(
+                child: Text(
+                  value(object(notice['author'])['name']),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                    color: colors.muted,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                webAgo(notice['created_at'], arabic),
+                style: TextStyle(fontSize: 12, color: colors.muted),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          SelectableText(
+            value(notice['body']),
+            style: TextStyle(fontSize: 15, height: 1.65, color: colors.text),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+/// Notify followers: the same full-screen layout as Create post. A notice is
+/// only a message; the subject's name is its heading on followers' phones.
+class _NoticeComposer extends StatefulWidget {
+  const _NoticeComposer({
+    required this.page,
+    required this.communityId,
+    required this.communityName,
+  });
+  final NativePageState page;
+  final String communityId, communityName;
+
+  @override
+  State<_NoticeComposer> createState() => _NoticeComposerState();
+}
+
+class _NoticeComposerState extends State<_NoticeComposer> {
+  static const _limit = 2000;
+  final text = TextEditingController();
+  final _hasText = ValueNotifier(false);
+  final _count = ValueNotifier(0);
+  bool busy = false;
+  String? error;
+
+  @override
+  void initState() {
+    super.initState();
+    text.addListener(() {
+      _hasText.value = text.text.trim().isNotEmpty;
+      _count.value = text.text.characters.length;
+    });
+  }
+
+  @override
+  void dispose() {
+    text.dispose();
+    _hasText.dispose();
+    _count.dispose();
+    super.dispose();
+  }
+
+  Future<void> send() async {
+    if (busy || text.text.trim().isEmpty) return;
+    setState(() {
+      busy = true;
+      error = null;
+    });
+    try {
+      final response = await widget.page.c.action(
+        'POST',
+        '/community/${widget.communityId}/notices',
+        {'body': text.text.trim()},
+      );
+      if (mounted) Navigator.pop(context, response);
+    } catch (e) {
+      if (mounted) setState(() => error = '$e');
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = widget.page.c, theme = Theme.of(context);
+    final accent = theme.colorScheme.primary;
+    return Scaffold(
+      body: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              child: Row(
+                children: [
+                  TextButton(
+                    onPressed: busy ? null : () => Navigator.pop(context),
+                    style: TextButton.styleFrom(
+                      foregroundColor: theme.colorScheme.onSurface,
+                      padding: EdgeInsets.zero,
+                    ),
+                    child: Text(
+                      c.t('Cancel', 'إلغاء'),
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    c.t('Notify followers', 'إشعار للمتابعين'),
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const Spacer(),
+                  ValueListenableBuilder<bool>(
+                    valueListenable: _hasText,
+                    builder: (context, hasText, _) => FilledButton(
+                      key: const ValueKey('notice.send'),
+                      onPressed: busy || !hasText ? null : send,
+                      style: FilledButton.styleFrom(
+                        minimumSize: const Size(72, 38),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 21,
+                          vertical: 8,
+                        ),
+                        shape: const StadiumBorder(),
+                      ),
+                      child: Text(
+                        busy
+                            ? c.t('Sending…', 'بيتبعت…')
+                            : c.t('Send', 'إرسال'),
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    widget.page.avatar(c.user ?? {}, radius: 22),
+                    const SizedBox(width: 12),
                     Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: accent.withValues(alpha: .10),
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
                               children: [
-                                Expanded(
-                                  child: Text(
-                                    value(notice['title']),
-                                    style: TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w700,
-                                      color: colors.text,
-                                    ),
-                                  ),
+                                Icon(
+                                  Icons.notifications_active_outlined,
+                                  size: 15,
+                                  color: accent,
                                 ),
-                                const SizedBox(width: 10),
-                                Text(
-                                  webAgo(
-                                    notice['created_at'],
-                                    c.settings.language == 'ar',
-                                  ),
-                                  style: TextStyle(
-                                    fontSize: 11.5,
-                                    color: colors.muted,
+                                const SizedBox(width: 6),
+                                Flexible(
+                                  child: Text(
+                                    c.t(
+                                      'To: ${widget.communityName} followers',
+                                      'إلى: متابعين ${widget.communityName}',
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                      color: accent,
+                                    ),
                                   ),
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 4),
-                            SelectableText(
-                              value(notice['body']),
-                              style: TextStyle(
-                                fontSize: 14.5,
-                                height: 1.6,
-                                color: colors.text,
+                          ),
+                          const SizedBox(height: 12),
+                          Expanded(
+                            child: AdaptiveTextField(
+                              controller: text,
+                              field: (direction) => TextField(
+                                key: const ValueKey('notice.message'),
+                                controller: text,
+                                textDirection: direction,
+                                maxLength: _limit,
+                                maxLines: null,
+                                expands: true,
+                                autofocus: true,
+                                textAlignVertical: TextAlignVertical.top,
+                                style: const TextStyle(
+                                  fontSize: 21,
+                                  height: 1.6,
+                                ),
+                                decoration: InputDecoration(
+                                  hintText: c.t(
+                                    'Write your message to the subject’s followers…',
+                                    'اكتب رسالتك لمتابعين المادة…',
+                                  ),
+                                  filled: false,
+                                  border: InputBorder.none,
+                                  enabledBorder: InputBorder.none,
+                                  focusedBorder: InputBorder.none,
+                                  contentPadding: EdgeInsets.zero,
+                                  counterText: '',
+                                ),
                               ),
                             ),
-                            const SizedBox(height: 6),
+                          ),
+                          if (error != null)
                             Text(
-                              value(object(notice['author'])['name']),
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: colors.muted,
-                              ),
+                              error!,
+                              style: TextStyle(color: theme.colorScheme.error),
                             ),
-                          ],
-                        ),
+                        ],
                       ),
                     ),
                   ],
                 ),
               ),
             ),
-          if (!expanded && notices.length > 1)
-            TextButton(
-              onPressed: () => setState(() => expanded = true),
-              style: TextButton.styleFrom(
-                foregroundColor: colors.accent,
-                padding: const EdgeInsets.symmetric(horizontal: 4),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              decoration: BoxDecoration(
+                border: Border(
+                  top: BorderSide(color: theme.colorScheme.outlineVariant),
+                ),
               ),
-              child: Text(
-                notices.length == 2
-                    ? c.t('Show 1 more update', 'اعرض تحديث كمان')
-                    : c.t(
-                        'Show ${notices.length - 1} more updates',
-                        'اعرض ${notices.length - 1} تحديثات كمان',
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      c.t(
+                        'Everyone who follows this subject gets it, whatever their level.',
+                        'كل اللي متابعين المادة هيوصلهم، أياً كانت فرقتهم.',
                       ),
+                      style: TextStyle(fontSize: 12, color: webMuted(context)),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  ValueListenableBuilder<int>(
+                    valueListenable: _count,
+                    builder: (context, count, _) => Text(
+                      '$count / 2,000',
+                      style: TextStyle(fontSize: 12, color: webMuted(context)),
+                    ),
+                  ),
+                ],
               ),
             ),
-        ],
+          ],
+        ),
       ),
     );
   }

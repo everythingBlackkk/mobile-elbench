@@ -129,6 +129,27 @@ Outputs:
 - `build/app/outputs/bundle/release/app-release.aab`
 - `build/ios/ipa/`
 
+### Over-the-air updates (Shorebird)
+
+Store builds go through Shorebird, so later UI and logic changes reach phones without a new store version.
+One-time setup: `shorebird login`, then `shorebird init` (adds the public `shorebird.yaml`).
+
+```sh
+./shorebird.sh release android   # upload build/app/outputs/bundle/release/app-release.aab to Google Play
+./shorebird.sh release ios       # upload build/ios/ipa/*.ipa to App Store Connect
+./shorebird.sh patch android     # after changing Dart code; phones get it on their next launch
+./shorebird.sh patch ios
+```
+
+A patch can change any Dart code: every screen, layout, colour, text and behaviour. It cannot change Swift/Kotlin,
+native plugins, `Info.plist`/`AndroidManifest.xml` or files in `assets/`. Those need a new store release; Shorebird
+warns before uploading such a patch. Images a patch needs must come from the server. The iOS liquid-glass surface
+is native; a patch can set `nativeGlassEnabled` in `lib/native_glass.dart` to `false` to draw it in Flutter instead.
+Releases keep all Material icons (`--no-tree-shake-icons`), so patches can use any of them. Patches are signed:
+releases embed `~/Documents/secret-app/shorebird/public.pem` and accept only patches signed with the matching
+`private.pem`, which stays on the release Mac (never commit it). Patched code runs in an
+interpreter on iOS, and patches are tested on a real device (`./shorebird.sh preview`), not the simulator.
+
 ### Push notifications
 
 Android and iOS use the same Firebase project, `elbench-624b9`, which the server also sends through. The config files (`android/app/google-services.json`, `ios/Runner/GoogleService-Info.plist`) are not in this repository.

@@ -109,6 +109,15 @@ Future<void> deleteWebComment(
   );
 }
 
+/// Asks for confirmation, then sends DELETE to [endpoint]; null when cancelled.
+Future<Json?> confirmDelete(
+  BuildContext context,
+  NativePageState page,
+  String endpoint,
+  String title,
+  String description,
+) => _deleteDialog(context, page, endpoint, title, description);
+
 Future<Json?> _deleteDialog(
   BuildContext context,
   NativePageState page,

@@ -397,3 +397,12 @@ class LaravelApi extends MobileApi {
     throw const ApiFailure('The server redirected too many times.');
   }
 }
+
+/// Arabic-Indic (٠–٩) and Persian (۰–۹) digits as 0–9, for student IDs, codes
+/// and page numbers typed on an Arabic keyboard.
+String latinDigits(String input) => input.replaceAllMapped(RegExp('[٠-٩۰-۹]'), (
+  match,
+) {
+  final unit = match[0]!.codeUnitAt(0);
+  return String.fromCharCode(0x30 + unit - (unit >= 0x06F0 ? 0x06F0 : 0x0660));
+});

@@ -17,6 +17,7 @@ import 'web_style.dart';
 import 'web_home.dart';
 import 'web_schedule.dart';
 import 'schedule_admin.dart';
+import 'feed_moderation.dart';
 import 'schedule_appearance_admin.dart';
 import 'web_messages.dart';
 import 'web_profile.dart';
@@ -1881,6 +1882,7 @@ class NativePageState extends State<NativePage> with RouteAware {
       'people.index' => c.t('Find People', 'اكتشف الناس'),
       'schedule.index' => c.t('Schedule', 'الجدول'),
       'admin.schedule' => c.t('Manage schedule', 'إدارة الجدول'),
+      'admin.feed' => c.t('Feed moderation', 'مراجعة المنشورات'),
       'admin.schedule-appearance' => c.t(
         'Day off appearance',
         'شكل يوم الإجازة',
@@ -1894,6 +1896,7 @@ class NativePageState extends State<NativePage> with RouteAware {
         object(data['community'])['name'],
         'Community',
       ),
+      'community.notifications' => c.t('Notifications', 'الإشعارات'),
       'community.question' => c.t('Question', 'السؤال'),
       'community.subjects' => c.t('Your subjects', 'موادك'),
       'community.materials' => value(
@@ -2276,11 +2279,15 @@ class NativePageState extends State<NativePage> with RouteAware {
     if (screen == 'community.index') return WebHome(page: this);
     if (screen == 'schedule.index') return WebSchedule(page: this);
     if (screen == 'admin.schedule') return ScheduleAdminContent(page: this);
+    if (screen == 'admin.feed') return FeedModerationContent(page: this);
     if (screen == 'admin.schedule-appearance') {
       return ScheduleAppearanceAdminContent(page: this);
     }
     if (screen.startsWith('ai.')) return WebAiChat(page: this);
     if (screen == 'community.forum') return WebForum(page: this);
+    if (screen == 'community.notifications') {
+      return WebCommunityNotifications(page: this);
+    }
     if (screen == 'community.subjects') return WebSubjects(page: this);
     if (screen == 'community.materials') return WebMaterials(page: this);
     if (screen == 'community.material') return WebMaterialViewer(page: this);
@@ -3662,11 +3669,6 @@ class NativePageState extends State<NativePage> with RouteAware {
           ? c.t('Dark', 'داكن')
           : c.t('Light', 'فاتح'),
     ),
-    menuRow(
-      'monitor',
-      c.t('Use device theme', 'استخدام مظهر الجهاز'),
-      () => c.settings.setMode(ThemeMode.system),
-    ),
     menuRow('globe', c.t('العربية', 'English'), () async {
       final language = c.settings.language == 'en' ? 'ar' : 'en';
       c.settings.setLanguage(language);
@@ -3702,6 +3704,12 @@ class NativePageState extends State<NativePage> with RouteAware {
         'calendar',
         c.t('Manage schedule', 'إدارة الجدول'),
         () => c.open('/admin/schedule'),
+      ),
+    if (c.permission('feed.moderate'))
+      menuRow(
+        'delete',
+        c.t('Feed moderation', 'مراجعة المنشورات'),
+        () => c.open('/admin/feed'),
       ),
     const SizedBox(height: 10),
     menuRow('logout', c.t('Logout', 'تسجيل الخروج'), () async {

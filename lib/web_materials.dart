@@ -10,7 +10,6 @@ import 'image_cache.dart';
 import 'main.dart' show AppController;
 import 'screens.dart';
 import 'web_home.dart' show webAgo, webBorder, webMuted, webSecondary;
-import 'web_settings.dart' show WebSwitch;
 import 'web_style.dart';
 
 /// The file types community admins may upload, matching the server's list.
@@ -355,177 +354,303 @@ class _WebSubjectsState extends State<WebSubjects> {
     return Stack(
       children: [
         ListView(
-          padding: EdgeInsets.fromLTRB(10, 12, 10, bottom + 90),
+          padding: EdgeInsets.fromLTRB(12, 12, 12, bottom + 90),
           children: [
             Text(
-              c.t(
-                'Choose the subjects shown on Home. You get notifications from every subject you turn on, from any level, and none from the ones you turn off.',
-                'اختار المواد اللي تظهرلك في الرئيسية. هيوصلك إشعارات من كل مادة مفعّلة من أي فرقة، ومش هيوصلك حاجة من اللي قفلتها.',
-              ),
-              style: TextStyle(
-                color: webMuted(context),
-                fontSize: 14.5,
-                height: 1.6,
-              ),
+              c.t('Pick what shows on Home.', 'اختار المواد اللي تظهرلك.'),
+              style: TextStyle(color: webMuted(context), fontSize: 14.5),
             ),
-            const SizedBox(height: 16),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
+            const SizedBox(height: 14),
+            // How many subjects are on, at a glance.
+            Container(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+              decoration: BoxDecoration(
+                color: webSecondary(context),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: webBorder(context)),
+              ),
               child: Row(
                 children: [
-                  _chip(
-                    context,
-                    c.t('All', 'الكل'),
-                    filter == 'all',
-                    () => setState(() => filter = 'all'),
-                  ),
-                  for (final option in const [1, 2])
-                    _chip(
-                      context,
-                      levelName(option),
-                      filter == '$option',
-                      () => setState(() => filter = '$option'),
-                      note: level == option ? c.t('Mine', 'فرقتي') : null,
+                  Text.rich(
+                    TextSpan(
+                      children: [
+                        TextSpan(
+                          text: '${enabled.length}',
+                          style: TextStyle(
+                            fontSize: 30,
+                            fontWeight: FontWeight.w800,
+                            color: accent,
+                          ),
+                        ),
+                        TextSpan(
+                          text: ' / ${all.length}',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: webMuted(context),
+                          ),
+                        ),
+                      ],
                     ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    c.t(
-                      '${enabled.length} of ${all.length} subjects on Home',
-                      '${enabled.length} من ${all.length} مادة ظاهرين في الرئيسية',
-                    ),
-                    style: TextStyle(color: webMuted(context), fontSize: 13),
+                    textDirection: TextDirection.ltr,
                   ),
-                ),
-                if (communities.isNotEmpty) ...[
-                  TextButton(
-                    onPressed: () => setVisible(communities, true),
-                    style: TextButton.styleFrom(foregroundColor: accent),
-                    child: Text(c.t('All on', 'فعّل الكل')),
-                  ),
-                  TextButton(
-                    onPressed: () => setVisible(communities, false),
-                    style: TextButton.styleFrom(foregroundColor: accent),
-                    child: Text(c.t('All off', 'اقفل الكل')),
-                  ),
-                ],
-              ],
-            ),
-            const SizedBox(height: 6),
-            if (communities.isEmpty)
-              _emptyState(
-                context,
-                'book',
-                c.t('No subjects yet.', 'مفيش مواد لسه.'),
-                '',
-              ),
-            for (final community in communities)
-              Builder(
-                builder: (context) {
-                  final id = '${community['id']}';
-                  final on = enabled.contains(id);
-                  return AnimatedContainer(
-                    duration: const Duration(milliseconds: 180),
-                    margin: const EdgeInsets.only(bottom: 10),
-                    decoration: BoxDecoration(
-                      color: on
-                          ? accent.withValues(alpha: .08)
-                          : webSecondary(context),
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(
-                        color: on ? accent : webBorder(context),
-                      ),
-                    ),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(18),
-                      onTap: () => setState(() {
-                        dirty = true;
-                        status = '';
-                        on ? enabled.remove(id) : enabled.add(id);
-                      }),
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Row(
-                          children: [
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(14),
-                              child: SizedBox.square(
-                                dimension: 52,
-                                child: networkImage(
-                                  c.api.media(value(community['image_url'])),
-                                  fit: BoxFit.cover,
-                                  cacheWidth:
-                                      (52 *
-                                              MediaQuery.devicePixelRatioOf(
-                                                context,
-                                              ))
-                                          .ceil(),
-                                  errorBuilder: (_, _, _) =>
-                                      ColoredBox(color: webBorder(context)),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          c.t('subjects on', 'مادة مفعّلة'),
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: webMuted(context),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(99),
+                          child: TweenAnimationBuilder<double>(
+                            tween: Tween(
+                              end: all.isEmpty
+                                  ? 0
+                                  : enabled.length / all.length,
+                            ),
+                            duration: const Duration(milliseconds: 250),
+                            builder: (context, value, _) =>
+                                LinearProgressIndicator(
+                                  value: value,
+                                  minHeight: 8,
+                                  color: accent,
+                                  backgroundColor: webBorder(context),
                                 ),
-                              ),
-                            ),
-                            const SizedBox(width: 14),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    value(community['name']),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      fontSize: 15.5,
-                                      fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+            // Level selector, one segment per level.
+            Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: webSecondary(context),
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(color: webBorder(context)),
+              ),
+              child: Row(
+                children: [
+                  for (final (key, label) in [
+                    ('all', c.t('All', 'الكل')),
+                    ('1', levelName(1)),
+                    ('2', levelName(2)),
+                  ])
+                    Expanded(
+                      child: GestureDetector(
+                        key: ValueKey('subjects.filter.$key'),
+                        onTap: () => setState(() => filter = key),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 180),
+                          padding: const EdgeInsets.symmetric(vertical: 9),
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: filter == key
+                                ? Theme.of(context).colorScheme.surface
+                                : Colors.transparent,
+                            borderRadius: BorderRadius.circular(999),
+                            boxShadow: filter == key
+                                ? const [
+                                    BoxShadow(
+                                      color: Color(0x1f000000),
+                                      blurRadius: 4,
+                                      offset: Offset(0, 1),
                                     ),
+                                  ]
+                                : null,
+                          ),
+                          child: Text.rich(
+                            TextSpan(
+                              text: label,
+                              children: [
+                                if ('$level' == key)
+                                  TextSpan(
+                                    text: ' • ${c.t('Mine', 'فرقتي')}',
+                                    style: TextStyle(color: accent),
                                   ),
-                                  const SizedBox(height: 5),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 9,
-                                      vertical: 2,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: webBorder(context),
-                                      borderRadius: BorderRadius.circular(99),
-                                    ),
-                                    child: Text(
-                                      levelName(community['level']),
-                                      style: TextStyle(
-                                        fontSize: 11.5,
-                                        fontWeight: FontWeight.w600,
-                                        color: webMuted(context),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
+                              ],
                             ),
-                            const SizedBox(width: 12),
-                            WebSwitch(
-                              value: on,
-                              label: value(community['name']),
-                              onChanged: (value) => setState(() {
-                                dirty = true;
-                                status = '';
-                                value ? enabled.add(id) : enabled.remove(id);
-                              }),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: filter == key
+                                  ? Theme.of(context).colorScheme.onSurface
+                                  : webMuted(context),
                             ),
-                          ],
+                          ),
                         ),
                       ),
                     ),
-                  );
-                },
+                ],
               ),
+            ),
+            if (communities.isNotEmpty)
+              Align(
+                alignment: AlignmentDirectional.centerEnd,
+                child: Wrap(
+                  children: [
+                    TextButton(
+                      onPressed: () => setVisible(communities, true),
+                      style: TextButton.styleFrom(foregroundColor: accent),
+                      child: Text(c.t('All on', 'فعّل الكل')),
+                    ),
+                    TextButton(
+                      onPressed: () => setVisible(communities, false),
+                      style: TextButton.styleFrom(foregroundColor: accent),
+                      child: Text(c.t('All off', 'اقفل الكل')),
+                    ),
+                  ],
+                ),
+              ),
+            if (communities.isEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: _emptyState(
+                  context,
+                  'book',
+                  c.t('No subjects yet.', 'مفيش مواد لسه.'),
+                  '',
+                ),
+              ),
+            // Picture tiles; a tick marks the subjects that are on.
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: communities.length,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                mainAxisSpacing: 10,
+                crossAxisSpacing: 10,
+                childAspectRatio: .86,
+              ),
+              itemBuilder: (context, index) {
+                final community = communities[index];
+                final id = '${community['id']}';
+                final on = enabled.contains(id);
+                return Semantics(
+                  checked: on,
+                  button: true,
+                  label: value(community['name']),
+                  child: GestureDetector(
+                    key: ValueKey('subject.$id'),
+                    onTap: () => setState(() {
+                      dirty = true;
+                      status = '';
+                      on ? enabled.remove(id) : enabled.add(id);
+                    }),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 180),
+                      clipBehavior: Clip.antiAlias,
+                      decoration: BoxDecoration(
+                        color: on
+                            ? accent.withValues(alpha: .08)
+                            : webSecondary(context),
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(
+                          color: on ? accent : webBorder(context),
+                          width: 1.5,
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Expanded(
+                            child: Stack(
+                              fit: StackFit.expand,
+                              children: [
+                                AnimatedOpacity(
+                                  duration: const Duration(milliseconds: 180),
+                                  opacity: on ? 1 : .45,
+                                  child: networkImage(
+                                    c.api.media(value(community['image_url'])),
+                                    fit: BoxFit.cover,
+                                    cacheWidth:
+                                        (200 *
+                                                MediaQuery.devicePixelRatioOf(
+                                                  context,
+                                                ))
+                                            .ceil(),
+                                    errorBuilder: (_, _, _) =>
+                                        ColoredBox(color: webBorder(context)),
+                                  ),
+                                ),
+                                PositionedDirectional(
+                                  top: 8,
+                                  end: 8,
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 180),
+                                    width: 26,
+                                    height: 26,
+                                    decoration: BoxDecoration(
+                                      color: on ? accent : Colors.black26,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: Colors.white,
+                                        width: 2,
+                                      ),
+                                    ),
+                                    child: on
+                                        ? const Icon(
+                                            Icons.check_rounded,
+                                            size: 16,
+                                            color: Colors.white,
+                                          )
+                                        : null,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  value(community['name']),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                    height: 1.3,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  levelName(community['level']),
+                                  style: TextStyle(
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: webMuted(context),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
           ],
         ),
-        // The save bar slides in once something changed, and confirms the save.
         PositionedDirectional(
           start: 10,
           end: 10,
@@ -1156,7 +1281,6 @@ class _WebMaterialViewerState extends State<WebMaterialViewer> {
   File? file;
   Object? failure;
   double progress = 0;
-  PdfControllerPinch? pdf;
   int sheet = 0;
 
   @override
@@ -1179,22 +1303,10 @@ class _WebMaterialViewerState extends State<WebMaterialViewer> {
         },
       );
       if (!mounted) return;
-      setState(() {
-        file = opened;
-        if (kind == 'pdf') {
-          pdf?.dispose();
-          pdf = PdfControllerPinch(document: PdfDocument.openFile(opened.path));
-        }
-      });
+      setState(() => file = opened);
     } catch (e) {
       if (mounted) setState(() => failure = e);
     }
-  }
-
-  @override
-  void dispose() {
-    pdf?.dispose();
-    super.dispose();
   }
 
   Widget _loading(BuildContext context) => Center(
@@ -1237,10 +1349,11 @@ class _WebMaterialViewerState extends State<WebMaterialViewer> {
       if (failure != null) return _failed(context);
       if (file == null) return _loading(context);
       if (kind == 'pdf') {
-        return PdfViewPinch(
-          controller: pdf!,
-          backgroundDecoration: BoxDecoration(color: webSecondary(context)),
-          onDocumentError: (error) {
+        return _PdfReader(
+          key: ValueKey(file!.path),
+          file: file!,
+          controller: c,
+          onError: (error) {
             if (mounted) setState(() => failure = error);
           },
         );
@@ -1481,6 +1594,228 @@ class _WebMaterialViewerState extends State<WebMaterialViewer> {
         Divider(height: 1, color: webBorder(context)),
         Expanded(child: _viewer(context)),
       ],
+    );
+  }
+}
+
+/// The in-app PDF reader: pages as white sheets on a calm background, pinch
+/// and double-tap zoom, and a floating bar with the page counter (tap it to
+/// jump to a page) and previous/next buttons. The bar stays above the dock.
+class _PdfReader extends StatefulWidget {
+  const _PdfReader({
+    super.key,
+    required this.file,
+    required this.controller,
+    required this.onError,
+  });
+  final File file;
+  final AppController controller;
+  final void Function(Object error) onError;
+
+  @override
+  State<_PdfReader> createState() => _PdfReaderState();
+}
+
+class _PdfReaderState extends State<_PdfReader> {
+  late final PdfControllerPinch pdf = PdfControllerPinch(
+    document: PdfDocument.openFile(widget.file.path),
+  );
+  int page = 1, pages = 0;
+  Offset? _doubleTap;
+
+  AppController get c => widget.controller;
+
+  @override
+  void dispose() {
+    pdf.dispose();
+    super.dispose();
+  }
+
+  void _go(int target) {
+    if (pages == 0) return;
+    final number = target.clamp(1, pages);
+    final near = (number - page).abs() <= 2;
+    pdf.animateToPage(
+      pageNumber: number,
+      duration: near && !MediaQuery.disableAnimationsOf(context)
+          ? const Duration(milliseconds: 280)
+          : Duration.zero,
+    );
+    setState(() => page = number);
+  }
+
+  /// Double tap zooms in around the finger, or back to the page width.
+  void _toggleZoom() {
+    final point = _doubleTap;
+    if (point == null) return;
+    final zoomed = pdf.value.getMaxScaleOnAxis() > 1.05;
+    final destination = zoomed
+        ? pdf.calculatePageFitMatrix(pageNumber: page)
+        : (Matrix4.translationValues(point.dx, point.dy, 0)
+                ..multiply(Matrix4.diagonal3Values(2.5, 2.5, 1))
+                ..multiply(Matrix4.translationValues(-point.dx, -point.dy, 0)))
+              .multiplied(pdf.value);
+    pdf.goTo(
+      destination: destination,
+      duration: MediaQuery.disableAnimationsOf(context)
+          ? Duration.zero
+          : const Duration(milliseconds: 240),
+    );
+  }
+
+  Future<void> _askPage() async {
+    final input = TextEditingController(text: '$page');
+    final chosen = await showDialog<int>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(c.t('Go to page', 'روح لصفحة')),
+        content: TextField(
+          controller: input,
+          autofocus: true,
+          keyboardType: TextInputType.number,
+          textInputAction: TextInputAction.go,
+          decoration: InputDecoration(hintText: '1 – $pages'),
+          onSubmitted: (v) =>
+              Navigator.pop(context, int.tryParse(latinDigits(v))),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(c.t('Cancel', 'إلغاء')),
+          ),
+          FilledButton(
+            onPressed: () =>
+                Navigator.pop(context, int.tryParse(latinDigits(input.text))),
+            child: Text(c.t('Go', 'روح')),
+          ),
+        ],
+      ),
+    );
+    input.dispose();
+    if (chosen != null && mounted) _go(chosen);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final background = dark ? const Color(0xff0f1115) : const Color(0xffe9ecf1);
+    final bar = dark ? const Color(0xf0202329) : const Color(0xf5ffffff);
+    final text = Theme.of(context).colorScheme.onSurface;
+    return ColoredBox(
+      color: background,
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: GestureDetector(
+              onDoubleTapDown: (details) => _doubleTap = details.localPosition,
+              onDoubleTap: _toggleZoom,
+              child: PdfViewPinch(
+                controller: pdf,
+                padding: 12,
+                maxScale: 6,
+                backgroundDecoration: const BoxDecoration(
+                  color: Colors.white,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Color(0x240f172a),
+                      blurRadius: 16,
+                      offset: Offset(0, 6),
+                    ),
+                  ],
+                ),
+                builders: PdfViewPinchBuilders<DefaultBuilderOptions>(
+                  options: const DefaultBuilderOptions(),
+                  documentLoaderBuilder: (_) =>
+                      const Center(child: CircularProgressIndicator()),
+                  pageLoaderBuilder: (_) => const Center(
+                    child: SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  ),
+                  errorBuilder: (_, error) => const SizedBox.shrink(),
+                ),
+                onDocumentLoaded: (document) {
+                  if (mounted) setState(() => pages = document.pagesCount);
+                },
+                onPageChanged: (number) {
+                  if (mounted && number != page) setState(() => page = number);
+                },
+                onDocumentError: widget.onError,
+              ),
+            ),
+          ),
+          if (pages > 0)
+            ValueListenableBuilder<bool>(
+              valueListenable: c.dockHidden,
+              builder: (context, dockHidden, child) => AnimatedPositioned(
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeOutCubic,
+                left: 0,
+                right: 0,
+                bottom:
+                    MediaQuery.paddingOf(context).bottom +
+                    (dockHidden ? 16 : 92),
+                child: child!,
+              ),
+              child: Center(
+                child: Material(
+                  key: const ValueKey('pdf.toolbar'),
+                  color: bar,
+                  elevation: 6,
+                  shadowColor: const Color(0x330f172a),
+                  shape: const StadiumBorder(),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 4,
+                      vertical: 2,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          key: const ValueKey('pdf.previous'),
+                          tooltip: c.t('Previous page', 'الصفحة اللي فاتت'),
+                          onPressed: page > 1 ? () => _go(page - 1) : null,
+                          icon: const Icon(Icons.keyboard_arrow_up_rounded),
+                        ),
+                        InkWell(
+                          key: const ValueKey('pdf.page'),
+                          borderRadius: BorderRadius.circular(20),
+                          onTap: pages > 1 ? _askPage : null,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 8,
+                            ),
+                            child: Text(
+                              '$page / $pages',
+                              textDirection: TextDirection.ltr,
+                              style: TextStyle(
+                                color: text,
+                                fontWeight: FontWeight.w700,
+                                fontFeatures: const [
+                                  FontFeature.tabularFigures(),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          key: const ValueKey('pdf.next'),
+                          tooltip: c.t('Next page', 'الصفحة الجاية'),
+                          onPressed: page < pages ? () => _go(page + 1) : null,
+                          icon: const Icon(Icons.keyboard_arrow_down_rounded),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }

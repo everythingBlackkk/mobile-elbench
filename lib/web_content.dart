@@ -1,8 +1,11 @@
+import 'dart:io';
 import 'dart:math' as math;
+import 'package:dio/dio.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'api.dart';
 import 'screens.dart';
@@ -31,9 +34,86 @@ class WebCampus extends StatefulWidget {
   State<WebCampus> createState() => _WebCampusState();
 }
 
+/// One building button on the campus map: [dot] [Arabic name] [arrow], laid out once so panning never measures text.
+class _CampusPin {
+  _CampusPin(Json building)
+    : code = value(building['code']),
+      title = value(building['title']),
+      label = value(building['label'], value(building['title'])),
+      items = [
+        for (final item
+            in building['items'] is List ? building['items'] as List : const [])
+          if (value(item).isNotEmpty) value(item),
+      ],
+      color = _color(value(building['color'])),
+      center = _world(
+        double.tryParse(value(building['x'])) ?? 0,
+        double.tryParse(value(building['y'])) ?? 0,
+      );
+  final String code, title, label;
+  final List<String> items;
+  final Color color;
+
+  /// The button's centre in map units; the campus strip is drawn rotated by -13.5° around (1100, 1300).
+  final Offset center;
+  static const height = 44.0, pad = 16.0, dot = 7.0, gap = 10.0, arrow = 7.0;
+
+  late final TextPainter text = _text(const Color(0xff1e293b));
+  late final TextPainter selectedText = _text(Colors.white);
+  double get width => pad * 2 + dot * 2 + gap * 2 + text.width + arrow;
+
+  TextPainter _text(Color color) => TextPainter(
+    text: TextSpan(
+      text: label,
+      style: TextStyle(
+        fontFamily: 'SF Arabic',
+        fontWeight: FontWeight.w700,
+        fontSize: 18,
+        color: color,
+      ),
+    ),
+    textDirection: TextDirection.rtl,
+  )..layout();
+
+  static Color _color(String hex) {
+    final parsed = int.tryParse(hex.replaceFirst('#', ''), radix: 16);
+    return hex.length == 7 && parsed != null
+        ? Color(0xff000000 | parsed)
+        : const Color(0xff2e855d);
+  }
+
+  static Offset _world(double x, double y) {
+    const angle = -13.5 * math.pi / 180;
+    final dx = x - 1100, dy = y - 1300;
+    return Offset(
+      1100 + dx * math.cos(angle) - dy * math.sin(angle),
+      1300 + dx * math.sin(angle) + dy * math.cos(angle),
+    );
+  }
+
+  void dispose() {
+    text.dispose();
+    selectedText.dispose();
+  }
+}
+
 class _WebCampusState extends State<WebCampus> {
   static Future<void>? _font;
+  // The map is downloaded from the site, so it can change without an app update; each version is kept on disk.
+  static final Dio _maps = Dio(
+    BaseOptions(
+      connectTimeout: const Duration(seconds: 6),
+      receiveTimeout: const Duration(seconds: 12),
+      responseType: ResponseType.plain,
+    ),
+  );
+  static String? _mapVersion, _mapSource;
   PictureInfo? artwork, environment;
+  Object? _pinsSource;
+  List<_CampusPin> pins = const [];
+  String? selected;
+  int? tapPointer;
+  Offset tapStart = Offset.zero;
   bool? dark;
   Object? error;
   int generation = 0;
@@ -66,14 +146,22 @@ class _WebCampusState extends State<WebCampus> {
         }
       }();
       await _font;
-      var source = await rootBundle.loadString('assets/campus.svg');
+      var source = await _mapArtwork();
       // The old native export contains simplified pins, with four outside the
       // map rotation. Keep the authored map and paint the original pins below.
       final pins = source.indexOf('<g id="map-pins-layer">');
       if (pins >= 0) source = '${source.substring(0, pins)}</g></g></svg>';
+      // flutter_svg drops every text drawn after a pattern fill, so the faint paving lines give way to the labels.
       source = source.replaceAll(
-        RegExp(r'''font-family="[^"]*"'''),
-        'font-family="CampusGrotesk"',
+        'fill="url(#sandstone-paving)"',
+        'fill="none"',
+      );
+      // Arabic place names keep the app's Arabic face; everything else uses the map's own typeface.
+      source = source.replaceAllMapped(
+        RegExp(r'''font-family="([^"]*)"'''),
+        (match) => match[1]!.contains('SF Arabic')
+            ? 'font-family="SF Arabic"'
+            : 'font-family="CampusGrotesk"',
       );
       var surroundings = _surroundings;
       final palette = dark == true
@@ -138,12 +226,111 @@ class _WebCampusState extends State<WebCampus> {
     }
   }
 
+  static bool _isMap(String? source) =>
+      source != null &&
+      source.trimLeft().startsWith('<svg') &&
+      source.contains('campus-rotator');
+
+  /// The site's current map, from memory, then disk, then the network; the bundled copy if all of them fail.
+  Future<String> _mapArtwork() async {
+    final c = widget.page.c;
+    final version = value(widget.page.data['map_version']);
+    final url = value(widget.page.data['map_url']);
+    if (RegExp(r'^[0-9a-f]{1,40}$').hasMatch(version) && url.isNotEmpty) {
+      if (_mapVersion == version && _isMap(_mapSource)) return _mapSource!;
+      try {
+        final folder = await getApplicationSupportDirectory();
+        final file = File('${folder.path}/campus-map-$version.svg');
+        String? source = await file.exists() ? await file.readAsString() : null;
+        if (!_isMap(source)) {
+          final response = await _maps.get<String>(
+            c.api.media(c.api.safePath(url)),
+          );
+          source = response.data;
+          if (_isMap(source)) {
+            await file.writeAsString(source!, flush: true);
+            for (final old in folder.listSync().whereType<File>()) {
+              final name = old.uri.pathSegments.last;
+              if (name.startsWith('campus-map-') && old.path != file.path) {
+                await old.delete();
+              }
+            }
+          }
+        }
+        if (_isMap(source)) {
+          _mapVersion = version;
+          return _mapSource = source!;
+        }
+      } catch (_) {
+        /* Offline or unreadable: the bundled map below is the same design. */
+      }
+    }
+    return rootBundle.loadString('assets/campus.svg');
+  }
+
   @override
   void dispose() {
     generation++;
     artwork?.picture.dispose();
     environment?.picture.dispose();
+    for (final pin in pins) {
+      pin.dispose();
+    }
     super.dispose();
+  }
+
+  void _syncPins() {
+    final source = widget.page.data['buildings'];
+    if (identical(source, _pinsSource)) return;
+    _pinsSource = source;
+    for (final pin in pins) {
+      pin.dispose();
+    }
+    pins = [for (final building in rows(source)) _CampusPin(building)];
+  }
+
+  /// The building whose button is under a tap, with a finger-sized target even when the map is zoomed far out.
+  _CampusPin? pinAt(Offset point) {
+    _CampusPin? best;
+    var bestDistance = double.infinity;
+    for (final pin in pins) {
+      final center = Offset(
+        x + pin.center.dx * scale,
+        y + pin.center.dy * scale,
+      );
+      final halfWidth = math.max(pin.width / 2 * scale, 22.0) + 4;
+      final halfHeight = math.max(_CampusPin.height / 2 * scale, 18.0) + 4;
+      final offset = point - center;
+      if (offset.dx.abs() > halfWidth || offset.dy.abs() > halfHeight) continue;
+      if (offset.distance < bestDistance) {
+        bestDistance = offset.distance;
+        best = pin;
+      }
+    }
+    return best;
+  }
+
+  Future<void> openBuilding(_CampusPin pin) async {
+    HapticFeedback.selectionClick();
+    final colors = _ContentColors(context);
+    setState(() {
+      selected = pin.code;
+      // Keep the building above the sheet that is about to cover the lower part of the screen.
+      final bottom = y + (pin.center.dy + _CampusPin.height / 2) * scale;
+      final limit = math.min(viewport.height * .5, viewport.height - 220);
+      if (bottom > limit) {
+        y -= bottom - limit;
+        constrain();
+      }
+    });
+    await showModalBottomSheet<void>(
+      context: context,
+      useRootNavigator: true,
+      showDragHandle: true,
+      backgroundColor: colors.main,
+      builder: (context) => _BuildingSheet(pin: pin, colors: colors),
+    );
+    if (mounted) setState(() => selected = null);
   }
 
   void resize(Size next) {
@@ -190,6 +377,9 @@ class _WebCampusState extends State<WebCampus> {
   void down(PointerDownEvent event) {
     setState(() {
       pointers[event.pointer] = event.localPosition;
+      // A tap is one short touch that barely moves; anything else drags or pinches the map.
+      tapPointer = pointers.length == 1 ? event.pointer : null;
+      tapStart = event.localPosition;
       if (pointers.length == 1) {
         dragStart = event.localPosition - Offset(x, y);
       } else if (pointers.length == 2) {
@@ -200,6 +390,10 @@ class _WebCampusState extends State<WebCampus> {
 
   void move(PointerMoveEvent event) {
     if (!pointers.containsKey(event.pointer)) return;
+    if (tapPointer == event.pointer &&
+        (event.localPosition - tapStart).distance > 8) {
+      tapPointer = null;
+    }
     setState(() {
       pointers[event.pointer] = event.localPosition;
       if (pointers.length == 1) {
@@ -218,6 +412,13 @@ class _WebCampusState extends State<WebCampus> {
   }
 
   void up(PointerEvent event) {
+    final tapped =
+        event is PointerUpEvent &&
+        tapPointer == event.pointer &&
+        pointers.length == 1;
+    if (tapPointer == event.pointer) tapPointer = null;
+    final pin = tapped ? pinAt(event.localPosition) : null;
+    if (pin != null) openBuilding(pin);
     setState(() {
       pointers.remove(event.pointer);
       if (pointers.length < 2) pinchDistance = null;
@@ -258,6 +459,7 @@ class _WebCampusState extends State<WebCampus> {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   );
                 }
+                _syncPins();
                 return Semantics(
                   label: widget.page.c.t(
                     'Interactive Future Academy campus map',
@@ -292,16 +494,36 @@ class _WebCampusState extends State<WebCampus> {
                             doubleTap = details.localPosition,
                         onDoubleTap: () =>
                             setState(() => zoom(doubleTap, 1.35)),
-                        child: CustomPaint(
-                          painter: _CampusPainter(
-                            artwork: artwork!,
-                            environment: environment!,
-                            x: x,
-                            y: y,
-                            scale: scale,
-                            dark: colors.dark,
-                          ),
-                          size: constraints.biggest,
+                        child: Stack(
+                          children: [
+                            CustomPaint(
+                              painter: _CampusPainter(
+                                artwork: artwork!,
+                                environment: environment!,
+                                pins: pins,
+                                selected: selected,
+                                x: x,
+                                y: y,
+                                scale: scale,
+                                dark: colors.dark,
+                              ),
+                              size: constraints.biggest,
+                            ),
+                            // Screen readers reach each building as a button; touches fall through to the map.
+                            for (final pin in pins)
+                              Positioned(
+                                left: x + pin.center.dx * scale - 22,
+                                top: y + pin.center.dy * scale - 22,
+                                width: 44,
+                                height: 44,
+                                child: Semantics(
+                                  button: true,
+                                  label: pin.title,
+                                  onTap: () => openBuilding(pin),
+                                  child: const SizedBox.expand(),
+                                ),
+                              ),
+                          ],
                         ),
                       ),
                     ),
@@ -320,21 +542,26 @@ class _CampusPainter extends CustomPainter {
   const _CampusPainter({
     required this.artwork,
     required this.environment,
+    required this.pins,
+    required this.selected,
     required this.x,
     required this.y,
     required this.scale,
     required this.dark,
   });
   final PictureInfo artwork, environment;
+  final List<_CampusPin> pins;
+  final String? selected;
   final double x, y, scale;
   final bool dark;
-  static const pins = [
-    ('#01', Color(0xff9e5b53), Offset(1034, 256)),
-    ('#02', Color(0xffd4744a), Offset(1205, 632)),
-    ('#03', Color(0xff3d6078), Offset(1125, 962)),
-    ('#04', Color(0xff6a994e), Offset(1234, 174)),
-    ('#09', Color(0xff7e57c2), Offset(912, 36)),
-  ];
+  static final _shadowPaint = Paint()
+    ..color = const Color(0x400f172a)
+    ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3.5);
+  static final _arrowPaint = Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 3
+    ..strokeCap = StrokeCap.round
+    ..strokeJoin = StrokeJoin.round;
   @override
   void paint(Canvas canvas, Size size) {
     final sand = dark ? const Color(0xff29251f) : const Color(0xffeee5d4);
@@ -352,58 +579,52 @@ class _CampusPainter extends CustomPainter {
     canvas.translate(350, -220);
     canvas.drawPicture(artwork.picture);
     canvas.restore();
-    const angle = -13.5 * math.pi / 180;
     for (final pin in pins) {
-      final offset = pin.$3 - const Offset(1100, 1300);
-      final position = Offset(
-        1100 + offset.dx * math.cos(angle) - offset.dy * math.sin(angle),
-        1300 + offset.dx * math.sin(angle) + offset.dy * math.cos(angle),
+      final chosen = pin.code == selected;
+      final width = pin.width;
+      final right = width / 2 - _CampusPin.pad;
+      final left = -width / 2 + _CampusPin.pad;
+      final body = RRect.fromRectAndRadius(
+        Rect.fromCenter(
+          center: Offset.zero,
+          width: width,
+          height: _CampusPin.height,
+        ),
+        const Radius.circular(_CampusPin.height / 2),
       );
       canvas.save();
-      canvas.translate(position.dx, position.dy);
-      final path = Path()
-        ..moveTo(0, 6)
-        ..cubicTo(-16, -12, -30, -24, -30, -42)
-        ..arcToPoint(
-          const Offset(30, -42),
-          radius: const Radius.circular(30),
-          largeArc: true,
-        )
-        ..cubicTo(30, -24, 16, -12, 0, 6)
-        ..close();
-      canvas.drawPath(
-        path.shift(const Offset(0, 4)),
-        Paint()
-          ..color = const Color(0x520f172a)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3.5),
+      canvas.translate(pin.center.dx, pin.center.dy);
+      canvas.drawRRect(body.shift(const Offset(0, 4)), _shadowPaint);
+      canvas.drawRRect(
+        body,
+        Paint()..color = chosen ? pin.color : Colors.white,
       );
-      canvas.drawPath(path, Paint()..color = Colors.white);
-      canvas.drawPath(
-        path,
+      canvas.drawRRect(
+        body,
         Paint()
-          ..color = pin.$2
+          ..color = pin.color
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 4.5
-          ..strokeJoin = StrokeJoin.round,
+          ..strokeWidth = 3,
       );
-      final label = TextPainter(
-        text: TextSpan(
-          text: pin.$1,
-          style: const TextStyle(
-            fontFamily: 'CampusGrotesk',
-            fontWeight: FontWeight.w700,
-            fontSize: 20,
-            color: Color(0xff1e293b),
-          ),
-        ),
-        textDirection: TextDirection.ltr,
-      )..layout();
-      label.paint(
+      canvas.drawCircle(
+        Offset(right - _CampusPin.dot, 0),
+        _CampusPin.dot,
+        Paint()..color = chosen ? Colors.white : pin.color,
+      );
+      final text = chosen ? pin.selectedText : pin.text;
+      text.paint(
         canvas,
         Offset(
-          -label.width / 2,
-          -35 - label.computeDistanceToActualBaseline(TextBaseline.alphabetic),
+          right - _CampusPin.dot * 2 - _CampusPin.gap - text.width,
+          -text.height / 2,
         ),
+      );
+      canvas.drawPath(
+        Path()
+          ..moveTo(left + _CampusPin.arrow, -7)
+          ..lineTo(left, 0)
+          ..lineTo(left + _CampusPin.arrow, 7),
+        _arrowPaint..color = chosen ? Colors.white : const Color(0xff94a3b8),
       );
       canvas.restore();
     }
@@ -446,7 +667,9 @@ class _CampusPainter extends CustomPainter {
       old.x != x ||
       old.y != y ||
       old.scale != scale ||
-      old.dark != dark;
+      old.dark != dark ||
+      old.selected != selected ||
+      old.pins != pins;
 }
 
 // The same authored environment as content/campus-surroundings.blade.php.
@@ -1054,4 +1277,82 @@ class _WebPasswordResetState extends State<WebPasswordReset> {
       ],
     );
   }
+}
+
+/// The popup for one building: its name and the rooms inside.
+class _BuildingSheet extends StatelessWidget {
+  const _BuildingSheet({required this.pin, required this.colors});
+  final _CampusPin pin;
+  final _ContentColors colors;
+
+  @override
+  Widget build(BuildContext context) => SafeArea(
+    child: Padding(
+      padding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: pin.color,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Icon(
+                  Icons.apartment_rounded,
+                  color: Colors.white,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  pin.title,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: colors.text,
+                    height: 1.25,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (pin.items.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final item in pin.items)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 9,
+                    ),
+                    decoration: BoxDecoration(
+                      color: colors.secondary,
+                      border: Border.all(color: colors.border),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      item,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: colors.text,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    ),
+  );
 }

@@ -439,6 +439,12 @@ class _WebSignupPageState extends State<WebSignupPage> {
                             autofillHints: const [AutofillHints.username],
                             textDirection: TextDirection.ltr,
                             inputFormatters: [
+                              // Arabic-keyboard digits (٠–٩) become 0–9 instead of being dropped.
+                              TextInputFormatter.withFunction(
+                                (_, value) => value.copyWith(
+                                  text: latinDigits(value.text),
+                                ),
+                              ),
                               FilteringTextInputFormatter.digitsOnly,
                               LengthLimitingTextInputFormatter(12),
                             ],
@@ -518,6 +524,12 @@ class _WebSignupPageState extends State<WebSignupPage> {
                             textAlign: TextAlign.center,
                             autofillHints: const [AutofillHints.oneTimeCode],
                             inputFormatters: [
+                              // Arabic-keyboard digits (٠–٩) become 0–9 instead of being dropped.
+                              TextInputFormatter.withFunction(
+                                (_, value) => value.copyWith(
+                                  text: latinDigits(value.text),
+                                ),
+                              ),
                               FilteringTextInputFormatter.digitsOnly,
                               LengthLimitingTextInputFormatter(6),
                             ],

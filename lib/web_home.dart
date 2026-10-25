@@ -283,19 +283,18 @@ class _WebHomeState extends State<WebHome> {
           ),
         ),
       const SizedBox(height: 72),
-      Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      // The button sits beside the heading when it fits and drops below it on
+      // narrow screens or with large text, instead of overflowing.
+      Wrap(
+        alignment: WrapAlignment.spaceBetween,
+        crossAxisAlignment: WrapCrossAlignment.start,
+        spacing: 12,
+        runSpacing: 14,
         children: [
-          Expanded(
-            child: section(
-              c.t('Featured Communities', 'مجتمعات مميزة'),
-              c.t(
-                'Join and grow with like-minded peers',
-                'انضم واكبر مع زمايلك',
-              ),
-            ),
+          section(
+            c.t('Featured Communities', 'مجتمعات مميزة'),
+            c.t('Join and grow with like-minded peers', 'انضم واكبر مع زمايلك'),
           ),
-          const SizedBox(width: 12),
           OutlinedButton.icon(
             onPressed: () => c.open('/community/subjects'),
             icon: WebIcon(
@@ -687,6 +686,9 @@ Future<void> showWebPostOptions(
           ),
           ('delete', 'delete', c.t('Delete', 'حذف')),
         ],
+        // Moderators can remove other members' public posts (after confirming).
+        if (!own && c.permission('feed.moderate') && !yes(post['is_private']))
+          ('delete', 'delete', c.t('Delete', 'حذف')),
       ])
         PopupMenuItem(
           value: item.$1,
@@ -1271,7 +1273,9 @@ class WebThreadComment extends StatelessWidget {
                                 c.t('Report comment', 'إبلاغ عن التعليق'),
                               ),
                             ),
-                          if (own || c.permission('communities.manage'))
+                          if (own ||
+                              c.permission('communities.manage') ||
+                              c.permission('feed.moderate'))
                             PopupMenuItem(
                               value: 'delete',
                               child: Text(c.t('Delete comment', 'حذف التعليق')),
