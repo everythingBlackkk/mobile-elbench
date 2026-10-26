@@ -4,6 +4,7 @@ import 'api.dart';
 import 'forms.dart';
 import 'screens.dart';
 import 'text_direction.dart';
+import 'web_schedule.dart' show scheduleDayLabel;
 
 class ScheduleAdminContent extends StatelessWidget {
   const ScheduleAdminContent({super.key, required this.page});
@@ -145,6 +146,41 @@ class ScheduleAdminContent extends StatelessWidget {
     );
   }
 
+  /// Cancels only the next occurrence of the class; later weeks stay as they are.
+  Future<void> _cancelNext(BuildContext context, Json entry) async {
+    final c = page.c;
+    final day = scheduleDayLabel(entry['next_on'], c.settings.language == 'ar');
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(c.t('Cancel the class on $day?', 'إلغاء ميعاد $day؟')),
+        content: Text(
+          c.t(
+            'Only this one class is cancelled; the following weeks stay as usual.',
+            'هيتلغي الميعاد ده بس، والأسابيع اللي بعده هتفضل زي ما هي.',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(c.t('Keep it', 'سيبها')),
+          ),
+          FilledButton(
+            key: const ValueKey('schedule.admin.cancel.confirm'),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(c.t('Cancel class', 'إلغاء الميعاد')),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && page.mounted) {
+      await page.run('POST', '/admin/schedule/${entry['id']}/cancellation');
+    }
+  }
+
   Future<void> _delete(BuildContext context, Json entry) async {
     final c = page.c;
     final confirmed = await showDialog<bool>(
@@ -248,9 +284,59 @@ class ScheduleAdminContent extends StatelessWidget {
                   Text(
                     '${c.t('Level', 'الفرقة')} ${entry['level']} · ${entry['type'] == 'lecture' ? c.t('Lecture', 'محاضرة') : c.t('Section', 'سكشن')}',
                   ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
+                  // One-time cancellation: the pending one with Restore, or the date "Cancel next" would hit.
+                  if (value(entry['cancelled_on']).isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 10),
+                      child: Wrap(
+                        spacing: 8,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0x1fe5484d),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              c.t(
+                                'Cancelled on ${scheduleDayLabel(entry['cancelled_on'], false)}',
+                                'ملغية يوم ${scheduleDayLabel(entry['cancelled_on'], true)}',
+                              ),
+                              style: const TextStyle(
+                                color: Color(0xffe5484d),
+                                fontWeight: FontWeight.w600,
+                                fontSize: 12.5,
+                              ),
+                            ),
+                          ),
+                          TextButton(
+                            key: ValueKey(
+                              'schedule.admin.restore.${entry['id']}',
+                            ),
+                            onPressed: () => page.run(
+                              'DELETE',
+                              '/admin/schedule/${entry['id']}/cancellation',
+                            ),
+                            child: Text(c.t('Restore', 'رجّعها')),
+                          ),
+                        ],
+                      ),
+                    ),
+                  Wrap(
+                    alignment: WrapAlignment.end,
                     children: [
+                      if (value(entry['cancelled_on']).isEmpty &&
+                          value(entry['next_on']).isNotEmpty)
+                        TextButton.icon(
+                          key: ValueKey('schedule.admin.cancel.${entry['id']}'),
+                          onPressed: () => _cancelNext(context, entry),
+                          icon: const Icon(Icons.event_busy_outlined, size: 18),
+                          label: Text(c.t('Cancel next', 'إلغاء الجاية')),
+                        ),
                       TextButton.icon(
                         key: ValueKey('schedule.admin.edit.${entry['id']}'),
                         onPressed: () => _edit(entry),

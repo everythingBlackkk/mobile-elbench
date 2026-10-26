@@ -3,6 +3,13 @@
 The ElBench app for Android and iOS. Server changes are listed in the backend's changelog
 ([everythingBlackkk/myFamily](https://github.com/everythingBlackkk/myFamily/blob/main/CHANGELOG.md)).
 
+## 5.0.0 (20) — 2026-10-26
+
+Needs backend v8.12.0 or later.
+
+- **One-time class cancellation:** a cancelled class shows "Cancelled" (red) instead of its countdown on the schedule, the next-class cards and the Home schedule card; in the day's timeline it is marked Cancelled, faded and struck through. Only that one occurrence is affected; the following weeks show as usual, and the class returns to normal on its own once the cancelled date has passed.
+- **Schedule admin:** admins with schedule permission get "Cancel next" on each class, with a confirmation naming the exact day, and "Restore" while a cancellation is pending.
+
 ## 4.5.0 (19) — 2026-10-26
 
 - **Photo uploads:** the Upload Images button displays the photo icon consistently in community upload controls.

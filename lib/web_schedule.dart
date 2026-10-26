@@ -16,6 +16,16 @@ const _sectionOrange = Color(0xffce8b46);
 String _dateKey(DateTime date) =>
     '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
 
+/// "Sunday, 1 November" for a Y-m-d (or ISO) date from the server; empty if it cannot be read.
+String scheduleDayLabel(Object? raw, bool ar) {
+  final text = value(raw);
+  final date = DateTime.tryParse(
+    text.length >= 10 ? text.substring(0, 10) : text,
+  );
+  if (date == null) return '';
+  return '${_dayName(date, ar)}${ar ? '،' : ','} ${_displayDate(date, ar)}';
+}
+
 String _dayName(DateTime date, bool ar, {bool short = false}) {
   const arabic = [
     'الاثنين',
@@ -97,7 +107,14 @@ bool isScheduleDayOff(Json schedule) {
       );
 }
 
+/// The red used for "Cancelled" everywhere in the schedule.
+const _cancelledRed = Color(0xffe5484d);
+
+bool _cancelled(Json entry) => yes(entry['cancelled']);
+
 String _countdown(Json entry, DateTime now, AppController c) {
+  // A cancelled occurrence shows the word instead of a countdown.
+  if (_cancelled(entry)) return c.t('Cancelled', 'ملغية');
   final start = DateTime.tryParse(value(entry['starts_at']));
   if (start == null) return '';
   final minutes = start.difference(now).inSeconds;
@@ -109,6 +126,7 @@ String _countdown(Json entry, DateTime now, AppController c) {
 }
 
 String _remainingDuration(Json entry, DateTime now, AppController c) {
+  if (_cancelled(entry)) return c.t('Cancelled', 'ملغية');
   final start = DateTime.tryParse(value(entry['starts_at']));
   if (start == null) return '';
   final minutes = (start.difference(now).inSeconds / 60).ceil();
@@ -899,7 +917,11 @@ class ScheduleClassCard extends StatelessWidget {
                 fontSize: home ? 24 : 26,
                 height: 1.2,
                 fontWeight: FontWeight.w800,
-                color: home ? null : color,
+                color: !home && _cancelled(entry)
+                    ? _cancelledRed
+                    : home
+                    ? null
+                    : color,
               ),
             ),
             const SizedBox(height: 8),
@@ -944,7 +966,10 @@ class ScheduleClassCard extends StatelessWidget {
               // The pill sits at the bottom so both cards in a row line up.
               const Spacer(),
               const SizedBox(height: 10),
-              _ScheduleTag(label: _countdown(entry, now, c), color: color),
+              _ScheduleTag(
+                label: _countdown(entry, now, c),
+                color: _cancelled(entry) ? _cancelledRed : color,
+              ),
             ],
           ],
         ],
@@ -1010,7 +1035,12 @@ class _ScheduleTimelineEntry extends StatelessWidget {
             width: 47,
             child: Column(
               children: [
-                if (next)
+                if (_cancelled(entry))
+                  _ScheduleTag(
+                    label: controller.t('Cancelled', 'ملغية'),
+                    color: _cancelledRed,
+                  )
+                else if (next)
                   _ScheduleTag(
                     label: controller.t('Next', 'التالي'),
                     color: const Color(0xff58b86c),
@@ -1037,52 +1067,63 @@ class _ScheduleTimelineEntry extends StatelessWidget {
           ),
           const SizedBox(width: 7),
           Expanded(
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    color.withValues(alpha: .13),
-                    color.withValues(alpha: .025),
+            child: Opacity(
+              // A cancelled class stays in place, faded and struck through.
+              opacity: _cancelled(entry) ? .55 : 1,
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      color.withValues(alpha: .13),
+                      color.withValues(alpha: .025),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(22),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      subject,
+                      textDirection: contentDirection(subject),
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        decoration: _cancelled(entry)
+                            ? TextDecoration.lineThrough
+                            : null,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      [
+                        value(entry['source_label']),
+                        value(entry['location']),
+                      ].where((v) => v.isNotEmpty).join(' · '),
+                      textDirection: TextDirection.ltr,
+                      style: TextStyle(fontSize: 11, color: muted),
+                    ),
+                    if (value(entry['instructor']).isNotEmpty)
+                      Text(
+                        value(entry['instructor']),
+                        textDirection: contentDirection(
+                          value(entry['instructor']),
+                        ),
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: muted,
+                          height: 1.7,
+                        ),
+                      ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${_time(value(entry['start_time']), controller)} – ${_time(value(entry['end_time']), controller)}',
+                      textDirection: TextDirection.ltr,
+                      style: TextStyle(fontSize: 11, color: muted),
+                    ),
                   ],
                 ),
-                borderRadius: BorderRadius.circular(22),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    subject,
-                    textDirection: contentDirection(subject),
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    [
-                      value(entry['source_label']),
-                      value(entry['location']),
-                    ].where((v) => v.isNotEmpty).join(' · '),
-                    textDirection: TextDirection.ltr,
-                    style: TextStyle(fontSize: 11, color: muted),
-                  ),
-                  if (value(entry['instructor']).isNotEmpty)
-                    Text(
-                      value(entry['instructor']),
-                      textDirection: contentDirection(
-                        value(entry['instructor']),
-                      ),
-                      style: TextStyle(fontSize: 11, color: muted, height: 1.7),
-                    ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${_time(value(entry['start_time']), controller)} – ${_time(value(entry['end_time']), controller)}',
-                    textDirection: TextDirection.ltr,
-                    style: TextStyle(fontSize: 11, color: muted),
-                  ),
-                ],
               ),
             ),
           ),
