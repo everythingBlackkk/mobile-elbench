@@ -269,6 +269,16 @@ class LaravelApi extends MobileApi {
     Json data, {
     UploadProgress? onSendProgress,
   }) {
+    // A file upload can take minutes on mobile data. It starts in turn, with
+    // the session and CSRF token settled, but does not hold up page loads,
+    // reactions or comments while its bytes are sent.
+    if (method != 'GET' && data.values.any((v) => v is MultipartFile)) {
+      final ready = _queue.then((_) => _prepareWrite());
+      _queue = ready.then<void>((_) {}, onError: (Object _, StackTrace _) {});
+      return ready.then(
+        (_) => _execute(method, path, data, onSendProgress: onSendProgress),
+      );
+    }
     final task = _queue.then(
       (_) => _execute(method, path, data, onSendProgress: onSendProgress),
     );
@@ -276,6 +286,11 @@ class LaravelApi extends MobileApi {
       _queue = task.then<void>((_) {}, onError: (Object _, StackTrace _) {});
     }
     return task;
+  }
+
+  Future<void> _prepareWrite() async {
+    await (_loaded ??= _load());
+    if (_csrf == null) await _execute('GET', '/mobile/session', {});
   }
 
   Future<Json> _execute(

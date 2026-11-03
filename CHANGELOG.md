@@ -3,6 +3,12 @@
 The ElBench app for Android and iOS. Server changes are listed in the backend's changelog
 ([everythingBlackkk/myFamily](https://github.com/everythingBlackkk/myFamily/blob/main/CHANGELOG.md)).
 
+## Over-the-air patch — 2026-11-03 (uploads)
+
+Shorebird patch 2 for Android 5.1.0 and patch 3 for Android 5.0.0. No backend change.
+
+- **Uploads no longer freeze the app:** a file upload (study material, profile picture, banner, admin image) starts in turn but no longer holds back other requests while it sends. Opening pages, refreshing, reacting and commenting work during a long upload instead of waiting for it to finish (measured: a page load during a 3 s upload took 3 s before, about 50 ms now). Sign-in, sign-out and other writes still run strictly in order.
+
 ## Over-the-air patch — 2026-11-03
 
 Shorebird patch 1 for Android 5.1.0 and patch 2 for Android 5.0.0. No backend change.
