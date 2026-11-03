@@ -6,6 +6,7 @@ import 'app_toast.dart';
 import 'image_cache.dart';
 import 'app_menus.dart';
 import 'screens.dart';
+import 'web_reactions.dart';
 import 'infinite_feed.dart';
 import 'text_direction.dart';
 import 'web_style.dart';
@@ -1780,19 +1781,34 @@ class _AnswerReactionsState extends State<_AnswerReactions> {
               ),
             ),
         ] else if (total > 0) ...[
-          const SizedBox(width: 10),
-          for (final emoji in emojis.entries)
-            if ((int.tryParse(value(widget.item['${emoji.key}_count'])) ?? 0) >
-                0)
-              Padding(
-                padding: const EdgeInsetsDirectional.only(end: 2),
-                child: Text(
-                  emoji.value,
-                  style: const TextStyle(fontSize: 14, height: 20 / 14),
+          const SizedBox(width: 4),
+          WebReactionCount(
+            key: ValueKey('reaction.count.answer.${widget.item['id']}'),
+            page: widget.page,
+            endpoint: '/answers/${widget.item['id']}/reactions',
+            row: widget.item,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (final emoji in emojis.entries)
+                  if ((int.tryParse(value(widget.item['${emoji.key}_count'])) ??
+                          0) >
+                      0)
+                    Padding(
+                      padding: const EdgeInsetsDirectional.only(end: 2),
+                      child: Text(
+                        emoji.value,
+                        style: const TextStyle(fontSize: 14, height: 20 / 14),
+                      ),
+                    ),
+                const SizedBox(width: 3),
+                Text(
+                  '$total',
+                  style: TextStyle(fontSize: 13, color: colors.muted),
                 ),
-              ),
-          const SizedBox(width: 3),
-          Text('$total', style: TextStyle(fontSize: 13, color: colors.muted)),
+              ],
+            ),
+          ),
         ],
       ],
     );

@@ -1428,10 +1428,13 @@ class WebCommentReactions extends StatelessWidget {
           ),
           if (total > 0)
             Padding(
-              padding: const EdgeInsetsDirectional.only(start: 8),
-              child: Text(
-                '$total',
-                style: TextStyle(color: webMuted(context), fontSize: 13),
+              padding: const EdgeInsetsDirectional.only(start: 2),
+              child: WebReactionCount(
+                key: ValueKey('reaction.count.comment.${comment['id']}'),
+                page: page,
+                endpoint: endpoint,
+                row: comment,
+                child: WebReactionSummary(row: comment, emojiSize: 14, gap: 5),
               ),
             ),
         ],
@@ -1685,18 +1688,14 @@ class _WebPostCardState extends State<WebPostCard> {
                   onTap: detail ? null : () => openPost('?comment=1'),
                 ),
                 const Spacer(),
-                if (total > 0) ...[
-                  for (final pair in [
-                    ('like', '👍'),
-                    ('love', '❤️'),
-                    ('funny', '😂'),
-                  ])
-                    if ((int.tryParse(value(post['${pair.$1}_count'])) ?? 0) >
-                        0)
-                      Text(pair.$2, style: const TextStyle(fontSize: 16)),
-                  const SizedBox(width: 7),
-                  Text('$total', style: TextStyle(fontSize: 13, color: muted)),
-                ],
+                if (total > 0)
+                  WebReactionCount(
+                    key: ValueKey('reaction.count.post.${post['id']}'),
+                    page: p,
+                    endpoint: '/community/posts/${post['id']}/reactions',
+                    row: post,
+                    child: WebReactionSummary(row: post),
+                  ),
               ],
             ),
           ),
