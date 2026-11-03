@@ -3,6 +3,14 @@
 The ElBench app for Android and iOS. Server changes are listed in the backend's changelog
 ([everythingBlackkk/myFamily](https://github.com/everythingBlackkk/myFamily/blob/main/CHANGELOG.md)).
 
+## 5.1.0 (21) — 2026-11-03
+
+Needs backend v8.17.0 or later.
+
+- **See who reacted:** tapping the reaction count on a post, comment or forum answer opens a sheet listing everyone who reacted, with their picture, name and reaction. Tabs filter by reaction (All, 👍, ❤️, 😂); your own reaction is marked "(You)"; tapping a person opens their profile. People load only when the sheet opens, 30 at a time.
+- **Comment reactions:** comments show the reactions used next to the count, like posts.
+- **Over the air:** Android 5.0.0 already received these changes as Shorebird patch 1.
+
 ## 5.0.0 (20) — 2026-10-26
 
 Needs backend v8.12.0 or later.
