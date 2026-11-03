@@ -4,7 +4,6 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_file_dialog/flutter_file_dialog.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:pdfx/pdfx.dart';
 import 'api.dart';
 import 'app_toast.dart';
 import 'image_cache.dart';
@@ -12,6 +11,8 @@ import 'main.dart' show AppController;
 import 'media_permissions.dart';
 import 'screens.dart';
 import 'upload_progress.dart';
+import 'material_cache.dart';
+import 'pdf_pages.dart';
 import 'web_home.dart' show webAgo, webBorder, webMuted, webSecondary;
 import 'web_style.dart';
 
@@ -64,11 +65,12 @@ String _fileSize(Object? bytes) {
 
 /// Keeps downloaded materials in the app's private cache, so a file opened
 /// once opens instantly next time and works offline. Files never change once
-/// uploaded, so the material id and size identify a cached copy. The oldest
-/// files are removed once the cache passes [_limitBytes].
+/// uploaded, so the material id and size identify a cached copy. Which files
+/// stay is decided by [MaterialCachePolicy]: at most 400 MB, frequently
+/// opened materials kept longest, room made before each download.
 class MaterialFiles {
   MaterialFiles._();
-  static const _limitBytes = 400 * 1024 * 1024;
+  static const policy = MaterialCachePolicy();
   // Signed R2 links carry their own authorization, so no app cookies are sent.
   static final Dio _storage = Dio(
     BaseOptions(
@@ -77,6 +79,9 @@ class MaterialFiles {
     ),
   );
   static final Map<int, Future<File>> _downloads = {};
+  static final Set<String> _partials = {};
+  static MaterialCacheIndex? _index;
+  static bool _maintained = false;
 
   static Future<Directory> _directory() async {
     final base = await getApplicationCacheDirectory();
@@ -85,14 +90,60 @@ class MaterialFiles {
     return directory;
   }
 
+  static Future<MaterialCacheIndex> _cache() async {
+    final directory = await _directory();
+    final index = _index;
+    if (index != null && index.directory.path == directory.path) return index;
+    return _index = MaterialCacheIndex(directory);
+  }
+
+  static String _name(Json material, int id) =>
+      '$id.${value(material['extension'], 'bin')}';
+
+  /// Once per app run, shortly after the first material opens: removes
+  /// stale files and abandoned partial downloads.
+  static void _maintainSoon() {
+    if (_maintained) return;
+    _maintained = true;
+    unawaited(
+      Future<void>.delayed(const Duration(seconds: 4), () async {
+        try {
+          final cache = await _cache();
+          await cache.removePartials(_partials);
+          await _trim(cache);
+        } catch (_) {}
+      }),
+    );
+  }
+
+  static Future<void> _trim(
+    MaterialCacheIndex cache, {
+    int incomingBytes = 0,
+    String? keep,
+  }) async {
+    try {
+      final remove = policy.evictions(
+        await cache.files(),
+        now: DateTime.now(),
+        incomingBytes: incomingBytes,
+        keep: {?keep},
+      );
+      if (remove.isNotEmpty) await cache.remove(remove);
+    } catch (_) {
+      /* A full or locked cache only costs a later re-download. */
+    }
+  }
+
   static Future<File?> cached(Json material) async {
     final id = int.tryParse('${material['id']}');
     if (id == null) return null;
-    final file = File(
-      '${(await _directory()).path}/$id.${value(material['extension'], 'bin')}',
-    );
+    final cache = await _cache();
+    final name = _name(material, id);
+    final file = File('${cache.directory.path}/$name');
     final size = int.tryParse('${material['size']}');
     if (await file.exists() && (size == null || await file.length() == size)) {
+      unawaited(cache.opened(name, DateTime.now()).catchError((_) {}));
+      _maintainSoon();
       return file;
     }
     return null;
@@ -107,18 +158,25 @@ class MaterialFiles {
   }) {
     final id = int.parse('${material['id']}');
     return _downloads[id] ??= () async {
+      final name = _name(material, id);
       try {
         final existing = await cached(material);
         if (existing != null) return existing;
+        _maintainSoon();
         final link = await c.api.get('/community/materials/$id/file');
         final url = value(link['signed_url']);
         final uri = Uri.tryParse(url);
         if (uri == null || uri.scheme != 'https') {
           throw const ApiFailure('The file could not be opened.');
         }
-        final directory = await _directory();
-        final extension = value(material['extension'], 'bin');
-        final partial = File('${directory.path}/$id.$extension.part');
+        final cache = await _cache();
+        // Room first, so the cache never overshoots while downloading.
+        await _trim(
+          cache,
+          incomingBytes: int.tryParse('${material['size']}') ?? 0,
+        );
+        final partial = File('${cache.directory.path}/$name.part');
+        _partials.add('$name.part');
         // Streams straight to disk, so large files never sit in memory.
         await _storage.download(
           url,
@@ -127,41 +185,22 @@ class MaterialFiles {
             if (total > 0) onProgress?.call(received / total);
           },
         );
-        final file = await partial.rename('${directory.path}/$id.$extension');
-        unawaited(_trim(directory, keep: file.path));
+        final file = await partial.rename('${cache.directory.path}/$name');
+        await cache.opened(name, DateTime.now()).catchError((_) {});
+        unawaited(_trim(cache, keep: name));
         return file;
       } finally {
+        _partials.remove('$name.part');
         unawaited(Future(() => _downloads.remove(id)));
       }
     }();
-  }
-
-  static Future<void> _trim(Directory directory, {required String keep}) async {
-    try {
-      final files = await directory
-          .list()
-          .where((e) => e is File)
-          .cast<File>()
-          .toList();
-      final stats = {for (final f in files) f: await f.stat()};
-      var total = stats.values.fold<int>(0, (sum, s) => sum + s.size);
-      final oldest = files.toList()
-        ..sort((a, b) => stats[a]!.modified.compareTo(stats[b]!.modified));
-      for (final file in oldest) {
-        if (total <= _limitBytes) break;
-        if (file.path == keep) continue;
-        total -= stats[file]!.size;
-        await file.delete();
-      }
-    } catch (_) {
-      /* A full or locked cache only costs a later re-download. */
-    }
   }
 
   /// Removes every cached material, for example after signing out.
   static Future<void> clear() async {
     try {
       final directory = await _directory();
+      _index = null;
       await directory.delete(recursive: true);
     } catch (_) {}
   }
@@ -1388,8 +1427,11 @@ class _WebMaterialViewerState extends State<WebMaterialViewer> {
       final opened = await MaterialFiles.fetch(
         p.c,
         material,
+        // One rebuild per percent, not one per received chunk.
         onProgress: (value) {
-          if (mounted) setState(() => progress = value);
+          if (mounted && (value * 100).floor() != (progress * 100).floor()) {
+            setState(() => progress = value);
+          }
         },
       );
       if (!mounted) return;
@@ -1712,28 +1754,23 @@ class _PdfReader extends StatefulWidget {
 }
 
 class _PdfReaderState extends State<_PdfReader> {
-  late final PdfControllerPinch pdf = PdfControllerPinch(
-    document: PdfDocument.openFile(widget.file.path),
-  );
+  final _view = GlobalKey<PdfPagesViewState>();
   int page = 1, pages = 0;
   Offset? _doubleTap;
 
   AppController get c => widget.controller;
 
-  @override
-  void dispose() {
-    pdf.dispose();
-    super.dispose();
-  }
+  Duration _motion(Duration duration) =>
+      MediaQuery.disableAnimationsOf(context) ? Duration.zero : duration;
 
   void _go(int target) {
     if (pages == 0) return;
     final number = target.clamp(1, pages);
     final near = (number - page).abs() <= 2;
-    pdf.animateToPage(
-      pageNumber: number,
-      duration: near && !MediaQuery.disableAnimationsOf(context)
-          ? const Duration(milliseconds: 280)
+    _view.currentState?.goToPage(
+      number,
+      duration: near
+          ? _motion(const Duration(milliseconds: 280))
           : Duration.zero,
     );
     setState(() => page = number);
@@ -1743,18 +1780,9 @@ class _PdfReaderState extends State<_PdfReader> {
   void _toggleZoom() {
     final point = _doubleTap;
     if (point == null) return;
-    final zoomed = pdf.value.getMaxScaleOnAxis() > 1.05;
-    final destination = zoomed
-        ? pdf.calculatePageFitMatrix(pageNumber: page)
-        : (Matrix4.translationValues(point.dx, point.dy, 0)
-                ..multiply(Matrix4.diagonal3Values(2.5, 2.5, 1))
-                ..multiply(Matrix4.translationValues(-point.dx, -point.dy, 0)))
-              .multiplied(pdf.value);
-    pdf.goTo(
-      destination: destination,
-      duration: MediaQuery.disableAnimationsOf(context)
-          ? Duration.zero
-          : const Duration(milliseconds: 240),
+    _view.currentState?.toggleZoomAt(
+      point,
+      duration: _motion(const Duration(milliseconds: 240)),
     );
   }
 
@@ -1804,40 +1832,16 @@ class _PdfReaderState extends State<_PdfReader> {
             child: GestureDetector(
               onDoubleTapDown: (details) => _doubleTap = details.localPosition,
               onDoubleTap: _toggleZoom,
-              child: PdfViewPinch(
-                controller: pdf,
-                padding: 12,
-                maxScale: 6,
-                backgroundDecoration: const BoxDecoration(
-                  color: Colors.white,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Color(0x240f172a),
-                      blurRadius: 16,
-                      offset: Offset(0, 6),
-                    ),
-                  ],
-                ),
-                builders: PdfViewPinchBuilders<DefaultBuilderOptions>(
-                  options: const DefaultBuilderOptions(),
-                  documentLoaderBuilder: (_) =>
-                      const Center(child: CircularProgressIndicator()),
-                  pageLoaderBuilder: (_) => const Center(
-                    child: SizedBox(
-                      width: 22,
-                      height: 22,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                  ),
-                  errorBuilder: (_, error) => const SizedBox.shrink(),
-                ),
-                onDocumentLoaded: (document) {
-                  if (mounted) setState(() => pages = document.pagesCount);
+              child: PdfPagesView(
+                key: _view,
+                path: widget.file.path,
+                onLoaded: (count) {
+                  if (mounted) setState(() => pages = count);
                 },
                 onPageChanged: (number) {
                   if (mounted && number != page) setState(() => page = number);
                 },
-                onDocumentError: widget.onError,
+                onError: widget.onError,
               ),
             ),
           ),

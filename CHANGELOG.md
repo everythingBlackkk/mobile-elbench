@@ -3,6 +3,14 @@
 The ElBench app for Android and iOS. Server changes are listed in the backend's changelog
 ([everythingBlackkk/myFamily](https://github.com/everythingBlackkk/myFamily/blob/main/CHANGELOG.md)).
 
+## Over-the-air patch — 2026-11-03
+
+Shorebird patch 1 for Android 5.1.0 and patch 2 for Android 5.0.0. No backend change.
+
+- **Smooth PDF reading:** pages are drawn on a background thread as screen-sized images, visible pages first, then the next ones; pages scrolled past are skipped and only a few stay in memory. Large scanned PDFs no longer freeze scrolling while they load (measured on a 30 MB, 300 dpi PDF: time the app was unresponsive dropped from about 3 s to 0.2 s per 15 s of scrolling). Zooming in renders a sharper copy of the pages on screen.
+- **Download progress:** the progress bar updates once per percent instead of on every received chunk.
+- **Smarter material cache (up to 400 MB):** materials opened at least twice in the last 14 days are kept longest; one-off files go first, least recently opened first, so opening many PDFs in a row no longer pushes out the ones used for class. Room is made before each download, files unopened for 30 days and abandoned partial downloads are removed, and the file being read is never deleted.
+
 ## 5.1.0 (21) — 2026-11-03
 
 Needs backend v8.17.0 or later.
