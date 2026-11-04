@@ -2184,14 +2184,17 @@ class _WebPostEditorState extends State<WebPostEditor> {
               ),
               child: Row(
                 children: [
-                  PostImageButton(
-                    label: c.t('Add a photo', 'إضافة صورة'),
-                    color: webMuted(context),
-                    onTap:
-                        busy || images.length + pendingImages >= postImageLimit
-                        ? null
-                        : addImages,
-                  ),
+                  // The server says whether this member may add photos (a super admin can limit it to verified badges).
+                  if (yes(c.user?['can_post_images']))
+                    PostImageButton(
+                      label: c.t('Add a photo', 'إضافة صورة'),
+                      color: webMuted(context),
+                      onTap:
+                          busy ||
+                              images.length + pendingImages >= postImageLimit
+                          ? null
+                          : addImages,
+                    ),
                   const Spacer(),
                   RepaintBoundary(
                     child: ValueListenableBuilder<int>(

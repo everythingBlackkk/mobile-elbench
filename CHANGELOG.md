@@ -12,6 +12,7 @@ Shorebird patch 3 for Android 5.1.0 (Shorebird is Android-only). Needs backend v
 - **Small, quick uploads:** the system picker scales and re-encodes the photo natively to 2048 px (JPEG, quality 85) before upload, so a 12 MB iPhone HEIC photo leaves the phone as a few hundred kilobytes. Uploads show a progress bar and do not hold up other requests.
 - **Smooth feed:** the photo's box has its final size before the photo arrives, painted in the photo's average colour. It is decoded at the box's size in device pixels rather than full size, keeps its own paint layer, and fades in once. Scrolling back shows it at once from memory, and a disk cache keeps it across launches. Signed links change every 12 hours, but the app caches photos by a stable key, so it does not download them again. The image cache now holds up to 160 MB.
 - **Full-screen viewer:** tap the photo to view it full screen. Pinch or double-tap to zoom, and swipe down or tap close to leave. The feed copy shows at once, then the 2048 px copy replaces it.
+- **Who can add photos:** the photo button shows only when the server allows it (`can_post_images`); a Super Admin can limit photos to verified members (blue, gold or Dr badge).
 - **Profile:** posts in a profile's activity show a small thumbnail that opens the viewer.
 - **Shorebird:** Dart-only change. It uses the `image_picker` plugin already in the release; no new packages, assets, permissions or native code.
 

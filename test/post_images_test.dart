@@ -36,7 +36,12 @@ Json _image(int id, int width, int height) => {
 class _Api extends MobileApi {
   @override
   Uri get baseUri => Uri.parse('https://post-images.example.test');
-  final user = <String, dynamic>{'id': 7, 'name': 'Mariam', 'role': 'student'};
+  final user = <String, dynamic>{
+    'id': 7,
+    'name': 'Mariam',
+    'role': 'student',
+    'can_post_images': true,
+  };
   final sent = <({String method, String path, Json data})>[];
   List<Json> postImages = [];
 
@@ -90,7 +95,11 @@ class _Api extends MobileApi {
   Future<void> clearSession() async {}
 }
 
-Future<_Api> _open(WidgetTester tester, {List<Json> images = const []}) async {
+Future<_Api> _open(
+  WidgetTester tester, {
+  List<Json> images = const [],
+  bool canPostImages = true,
+}) async {
   tester.view.devicePixelRatio = 1;
   tester.view.physicalSize = const Size(430, 932);
   addTearDown(tester.view.reset);
@@ -98,6 +107,7 @@ Future<_Api> _open(WidgetTester tester, {List<Json> images = const []}) async {
   final settings = AppSettings();
   await settings.load();
   final api = _Api()..postImages = images;
+  api.user['can_post_images'] = canPostImages;
   addTearDown(() async {
     await tester.pumpWidget(const SizedBox.shrink());
     settings.dispose();
@@ -396,6 +406,17 @@ void main() {
         findsNothing,
       );
       expect(tester.widget<InkWell>(add).onTap, isNotNull);
+    });
+
+    testWidgets('members the server does not allow get no photo button', (
+      tester,
+    ) async {
+      await _open(tester, canPostImages: false);
+      await tester.tap(find.text('What’s on your mind?').first);
+      await tester.pumpAndSettle();
+
+      expect(find.byType(WebPostEditor), findsOneWidget);
+      expect(find.byKey(const ValueKey('post.editor.addImages')), findsNothing);
     });
   });
 }
