@@ -3,9 +3,9 @@
 The ElBench app for Android and iOS. Server changes are listed in the backend's changelog
 ([everythingBlackkk/myFamily](https://github.com/everythingBlackkk/myFamily/blob/main/CHANGELOG.md)).
 
-## Over-the-air patch — 2026-11-04 (a photo in posts)
+## 5.2.0 (22) — 2026-11-04
 
-Shorebird patch 3 for Android 5.1.0 (Shorebird is Android-only). Needs backend v8.19.0 or later. iPhones get this with the next App Store build.
+A photo in posts. Needs backend v8.19.0 or later (live on elbench.com). The Android build is a Shorebird release, so it can receive over-the-air patches; iPhones get this with the next App Store build.
 
 - **A photo in posts:** a photo button beside the character count in the post composer, drawn like the comment sticker button (same 24 px line icon and 36 × 44 tap area). It opens the system photo picker for one photo and turns off once a photo is added; remove it to choose another. A post can be just a photo. Editing a post shows its photo with a remove button, and can replace it.
 - **Checked before upload:** GIF, SVG and anything that is not a PNG, JPG, WebP or iPhone (HEIC) photo is refused by its contents, not its name. Photos over 10 MB are refused too. The server checks again.
@@ -14,7 +14,7 @@ Shorebird patch 3 for Android 5.1.0 (Shorebird is Android-only). Needs backend v
 - **Full-screen viewer:** tap the photo to view it full screen. Pinch or double-tap to zoom, and swipe down or tap close to leave. The feed copy shows at once, then the 2048 px copy replaces it.
 - **Who can add photos:** the photo button shows only when the server allows it (`can_post_images`); a Super Admin can limit photos to verified members (blue, gold or Dr badge).
 - **Profile:** posts in a profile's activity show a small thumbnail that opens the viewer.
-- **Shorebird:** Dart-only change. It uses the `image_picker` plugin already in the release; no new packages, assets, permissions or native code.
+- **No new native code:** it uses the `image_picker` plugin already in 5.1.0; no new packages, assets or permissions.
 
 ## Over-the-air patch — 2026-11-03 (uploads)
 
