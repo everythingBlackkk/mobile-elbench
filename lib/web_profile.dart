@@ -10,6 +10,7 @@ import 'package:intl/intl.dart' show DateFormat, NumberFormat;
 import 'api.dart';
 import 'app_toast.dart';
 import 'image_cache.dart';
+import 'post_images.dart';
 import 'app_menus.dart';
 import 'screens.dart';
 import 'infinite_feed.dart';
@@ -1531,6 +1532,47 @@ class _ActivityItem extends StatelessWidget {
                         errorBuilder: (_, _, _) => const SizedBox.shrink(),
                       ),
                     ),
+                  ),
+                ),
+              if (!comment && postImages(item).isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 10),
+                  child: Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      for (final (index, image) in postImages(item).indexed)
+                        GestureDetector(
+                          key: ValueKey('profile.post.image.${image['id']}'),
+                          onTap: () => openPostImageViewer(
+                            context,
+                            images: postImages(item),
+                            index: index,
+                            t: page.c.t,
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: ColoredBox(
+                              color: colors.secondary,
+                              child: networkImage(
+                                value(image['url']),
+                                cacheKey: value(image['cache_key']).isEmpty
+                                    ? null
+                                    : value(image['cache_key']),
+                                width: 64,
+                                height: 64,
+                                fit: BoxFit.cover,
+                                semanticLabel: page.c.t(
+                                  'Photo ${index + 1}',
+                                  'الصورة ${index + 1}',
+                                ),
+                                errorBuilder: (_, _, _) =>
+                                    const SizedBox(width: 64, height: 64),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 ),
               if (!comment) ...[

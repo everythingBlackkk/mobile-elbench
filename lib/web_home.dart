@@ -18,6 +18,8 @@ import 'web_reactions.dart';
 import 'comment_thread_rails.dart';
 import 'floating_add.dart';
 import 'infinite_feed.dart';
+import 'post_images.dart';
+import 'upload_progress.dart';
 
 Color webMuted(BuildContext context) =>
     Theme.of(context).brightness == Brightness.dark
@@ -1505,6 +1507,7 @@ class _WebPostCardState extends State<WebPostCard> {
       (n, k) => n + (int.tryParse(value(post['${k}_count'])) ?? 0),
     );
     final previews = rows(post['recent_comment_previews']);
+    final images = postImages(post);
     final muted = webMuted(context);
     final surface = webSecondary(context);
     return Container(
@@ -1625,31 +1628,49 @@ class _WebPostCardState extends State<WebPostCard> {
                 ),
             ],
           ),
-          GestureDetector(
-            // Start fetching on touch-down; the tap renders the post at once.
-            onTapDown: detail
-                ? null
-                : (_) => c.prefetch('/community/posts/${post['id']}'),
-            onTap: detail ? null : () => openPost(),
-            child: Padding(
-              padding: EdgeInsetsDirectional.fromSTEB(
-                0,
-                detail ? 18 : 12,
-                0,
-                detail ? 24 : 16,
+          if (value(post['content']).isNotEmpty || images.isEmpty)
+            GestureDetector(
+              // Start fetching on touch-down; the tap renders the post at once.
+              onTapDown: detail
+                  ? null
+                  : (_) => c.prefetch('/community/posts/${post['id']}'),
+              onTap: detail ? null : () => openPost(),
+              child: Padding(
+                padding: EdgeInsetsDirectional.fromSTEB(
+                  0,
+                  detail ? 18 : 12,
+                  0,
+                  images.isNotEmpty ? 12 : (detail ? 24 : 16),
+                ),
+                child: Text(
+                  value(post['content']),
+                  textDirection: contentDirection(value(post['content'])),
+                  maxLines: detail ? null : 5,
+                  overflow: detail ? null : TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: detail ? 18 : 16,
+                    height: detail ? 1.7 : 1.65,
+                  ),
+                ),
               ),
-              child: Text(
-                value(post['content']),
-                textDirection: contentDirection(value(post['content'])),
-                maxLines: detail ? null : 5,
-                overflow: detail ? null : TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: detail ? 18 : 16,
-                  height: detail ? 1.7 : 1.65,
+            )
+          else
+            SizedBox(height: detail ? 18 : 12),
+          if (images.isNotEmpty)
+            Padding(
+              padding: EdgeInsets.only(bottom: detail ? 20 : 16),
+              child: PostImageGrid(
+                key: ValueKey('post.images.${post['id']}'),
+                images: images,
+                t: c.t,
+                onOpen: (index) => openPostImageViewer(
+                  context,
+                  images: images,
+                  index: index,
+                  t: c.t,
                 ),
               ),
             ),
-          ),
           Container(
             decoration: BoxDecoration(
               border: Border(top: BorderSide(color: webBorder(context))),
@@ -1880,8 +1901,49 @@ class _WebPostEditorState extends State<WebPostEditor> {
   late String visibility = yes(widget.post?['is_private'])
       ? 'private'
       : 'public';
+  late final List<PostImageDraft> images = [
+    for (final image in postImages(widget.post ?? const {}))
+      PostImageDraft.existing(image),
+  ];
+  final Set<int> removedImages = {};
+  int pendingImages = 0;
+  double? uploadProgress;
   bool busy = false;
   String? error;
+
+  bool canPublish(bool hasText) =>
+      !busy && pendingImages == 0 && (hasText || images.isNotEmpty);
+
+  Future<void> addImages() async {
+    final c = widget.page.c;
+    final remaining = postImageLimit - images.length - pendingImages;
+    if (busy || remaining <= 0) return;
+    setState(() => error = null);
+    try {
+      final picked = await pickPostImages(t: c.t, remaining: remaining);
+      if (!mounted || picked.isEmpty) return;
+      setState(() => pendingImages += picked.length);
+      for (final file in picked) {
+        try {
+          final family = await checkPostImage(file, c.t);
+          if (mounted) images.add(PostImageDraft.picked(file, family));
+        } on ApiFailure catch (failure) {
+          if (mounted) error = failure.message;
+        } finally {
+          if (mounted) setState(() => pendingImages--);
+        }
+      }
+    } on ApiFailure catch (failure) {
+      if (mounted) setState(() => error = failure.message);
+    }
+  }
+
+  void removeImage(PostImageDraft draft) => setState(() {
+    images.remove(draft);
+    final id = draft.id;
+    if (id != null) removedImages.add(id);
+    error = null;
+  });
 
   @override
   void initState() {
@@ -1908,28 +1970,51 @@ class _WebPostEditorState extends State<WebPostEditor> {
   }
 
   Future<void> publish() async {
-    if (text.text.trim().isEmpty || busy) return;
+    if (!canPublish(text.text.trim().isNotEmpty)) return;
+    final c = widget.page.c;
     setState(() {
       busy = true;
       error = null;
     });
     try {
-      await widget.page.c.action(
-        widget.post == null ? 'POST' : 'PUT',
-        widget.post == null
-            ? '/community/posts'
-            : '/community/posts/${widget.post!['id']}',
-        {
-          'content': text.text.trim(),
-          'visibility': visibility,
-          if (widget.post != null) 'post_id': widget.post!['id'],
-        },
-      );
+      final data = <String, dynamic>{
+        'content': text.text.trim(),
+        'visibility': visibility,
+        if (widget.post != null) 'post_id': widget.post!['id'],
+        ...await postImageFields(images, removedImages),
+      };
+      final method = widget.post == null ? 'POST' : 'PUT';
+      final path = widget.post == null
+          ? '/community/posts'
+          : '/community/posts/${widget.post!['id']}';
+      if (carriesUpload(data)) {
+        if (mounted) setState(() => uploadProgress = 0);
+        await c.actionWithProgress(
+          method,
+          path,
+          data,
+          onSendProgress: (sent, total) {
+            if (!mounted) return;
+            final progress = total > 0 ? (sent / total).clamp(0.0, 1.0) : null;
+            if (uploadProgressPercent(progress) !=
+                uploadProgressPercent(uploadProgress)) {
+              setState(() => uploadProgress = progress);
+            }
+          },
+        );
+      } else {
+        await c.action(method, path, data);
+      }
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
       if (mounted) setState(() => error = '$e');
     } finally {
-      if (mounted) setState(() => busy = false);
+      if (mounted) {
+        setState(() {
+          busy = false;
+          uploadProgress = null;
+        });
+      }
     }
   }
 
@@ -1969,7 +2054,8 @@ class _WebPostEditorState extends State<WebPostEditor> {
                   ValueListenableBuilder<bool>(
                     valueListenable: _hasText,
                     builder: (context, hasText, _) => FilledButton(
-                      onPressed: busy || !hasText ? null : publish,
+                      key: const ValueKey('post.editor.publish'),
+                      onPressed: canPublish(hasText) ? publish : null,
                       style: FilledButton.styleFrom(
                         minimumSize: const Size(72, 38),
                         padding: const EdgeInsets.symmetric(
@@ -2060,11 +2146,24 @@ class _WebPostEditorState extends State<WebPostEditor> {
                               ),
                             ),
                           ),
+                          if (images.isNotEmpty || pendingImages > 0)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 12),
+                              child: PostImageDrafts(
+                                drafts: images,
+                                pending: pendingImages,
+                                onRemove: busy ? (_) {} : removeImage,
+                                t: c.t,
+                              ),
+                            ),
                           if (error != null)
-                            Text(
-                              error!,
-                              style: TextStyle(
-                                color: Theme.of(context).colorScheme.error,
+                            Padding(
+                              padding: const EdgeInsets.only(top: 8),
+                              child: Text(
+                                error!,
+                                style: TextStyle(
+                                  color: Theme.of(context).colorScheme.error,
+                                ),
                               ),
                             ),
                         ],
@@ -2074,20 +2173,44 @@ class _WebPostEditorState extends State<WebPostEditor> {
                 ),
               ),
             ),
+            if (uploadProgress != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                child: UploadProgressIndicator(
+                  value: uploadProgress,
+                  label: c.t('Uploading photos', 'جاري رفع الصور'),
+                  finishingLabel: c.t('Publishing…', 'جارٍ النشر…'),
+                ),
+              ),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              padding: const EdgeInsetsDirectional.fromSTEB(12, 6, 20, 6),
               decoration: BoxDecoration(
                 border: Border(top: BorderSide(color: webBorder(context))),
               ),
-              alignment: AlignmentDirectional.centerEnd,
-              child: RepaintBoundary(
-                child: ValueListenableBuilder<int>(
-                  valueListenable: _charCount,
-                  builder: (context, count, _) => Text(
-                    '$count / 3,000',
-                    style: TextStyle(fontSize: 12, color: webMuted(context)),
+              child: Row(
+                children: [
+                  PostImageButton(
+                    label: c.t('Add photos', 'إضافة صور'),
+                    color: webMuted(context),
+                    onTap:
+                        busy || images.length + pendingImages >= postImageLimit
+                        ? null
+                        : addImages,
                   ),
-                ),
+                  const Spacer(),
+                  RepaintBoundary(
+                    child: ValueListenableBuilder<int>(
+                      valueListenable: _charCount,
+                      builder: (context, count, _) => Text(
+                        '$count / 3,000',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: webMuted(context),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],

@@ -6,7 +6,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:path_provider/path_provider.dart';
 
-/// Disk cache for remote images (avatars, banners, stickers, community art).
+/// Disk cache for remote images (avatars, banners, stickers, community art,
+/// post pictures).
 ///
 /// Flutter's [NetworkImage] caches decoded images in memory only, so every
 /// launch downloaded every avatar again although the server allows a week of
@@ -18,7 +19,9 @@ class ImageDiskCache {
   static final instance = ImageDiskCache._();
 
   static const maxAge = Duration(days: 7);
-  static const maxBytes = 80 * 1024 * 1024;
+  // Post pictures are 50-250 KB each at feed size; this keeps a few hundred
+  // of them next to every avatar and banner.
+  static const maxBytes = 160 * 1024 * 1024;
 
   final HttpClient _client = _configure(HttpClient());
 
@@ -57,23 +60,27 @@ class ImageDiskCache {
     return '${hash.toUnsigned(64).toRadixString(16)}-${url.length}';
   }
 
-  Future<Uint8List> load(String url) {
-    final existing = _pending[url];
+  /// Loads [url], cached under [cacheKey] when given. Signed links (post
+  /// pictures) change every few hours while the picture itself never does;
+  /// a stable key keeps the downloaded copy across those changes.
+  Future<Uint8List> load(String url, {String? cacheKey}) {
+    final key = cacheKey ?? url;
+    final existing = _pending[key];
     if (existing != null) return existing;
-    final request = _load(url);
-    _pending[url] = request;
+    final request = _load(url, key);
+    _pending[key] = request;
     // Block body on purpose: returning the removed future from whenComplete
     // would make this load wait for itself and never finish.
     request.whenComplete(() {
-      _pending.remove(url);
+      _pending.remove(key);
     }).ignore();
     return request;
   }
 
-  Future<Uint8List> _load(String url) async {
+  Future<Uint8List> _load(String url, String key) async {
     File? file;
     try {
-      file = File('${(await _folder()).path}/${_name(url)}');
+      file = File('${(await _folder()).path}/${_name(key)}');
       final stat = await file.stat();
       if (stat.type == FileSystemEntityType.file &&
           stat.size > 0 &&
@@ -151,8 +158,13 @@ class CachedNetworkImage extends ImageProvider<CachedNetworkImage> {
     this.width,
     this.height,
     this.cover = true,
+    this.cacheKey,
   });
   final String url;
+
+  /// Identifies the image instead of [url] (in memory and on disk) when the
+  /// URL itself changes over time, such as a signed link.
+  final String? cacheKey;
   final double scale;
   final int? width, height;
   final bool cover;
@@ -199,7 +211,10 @@ class CachedNetworkImage extends ImageProvider<CachedNetworkImage> {
     ImageDecoderCallback decode,
   ) async {
     try {
-      final bytes = await ImageDiskCache.instance.load(key.url);
+      final bytes = await ImageDiskCache.instance.load(
+        key.url,
+        cacheKey: key.cacheKey,
+      );
       final buffer = await ui.ImmutableBuffer.fromUint8List(bytes);
       return key.width == null && key.height == null
           ? decode(buffer)
@@ -214,18 +229,18 @@ class CachedNetworkImage extends ImageProvider<CachedNetworkImage> {
   @override
   bool operator ==(Object other) =>
       other is CachedNetworkImage &&
-      other.url == url &&
+      (cacheKey == null ? other.url == url : other.cacheKey == cacheKey) &&
       other.scale == scale &&
       other.width == width &&
       other.height == height &&
       other.cover == cover;
 
   @override
-  int get hashCode => Object.hash(url, scale, width, height, cover);
+  int get hashCode => Object.hash(cacheKey ?? url, scale, width, height, cover);
 
   @override
   String toString() =>
-      'CachedNetworkImage("$url", ${width ?? '-'}x${height ?? '-'}, cover: $cover)';
+      'CachedNetworkImage("${cacheKey ?? url}", ${width ?? '-'}x${height ?? '-'}, cover: $cover)';
 }
 
 /// Drop-in replacement for [Image.network] that uses the disk cache and
@@ -238,6 +253,7 @@ Widget networkImage(
   BoxFit? fit,
   int? cacheWidth,
   int? cacheHeight,
+  String? cacheKey,
   String? semanticLabel,
   ImageErrorWidgetBuilder? errorBuilder,
 }) => Builder(
@@ -258,6 +274,7 @@ Widget networkImage(
         width: targetWidth,
         height: targetHeight,
         cover: fit == BoxFit.cover || fit == BoxFit.fill,
+        cacheKey: cacheKey,
       ),
       width: width,
       height: height,
