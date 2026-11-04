@@ -3,16 +3,16 @@
 The ElBench app for Android and iOS. Server changes are listed in the backend's changelog
 ([everythingBlackkk/myFamily](https://github.com/everythingBlackkk/myFamily/blob/main/CHANGELOG.md)).
 
-## Over-the-air patch — 2026-11-04 (photos in posts)
+## Over-the-air patch — 2026-11-04 (a photo in posts)
 
-Shorebird patch 3 for Android 5.1.0. Needs backend v8.19.0 or later. iOS has no Shorebird, so iPhones get this with the next App Store build.
+Shorebird patch 3 for Android 5.1.0 (Shorebird is Android-only). Needs backend v8.19.0 or later. iPhones get this with the next App Store build.
 
-- **Photos in posts:** a photo button beside the character count in the post composer, drawn like the comment sticker button (same 24 px line icon and 36 × 44 tap area), opens the system photo picker for up to four photos. Posts can be photos only. Editing a post shows its photos with a remove button on each, and can add new ones up to four.
+- **A photo in posts:** a photo button beside the character count in the post composer, drawn like the comment sticker button (same 24 px line icon and 36 × 44 tap area). It opens the system photo picker for one photo and turns off once a photo is added; remove it to choose another. A post can be just a photo. Editing a post shows its photo with a remove button, and can replace it.
 - **Checked before upload:** GIF, SVG and anything that is not a PNG, JPG, WebP or iPhone (HEIC) photo is refused by its contents, not its name. Photos over 10 MB are refused too. The server checks again.
-- **Small, quick uploads:** the system picker scales and re-encodes each photo natively to 2048 px (JPEG, quality 85) before upload, so a 12 MB iPhone HEIC photo leaves the phone as a few hundred kilobytes. Uploads show a progress bar and do not hold up other requests.
-- **Smooth feed:** each photo tile has its final size before the photo arrives, painted in the photo's average colour. Photos are decoded at tile size in device pixels rather than full size, keep their own paint layer, and fade in once. Scrolling back shows them at once from memory, and a disk cache keeps them across launches. Signed links change every 12 hours, but the app caches photos by a stable key, so it does not download them again. The image cache now holds up to 160 MB.
-- **Full-screen viewer:** tap a photo to view it full screen. Swipe between photos, pinch or double-tap to zoom, and swipe down or tap close to leave. The feed copy shows at once, then the 2048 px copy replaces it.
-- **Profile:** posts in a profile's activity show small thumbnails that open the viewer.
+- **Small, quick uploads:** the system picker scales and re-encodes the photo natively to 2048 px (JPEG, quality 85) before upload, so a 12 MB iPhone HEIC photo leaves the phone as a few hundred kilobytes. Uploads show a progress bar and do not hold up other requests.
+- **Smooth feed:** the photo's box has its final size before the photo arrives, painted in the photo's average colour. It is decoded at the box's size in device pixels rather than full size, keeps its own paint layer, and fades in once. Scrolling back shows it at once from memory, and a disk cache keeps it across launches. Signed links change every 12 hours, but the app caches photos by a stable key, so it does not download them again. The image cache now holds up to 160 MB.
+- **Full-screen viewer:** tap the photo to view it full screen. Pinch or double-tap to zoom, and swipe down or tap close to leave. The feed copy shows at once, then the 2048 px copy replaces it.
+- **Profile:** posts in a profile's activity show a small thumbnail that opens the viewer.
 - **Shorebird:** Dart-only change. It uses the `image_picker` plugin already in the release; no new packages, assets, permissions or native code.
 
 ## Over-the-air patch — 2026-11-03 (uploads)

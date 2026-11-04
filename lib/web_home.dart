@@ -1659,7 +1659,7 @@ class _WebPostCardState extends State<WebPostCard> {
           if (images.isNotEmpty)
             Padding(
               padding: EdgeInsets.only(bottom: detail ? 20 : 16),
-              child: PostImageGrid(
+              child: PostImageView(
                 key: ValueKey('post.images.${post['id']}'),
                 images: images,
                 t: c.t,
@@ -1916,22 +1916,17 @@ class _WebPostEditorState extends State<WebPostEditor> {
 
   Future<void> addImages() async {
     final c = widget.page.c;
-    final remaining = postImageLimit - images.length - pendingImages;
-    if (busy || remaining <= 0) return;
+    if (busy || images.length + pendingImages >= postImageLimit) return;
     setState(() => error = null);
     try {
-      final picked = await pickPostImages(t: c.t, remaining: remaining);
-      if (!mounted || picked.isEmpty) return;
-      setState(() => pendingImages += picked.length);
-      for (final file in picked) {
-        try {
-          final family = await checkPostImage(file, c.t);
-          if (mounted) images.add(PostImageDraft.picked(file, family));
-        } on ApiFailure catch (failure) {
-          if (mounted) error = failure.message;
-        } finally {
-          if (mounted) setState(() => pendingImages--);
-        }
+      final file = await pickPostImage(t: c.t);
+      if (!mounted || file == null) return;
+      setState(() => pendingImages++);
+      try {
+        final family = await checkPostImage(file, c.t);
+        if (mounted) images.add(PostImageDraft.picked(file, family));
+      } finally {
+        if (mounted) setState(() => pendingImages--);
       }
     } on ApiFailure catch (failure) {
       if (mounted) setState(() => error = failure.message);
@@ -2178,7 +2173,7 @@ class _WebPostEditorState extends State<WebPostEditor> {
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
                 child: UploadProgressIndicator(
                   value: uploadProgress,
-                  label: c.t('Uploading photos', 'جاري رفع الصور'),
+                  label: c.t('Uploading photo', 'جاري رفع الصورة'),
                   finishingLabel: c.t('Publishing…', 'جارٍ النشر…'),
                 ),
               ),
@@ -2190,7 +2185,7 @@ class _WebPostEditorState extends State<WebPostEditor> {
               child: Row(
                 children: [
                   PostImageButton(
-                    label: c.t('Add photos', 'إضافة صور'),
+                    label: c.t('Add a photo', 'إضافة صورة'),
                     color: webMuted(context),
                     onTap:
                         busy || images.length + pendingImages >= postImageLimit

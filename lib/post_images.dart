@@ -12,9 +12,9 @@ import 'api.dart';
 import 'image_cache.dart';
 import 'web_style.dart' show svgColorFilter;
 
-/// Pictures on community posts: up to four PNG, JPG, WebP or iPhone photos of
-/// up to 10 MB each (the server enforces the same limits).
-const postImageLimit = 4;
+/// The picture on a community post: one PNG, JPG, WebP or iPhone photo of up
+/// to 10 MB (the server enforces the same limits).
+const postImageLimit = 1;
 const postImageMaxBytes = 10 * 1024 * 1024;
 
 /// The longest edge a picture is uploaded at. The platform picker scales and
@@ -107,8 +107,8 @@ Future<String> checkPostImage(XFile file, Translate t) async {
   if (size <= 12 || size > postImageMaxBytes) {
     throw ApiFailure(
       t(
-        'Each photo must be 10 MB or smaller.',
-        'كل صورة لازم تكون 10 ميجا أو أقل.',
+        'The photo must be 10 MB or smaller.',
+        'الصورة لازم تكون 10 ميجا أو أقل.',
       ),
     );
   }
@@ -128,34 +128,18 @@ Future<String> checkPostImage(XFile file, Translate t) async {
   return family;
 }
 
-/// Opens the system photo picker for up to [remaining] photos. Android hands
-/// over only the chosen photos and iOS asks for photo access only if needed,
-/// so no new permission or native code is involved.
-Future<List<XFile>> pickPostImages({
-  required Translate t,
-  required int remaining,
-}) async {
-  if (remaining <= 0) return const [];
+/// Opens the system photo picker for one photo. Android hands over only the
+/// chosen photo and iOS asks for photo access only if needed, so no new
+/// permission or native code is involved.
+Future<XFile?> pickPostImage({required Translate t}) async {
   try {
-    final picker = ImagePicker();
-    if (remaining == 1) {
-      final one = await picker.pickImage(
-        source: ImageSource.gallery,
-        requestFullMetadata: false,
-        maxWidth: postImageUploadSize,
-        maxHeight: postImageUploadSize,
-        imageQuality: postImageUploadQuality,
-      );
-      return one == null ? const [] : [one];
-    }
-    final picked = await picker.pickMultiImage(
+    return await ImagePicker().pickImage(
+      source: ImageSource.gallery,
       requestFullMetadata: false,
       maxWidth: postImageUploadSize,
       maxHeight: postImageUploadSize,
       imageQuality: postImageUploadQuality,
-      limit: remaining,
     );
-    return picked.take(remaining).toList();
   } on PlatformException catch (error) {
     if (error.code.contains('denied') || error.code.contains('restricted')) {
       throw ApiFailure(
@@ -213,13 +197,13 @@ double _ratio(Json image) {
   return width > 0 && height > 0 ? width / height : 4 / 3;
 }
 
-/// A post's pictures in a 1-4 tile grid. Every tile has its final size before
-/// its picture arrives (from the stored width and height), painted in the
-/// picture's average colour, so the feed never jumps while scrolling. Each
-/// picture is decoded at the tile's size in device pixels, not at its full
-/// size, keeping memory flat however many posts are on screen.
-class PostImageGrid extends StatelessWidget {
-  const PostImageGrid({
+/// A post's picture at its own shape (capped for very tall photos). Its box
+/// has its final size before the picture arrives (from the stored width and
+/// height), painted in the picture's average colour, so the feed never jumps
+/// while scrolling. The picture is decoded at the box's size in device pixels,
+/// not at its full size, keeping memory flat however many posts are on screen.
+class PostImageView extends StatelessWidget {
+  const PostImageView({
     super.key,
     required this.images,
     required this.onOpen,
@@ -232,12 +216,9 @@ class PostImageGrid extends StatelessWidget {
   final Translate t;
   final double radius;
 
-  static const gap = 3.0;
-
   @override
   Widget build(BuildContext context) {
-    final count = math.min(images.length, postImageLimit);
-    if (count == 0) return const SizedBox.shrink();
+    if (images.isEmpty) return const SizedBox.shrink();
     final media = MediaQuery.maybeOf(context);
     final ratio = media?.devicePixelRatio ?? 3;
     final screenHeight = media?.size.height ?? 800;
@@ -246,72 +227,21 @@ class PostImageGrid extends StatelessWidget {
         final width = constraints.maxWidth.isFinite
             ? constraints.maxWidth
             : (media?.size.width ?? 400);
-        Widget tile(int index, double w, double h) => _PostImageTile(
-          image: images[index],
-          width: w,
-          height: h,
-          devicePixelRatio: ratio,
-          label: t(
-            'Open photo ${index + 1} of $count',
-            'افتح الصورة ${index + 1} من $count',
-          ),
-          onTap: () => onOpen(index),
-        );
-        final half = (width - gap) / 2;
-        final Widget grid = switch (count) {
-          1 => tile(
-            0,
-            width,
-            (width / _ratio(images[0])).clamp(
-              160.0,
-              math.min(560.0, screenHeight * .7),
-            ),
-          ),
-          2 => Row(
-            children: [
-              tile(0, half, half * 5 / 4),
-              const SizedBox(width: gap),
-              tile(1, half, half * 5 / 4),
-            ],
-          ),
-          3 => Column(
-            children: [
-              tile(0, width, width / 2),
-              const SizedBox(height: gap),
-              Row(
-                children: [
-                  tile(1, half, half),
-                  const SizedBox(width: gap),
-                  tile(2, half, half),
-                ],
-              ),
-            ],
-          ),
-          _ => Column(
-            children: [
-              Row(
-                children: [
-                  tile(0, half, half),
-                  const SizedBox(width: gap),
-                  tile(1, half, half),
-                ],
-              ),
-              const SizedBox(height: gap),
-              Row(
-                children: [
-                  tile(2, half, half),
-                  const SizedBox(width: gap),
-                  tile(3, half, half),
-                ],
-              ),
-            ],
-          ),
-        };
-        // Its own layer: scrolling moves the grid without repainting it.
+        final height = (width / _ratio(images.first))
+            .clamp(160.0, math.min(560.0, screenHeight * .7))
+            .toDouble();
+        // Its own layer: scrolling moves the picture without repainting it.
         return RepaintBoundary(
           child: ClipRRect(
             borderRadius: BorderRadius.circular(radius),
-            child: grid,
+            child: _PostImageTile(
+              image: images.first,
+              width: width,
+              height: height,
+              devicePixelRatio: ratio,
+              label: t('Open photo', 'افتح الصورة'),
+              onTap: () => onOpen(0),
+            ),
           ),
         );
       },

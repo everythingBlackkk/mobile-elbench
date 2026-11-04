@@ -146,7 +146,7 @@ Future<void> _grid(WidgetTester tester, List<Json> images) async {
           alignment: Alignment.topLeft,
           child: SizedBox(
             width: 400,
-            child: PostImageGrid(
+            child: PostImageView(
               images: images,
               t: (english, _) => english,
               onOpen: (_) {},
@@ -247,40 +247,17 @@ void main() {
     expect(_tiles(tester).single.tile, const Size(400, 560));
   });
 
-  testWidgets('two to four pictures share a fixed grid', (tester) async {
-    const half = (400 - PostImageGrid.gap) / 2;
+  testWidgets('only the first picture is shown if a post somehow has more', (
+    tester,
+  ) async {
     await _grid(tester, [_image(1, 800, 600), _image(2, 600, 800)]);
-    expect(_tiles(tester).map((t) => t.tile), [
-      const Size(half, half * 5 / 4),
-      const Size(half, half * 5 / 4),
-    ]);
-
-    await _grid(tester, [
-      _image(1, 800, 600),
-      _image(2, 600, 800),
-      _image(3, 500, 500),
-    ]);
-    expect(_tiles(tester).map((t) => t.tile), [
-      const Size(400, 200),
-      const Size(half, half),
-      const Size(half, half),
-    ]);
-
-    await _grid(tester, [for (var i = 1; i <= 5; i++) _image(i, 600, 600)]);
-    final four = _tiles(tester);
-    expect(four, hasLength(4));
-    expect(four.every((t) => t.tile == const Size(half, half)), isTrue);
-    expect(four.first.decodeWidth, (half * 3).ceil());
+    expect(_tiles(tester).map((t) => t.key), ['post-image:1:1280']);
   });
 
   testWidgets(
     'the feed shows a picture-only post and opens the full-screen viewer',
     (tester) async {
-      final images = [
-        _image(1, 1600, 1200),
-        _image(2, 1200, 1600),
-        _image(3, 1000, 1000),
-      ];
+      final images = [_image(2, 1600, 1200)];
       await _open(tester, images: images);
       await tester.scrollUntilVisible(
         find.byKey(const ValueKey('post.image.2')),
@@ -298,11 +275,8 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('post.image.2')));
       await tester.pumpAndSettle();
       expect(find.byType(PostImageViewer), findsOneWidget);
-      expect(find.text('2 / 3'), findsOneWidget);
-
-      await tester.fling(find.byType(PageView), const Offset(-400, 0), 1500);
-      await tester.pumpAndSettle();
-      expect(find.text('3 / 3'), findsOneWidget);
+      // One photo: no counter.
+      expect(find.textContaining(' / '), findsNothing);
 
       await tester.tap(find.byKey(const ValueKey('post.viewer.close')));
       await tester.pumpAndSettle();
@@ -321,9 +295,7 @@ void main() {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(_photos, (call) async {
             calls.add(call);
-            return call.method == 'pickMultiImage'
-                ? picked
-                : picked.firstOrNull;
+            return picked.isEmpty ? null : picked.removeAt(0);
           });
     });
 
@@ -334,11 +306,11 @@ void main() {
     });
 
     testWidgets(
-      'picks photos beside the text, refuses GIF and posts pictures only',
+      'picks one photo beside the text, refuses GIF and posts a photo only',
       (tester) async {
         final png = File('${folder.path}/IMG_2.HEIC')..writeAsBytesSync(_png);
         final gif = File('${folder.path}/funny.gif')..writeAsBytesSync(_gif);
-        picked = [png.path, gif.path];
+        picked = [gif.path, png.path];
         final api = await _open(tester);
 
         await tester.tap(find.text('What’s on your mind?').first);
@@ -349,17 +321,19 @@ void main() {
         final add = find.byKey(const ValueKey('post.editor.addImages'));
         expect(tester.getSize(add), const Size(36, 44));
 
-        await tester.runAsync(() async {
-          await tester.tap(add);
-          await Future<void>.delayed(const Duration(milliseconds: 200));
-        });
-        await tester.pumpAndSettle();
+        Future<void> pick() async {
+          await tester.runAsync(() async {
+            await tester.tap(add);
+            await Future<void>.delayed(const Duration(milliseconds: 200));
+          });
+          await tester.pumpAndSettle();
+        }
 
-        final call = calls.single;
-        expect(call.method, 'pickMultiImage');
-        expect(call.arguments['limit'], postImageLimit);
-        expect(call.arguments['maxWidth'], postImageUploadSize);
-        expect(call.arguments['imageQuality'], postImageUploadQuality);
+        await pick();
+        expect(calls.single.method, 'pickImage');
+        expect(calls.single.arguments['maxWidth'], postImageUploadSize);
+        expect(calls.single.arguments['maxHeight'], postImageUploadSize);
+        expect(calls.single.arguments['imageQuality'], postImageUploadQuality);
         expect(
           find.text(
             'Only PNG, JPG, WebP and iPhone (HEIC) photos can be added.',
@@ -367,13 +341,18 @@ void main() {
           findsOneWidget,
         );
         expect(
-          find.byKey(ValueKey('post.editor.image.${png.path}')),
-          findsOneWidget,
-        );
-        expect(
           find.byKey(ValueKey('post.editor.image.${gif.path}')),
           findsNothing,
         );
+        expect(tester.widget<FilledButton>(publish).onPressed, isNull);
+
+        await pick();
+        expect(
+          find.byKey(ValueKey('post.editor.image.${png.path}')),
+          findsOneWidget,
+        );
+        // One photo per post: the button turns off until it is removed.
+        expect(tester.widget<InkWell>(add).onTap, isNull);
         expect(tester.widget<FilledButton>(publish).onPressed, isNotNull);
 
         await tester.runAsync(() async {
@@ -394,11 +373,10 @@ void main() {
       },
     );
 
-    testWidgets('the photo button stops at four pictures', (tester) async {
-      picked = [
-        for (var i = 0; i < 4; i++)
-          (File('${folder.path}/p$i.png')..writeAsBytesSync(_png)).path,
-      ];
+    testWidgets('removing the photo turns the photo button back on', (
+      tester,
+    ) async {
+      picked = [(File('${folder.path}/p.png')..writeAsBytesSync(_png)).path];
       await _open(tester);
       await tester.tap(find.text('What’s on your mind?').first);
       await tester.pumpAndSettle();
@@ -410,15 +388,11 @@ void main() {
       });
       await tester.pumpAndSettle();
 
-      expect(
-        find.byKey(const ValueKey('post.editor.removeImage.3')),
-        findsOneWidget,
-      );
       expect(tester.widget<InkWell>(add).onTap, isNull);
       await tester.tap(find.byKey(const ValueKey('post.editor.removeImage.0')));
       await tester.pump();
       expect(
-        find.byKey(const ValueKey('post.editor.removeImage.3')),
+        find.byKey(const ValueKey('post.editor.removeImage.0')),
         findsNothing,
       );
       expect(tester.widget<InkWell>(add).onTap, isNotNull);
