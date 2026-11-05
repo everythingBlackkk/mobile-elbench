@@ -22,6 +22,13 @@ Future<void> showWebEvent(
       : const Duration(milliseconds: 500),
   pageBuilder: (ctx, _, _) {
     final date = DateTime.tryParse(value(event['event_date']));
+    final linkUri = Uri.tryParse(value(event['link_url']).trim());
+    final link =
+        linkUri != null &&
+            ['http', 'https'].contains(linkUri.scheme) &&
+            linkUri.host.isNotEmpty
+        ? linkUri
+        : null;
     Widget fact(String icon, String text) => Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -62,123 +69,169 @@ Future<void> showWebEvent(
                     MediaQuery.paddingOf(ctx).vertical -
                     40,
               ),
-              child: Stack(
-                children: [
-                  SingleChildScrollView(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        _Stagger(
-                          delay: 100,
-                          child: Padding(
-                            padding: const EdgeInsets.only(top: 16, bottom: 24),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _Stagger(
+                      delay: 100,
+                      child: Padding(
+                        padding: const EdgeInsets.only(bottom: 24),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Title and close button share one header row
+                            // (start/end follow LTR and RTL) so they never overlap.
+                            Row(
                               children: [
-                                Text(
-                                  p.c.t('Event Details', 'تفاصيل الايفنت'),
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w700,
-                                    color: Color(0xff3b82f6),
+                                Expanded(
+                                  child: Text(
+                                    p.c.t('Event Details', 'تفاصيل الايفنت'),
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xff3b82f6),
+                                    ),
                                   ),
                                 ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  value(event['title']),
-                                  style: const TextStyle(
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.w900,
-                                    height: 1.25,
+                                const SizedBox(width: 12),
+                                IconButton(
+                                  onPressed: () => Navigator.pop(ctx),
+                                  tooltip: p.c.t('Close modal', 'إغلاق'),
+                                  icon: Icon(
+                                    Icons.close,
+                                    size: 24,
+                                    color: webMuted(ctx),
                                   ),
-                                ),
-                                const SizedBox(height: 16),
-                                Wrap(
-                                  spacing: 16,
-                                  runSpacing: 16,
-                                  children: [
-                                    fact(
-                                      'calendar',
-                                      date == null
-                                          ? ''
-                                          : DateFormat(
-                                              'MMM dd, yyyy',
-                                            ).format(date),
-                                    ),
-                                    fact(
-                                      'clock',
-                                      p.c.t('Event Time', 'ميعاد الايفنت'),
-                                    ),
-                                    fact('location', value(event['arenas'])),
-                                  ],
                                 ),
                               ],
                             ),
-                          ),
-                        ),
-                        _Stagger(
-                          delay: 200,
-                          child: Container(
-                            padding: const EdgeInsets.all(24),
-                            decoration: BoxDecoration(
-                              color: webSecondary(ctx).withValues(alpha: .5),
-                              border: Border.all(color: webBorder(ctx)),
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: Text(
-                              value(event['details']),
-                              style: TextStyle(
-                                fontSize: 15,
-                                height: 1.625,
-                                fontWeight: FontWeight.w500,
-                                color: Theme.of(
-                                  ctx,
-                                ).colorScheme.onSurface.withValues(alpha: .9),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 32),
-                        _Stagger(
-                          delay: 300,
-                          child: FilledButton(
-                            onPressed: () => Navigator.pop(ctx),
-                            style: FilledButton.styleFrom(
-                              backgroundColor:
-                                  Theme.of(ctx).brightness == Brightness.dark
-                                  ? Colors.white
-                                  : Colors.black,
-                              foregroundColor: Theme.of(
-                                ctx,
-                              ).scaffoldBackgroundColor,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                            ),
-                            child: Text(
-                              p.c.t('Coool!!', 'اشطة!!'),
+                            const SizedBox(height: 8),
+                            Text(
+                              value(event['title']),
                               style: const TextStyle(
-                                fontWeight: FontWeight.w700,
+                                fontSize: 24,
+                                fontWeight: FontWeight.w900,
+                                height: 1.25,
                               ),
                             ),
+                            const SizedBox(height: 16),
+                            Wrap(
+                              spacing: 16,
+                              runSpacing: 16,
+                              children: [
+                                fact(
+                                  'calendar',
+                                  date == null
+                                      ? ''
+                                      : DateFormat('MMM dd, yyyy').format(date),
+                                ),
+                                fact(
+                                  'clock',
+                                  p.c.t('Event Time', 'ميعاد الايفنت'),
+                                ),
+                                fact('location', value(event['arenas'])),
+                              ],
+                            ),
+                            if (link != null) ...[
+                              const SizedBox(height: 12),
+                              Align(
+                                alignment: AlignmentDirectional.centerStart,
+                                child: InkWell(
+                                  key: const ValueKey('event.link'),
+                                  onTap: () => p.external(link.toString()),
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 4,
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(
+                                          Icons.link,
+                                          size: 16,
+                                          color: Color(0xff3b82f6),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Flexible(
+                                          child: Text(
+                                            link.toString(),
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                            textDirection: TextDirection.ltr,
+                                            style: const TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w700,
+                                              color: Color(0xff3b82f6),
+                                              decoration:
+                                                  TextDecoration.underline,
+                                              decorationColor: Color(
+                                                0xff3b82f6,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+                    _Stagger(
+                      delay: 200,
+                      child: Container(
+                        padding: const EdgeInsets.all(24),
+                        decoration: BoxDecoration(
+                          color: webSecondary(ctx).withValues(alpha: .5),
+                          border: Border.all(color: webBorder(ctx)),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Text(
+                          value(event['details']),
+                          style: TextStyle(
+                            fontSize: 15,
+                            height: 1.625,
+                            fontWeight: FontWeight.w500,
+                            color: Theme.of(
+                              ctx,
+                            ).colorScheme.onSurface.withValues(alpha: .9),
                           ),
                         ),
-                      ],
+                      ),
                     ),
-                  ),
-                  Positioned(
-                    top: 16,
-                    right: 16,
-                    child: IconButton(
-                      onPressed: () => Navigator.pop(ctx),
-                      tooltip: p.c.t('Close modal', 'إغلاق'),
-                      icon: Icon(Icons.close, size: 24, color: webMuted(ctx)),
+                    const SizedBox(height: 32),
+                    _Stagger(
+                      delay: 300,
+                      child: FilledButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        style: FilledButton.styleFrom(
+                          backgroundColor:
+                              Theme.of(ctx).brightness == Brightness.dark
+                              ? Colors.white
+                              : Colors.black,
+                          foregroundColor: Theme.of(
+                            ctx,
+                          ).scaffoldBackgroundColor,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                        child: Text(
+                          p.c.t('Coool!!', 'اشطا!!'),
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
