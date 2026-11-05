@@ -3,6 +3,15 @@
 The ElBench app for Android and iOS. Server changes are listed in the backend's changelog
 ([everythingBlackkk/myFamily](https://github.com/everythingBlackkk/myFamily/blob/main/CHANGELOG.md)).
 
+## Over-the-air patch — 2026-11-05 (events)
+
+Shorebird patch 1 for Android 5.2.0, patch 4 for Android 5.1.0 and patch 5 for Android 5.0.0. Works with backend v8.20.1, though the link field was already in the API, so older servers work too. iPhones get this with the next App Store build.
+
+- **Event registration link:** the Event Details sheet shows the event's link right under the location. Tapping it opens the external browser so members can register. Only http and https links with a host are shown.
+- **Header fixed:** the "Event Details" title and the close button share one header row, so they no longer overlap, in English and Arabic.
+- **Arabic button text:** the sheet's button reads "اشطا!!".
+- **Patch-safe:** Dart only. The link icon is one of the app's own SVG icons, so no fonts, assets or native code changed.
+
 ## 5.2.0 (22) — 2026-11-04
 
 A photo in posts. Needs backend v8.19.0 or later (live on elbench.com). The Android build is a Shorebird release, so it can receive over-the-air patches; iPhones get this with the next App Store build.
