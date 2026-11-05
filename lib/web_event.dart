@@ -150,8 +150,8 @@ Future<void> showWebEvent(
                                     child: Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        const Icon(
-                                          Icons.link,
+                                        const WebIcon(
+                                          'globe',
                                           size: 16,
                                           color: Color(0xff3b82f6),
                                         ),
