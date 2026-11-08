@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart' show DateFormat;
 import 'api.dart';
+import 'app_icons.dart';
 import 'image_cache.dart';
 import 'app_menus.dart';
 import 'screens.dart';
@@ -852,28 +853,45 @@ class _WebPostDetailState extends State<WebPostDetail> {
   bool focusScheduled = false;
   Json? sticker;
   Json? replyTo;
-  bool mentionReplied = false;
+
+  /// The person whose "@Name" a reply put at the start of the box.
+  int? replyMentionId;
   bool sending = false;
   String? error;
   NativePageState get p => widget.page;
 
-  /// Like Facebook, a reply starts with a mention of the person replied to.
-  /// "Replying to [@Name ×]": the mention is added when sending, unless
-  /// the × removed it. The text box itself starts empty.
+  /// Like Facebook, a reply starts with "@Name" of the person replied to,
+  /// right in the box, where Backspace can remove it. "Replying to Name"
+  /// above the box has only Cancel.
   void startReply(Json comment) {
+    final previous = replyMentionId;
+    final id = int.tryParse(value(comment['user_id']));
+    final name = value(object(comment['author'])['name']);
+    final own = '${comment['user_id']}' == '${p.c.user?['id']}';
     setState(() {
       replyTo = comment;
-      mentionReplied = '${comment['user_id']}' != '${p.c.user?['id']}';
+      replyMentionId = null;
       error = null;
     });
+    if (!own && id != null && name.isNotEmpty) {
+      content.startWith(id, name, replacing: previous);
+      replyMentionId = id;
+    } else if (previous != null) {
+      content.dropLeading(previous);
+    }
     content.selection = TextSelection.collapsed(offset: content.text.length);
     focus.requestFocus();
   }
 
-  void cancelReply() => setState(() {
-    replyTo = null;
-    mentionReplied = false;
-  });
+  /// Back to a plain comment on the post: the automatic mention goes too.
+  void cancelReply() {
+    final mentioned = replyMentionId;
+    setState(() {
+      replyTo = null;
+      replyMentionId = null;
+    });
+    if (mentioned != null) content.dropLeading(mentioned);
+  }
 
   String? get focusedCommentId {
     final uri = Uri.parse(p.path);
@@ -988,7 +1006,6 @@ class _WebPostDetailState extends State<WebPostDetail> {
             'comment_context': 'detail',
             if (sticker != null) 'sticker_id': sticker!['id'],
             if (parent != null) 'parent_id': parent['id'],
-            if (parent != null && mentionReplied) 'mention_replied': true,
             if (content.mentionIds.isNotEmpty) 'mentions': content.mentionIds,
           });
       content.clear();
@@ -996,7 +1013,7 @@ class _WebPostDetailState extends State<WebPostDetail> {
         setState(() {
           sticker = null;
           replyTo = null;
-          mentionReplied = false;
+          replyMentionId = null;
         });
       }
       final root = parent == null
@@ -1234,20 +1251,16 @@ class _WebPostDetailState extends State<WebPostDetail> {
                           ),
                         ),
                         Flexible(
-                          child: _ReplyMentionChip(
-                            name: value(
-                              object(replyTo!['author'])['name'],
-                              p.c.t('Deleted user', 'عضو محذوف'),
+                          child: Text(
+                            // Isolated so a Latin name sits right in Arabic.
+                            '\u2068${value(object(replyTo!['author'])['name'], p.c.t('Deleted user', 'عضو محذوف'))}\u2069',
+                            key: const ValueKey('comment.replying.name'),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
                             ),
-                            mention: mentionReplied,
-                            accent: p.c.settings.accent,
-                            removeLabel: p.c.t(
-                              'Remove the mention',
-                              'إزالة الإشارة',
-                            ),
-                            onRemove: sending
-                                ? null
-                                : () => setState(() => mentionReplied = false),
                           ),
                         ),
                         const Spacer(),
@@ -2592,33 +2605,29 @@ class _ThreadReplies extends StatelessWidget {
     final open = threads.isOpen(rootId);
     final muted = webMuted(context);
     final reduce = MediaQuery.disableAnimationsOf(context);
-    Widget link(
-      String key,
-      String label,
-      VoidCallback onTap, {
-      IconData? icon,
-    }) => CommentReplyBranch(
-      continues: connectNext,
-      color: webBorder(context),
-      child: Align(
-        alignment: AlignmentDirectional.centerStart,
-        child: TextButton.icon(
-          key: ValueKey('$key.$rootId'),
-          onPressed: onTap,
-          style: TextButton.styleFrom(
-            foregroundColor: muted,
-            minimumSize: const Size(0, 40),
-            padding: const EdgeInsetsDirectional.fromSTEB(4, 0, 10, 0),
-            textStyle: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
+    Widget link(String key, String label, VoidCallback onTap, {Widget? icon}) =>
+        CommentReplyBranch(
+          continues: connectNext,
+          color: webBorder(context),
+          child: Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: TextButton.icon(
+              key: ValueKey('$key.$rootId'),
+              onPressed: onTap,
+              style: TextButton.styleFrom(
+                foregroundColor: muted,
+                minimumSize: const Size(0, 40),
+                padding: const EdgeInsetsDirectional.fromSTEB(4, 0, 10, 0),
+                textStyle: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              icon: icon ?? const SvgIcon(AppIcons.replyArrow, size: 18),
+              label: Text(label),
             ),
           ),
-          icon: Icon(icon ?? Icons.subdirectory_arrow_right, size: 18),
-          label: Text(label),
-        ),
-      ),
-    );
+        );
     if (replyCount <= 0 && children.isEmpty) return const SizedBox.shrink();
     final Widget body;
     if (!open) {
@@ -2662,7 +2671,7 @@ class _ThreadReplies extends StatelessWidget {
                 'تعذّر تحميل الردود. أعد المحاولة',
               ),
               () => threads.fetch(rootId, postId: postId),
-              icon: Icons.refresh,
+              icon: const Icon(Icons.refresh, size: 18),
             )
           else if (threads.hasMore(rootId))
             link(
@@ -2674,7 +2683,7 @@ class _ThreadReplies extends StatelessWidget {
             'comment.replies.hide',
             c.t('Hide replies', 'إخفاء الردود'),
             () => threads.close(rootId),
-            icon: Icons.keyboard_arrow_up,
+            icon: const SvgIcon(AppIcons.chevronUp, size: 18),
           ),
         ],
       );
@@ -2684,65 +2693,6 @@ class _ThreadReplies extends StatelessWidget {
       curve: Curves.easeOutCubic,
       alignment: AlignmentDirectional.topStart,
       child: body,
-    );
-  }
-}
-
-/// The person replied to: a green "@Name ×" while the reply will mention
-/// them; just the name once the × removed the mention.
-class _ReplyMentionChip extends StatelessWidget {
-  const _ReplyMentionChip({
-    required this.name,
-    required this.mention,
-    required this.accent,
-    required this.removeLabel,
-    required this.onRemove,
-  });
-  final String name, removeLabel;
-  final bool mention;
-  final Color accent;
-  final VoidCallback? onRemove;
-
-  @override
-  Widget build(BuildContext context) {
-    final label = Text(
-      // Isolated so "@" stays at the start of Latin and Arabic names alike.
-      '\u2068${mention ? '@' : ''}$name\u2069',
-      key: const ValueKey('comment.replying.name'),
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-      style: TextStyle(
-        fontSize: 13,
-        fontWeight: FontWeight.w600,
-        color: mention ? accent : null,
-      ),
-    );
-    if (!mention) return label;
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 160),
-      padding: const EdgeInsetsDirectional.only(start: 8),
-      decoration: BoxDecoration(
-        color: accent.withValues(alpha: .1),
-        borderRadius: BorderRadius.circular(99),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Flexible(child: label),
-          SizedBox(
-            width: 30,
-            height: 30,
-            child: IconButton(
-              key: const ValueKey('comment.replying.unmention'),
-              padding: EdgeInsets.zero,
-              iconSize: 16,
-              tooltip: removeLabel,
-              onPressed: onRemove,
-              icon: Icon(Icons.close, color: accent),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

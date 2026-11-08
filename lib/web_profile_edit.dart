@@ -309,7 +309,7 @@ class _WebProfileEditState extends State<WebProfileEdit> {
       final codec = await ui.instantiateImageCodec(data);
       final frame = await codec.getNextFrame();
       final image = frame.image;
-      final maxSide = gif ? 2048 : 8192;
+      final maxSide = gif ? 1024 : 8192;
       final valid =
           image.width <= maxSide &&
           image.height <= maxSide &&
@@ -320,8 +320,8 @@ class _WebProfileEditState extends State<WebProfileEdit> {
         throw ApiFailure(
           gif
               ? tr(
-                  'Choose a GIF up to 2,048 pixels on each side.',
-                  'اختار صورة GIF كل ضلع فيها ما يزيدش عن ٢٬٠٤٨ بكسل.',
+                  'Choose a GIF up to 1,024 pixels on each side.',
+                  'اختار صورة GIF كل ضلع فيها ما يزيدش عن ١٬٠٢٤ بكسل.',
                 )
               : tr(
                   'Choose an image up to 16 megapixels, with each side no larger than 8,192 pixels.',

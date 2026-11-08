@@ -5,6 +5,7 @@ import 'package:flutter_svg/flutter_svg.dart' show svg;
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'api.dart';
+import 'app_updates.dart';
 import 'app_links.dart';
 import 'native_glass.dart';
 import 'settings.dart';
@@ -158,6 +159,7 @@ class _ElBenchAppState extends State<ElBenchApp> with WidgetsBindingObserver {
         state == AppLifecycleState.hidden) {
       _backgroundedAt ??= DateTime.now();
     } else if (state == AppLifecycleState.resumed) {
+      unawaited(AppUpdates.instance.checkOnResume());
       final away = _backgroundedAt == null
           ? Duration.zero
           : DateTime.now().difference(_backgroundedAt!);

@@ -1,7 +1,7 @@
 name: elbench
 description: Native ElBench student community app for Android and iOS.
 publish_to: none
-version: 5.3.0+23
+version: 5.3.1+24
 
 environment:
   sdk: '>=3.12.2 <4.0.0'
@@ -30,6 +30,7 @@ dependencies:
   path_provider: ^2.1.5
   pdfx: ^2.11.0
   flutter_file_dialog: ^3.3.3
+  shorebird_code_push: ^2.0.7
 
 dev_dependencies:
   flutter_test:

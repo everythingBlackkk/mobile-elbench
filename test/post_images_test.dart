@@ -351,10 +351,7 @@ void main() {
           ),
           findsOneWidget,
         );
-        expect(
-          find.byKey(const ValueKey('post.editor.addGif')),
-          findsNothing,
-        );
+        expect(find.byKey(const ValueKey('post.editor.addGif')), findsNothing);
         expect(
           find.byKey(ValueKey('post.editor.image.${gif.path}')),
           findsNothing,

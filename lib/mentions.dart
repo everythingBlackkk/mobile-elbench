@@ -25,21 +25,188 @@ class MentionQuery {
 /// Text field controller that tracks mentions: it highlights them, keeps
 /// their user ids, and finds the "@query" being typed.
 ///
-/// Like Facebook, "@" only starts a search: picking a person leaves their
-/// plain name in the text (no "@", so Arabic and English mix without the
-/// sign jumping sides). The ids travel next to the text.
+/// Picking a person leaves "@Full Name" in the text. Like Facebook, a
+/// mention is one protected piece: a deletion that cuts into it first
+/// removes one word of the name (the rest stays a mention of the same
+/// person), the next one removes the rest; the caret never rests inside it.
+/// The ids travel next to the text.
 class MentionTextController extends TextEditingController
     implements DirectionalTextController {
   MentionTextController({super.text, Iterable<Json> mentions = const []}) {
     for (final mention in mentions) {
-      final id = int.tryParse(value(mention['id']));
-      final name = value(mention['name']);
+      // (`value` here is the controller's own; read the JSON directly.)
+      final id = int.tryParse('${mention['id'] ?? ''}');
+      final name = '${mention['name'] ?? ''}';
       if (id != null && name.isNotEmpty) _mentions[id] = name;
+    }
+    // Text being edited gets its mentions isolated, so "@" sits by the name.
+    var wrapped = text;
+    for (final range in findMentionRanges(text, _names).reversed) {
+      if (wrapped[range.start] == mentionStart) continue;
+      final shown = wrapped.substring(range.start, range.end);
+      wrapped = wrapped.replaceRange(
+        range.start,
+        range.end,
+        '$mentionStart${shown.startsWith('@') ? '' : '@'}$shown$mentionEnd',
+      );
+    }
+    if (wrapped != text) {
+      super.value = TextEditingValue(
+        text: wrapped,
+        selection: TextSelection.collapsed(offset: wrapped.length),
+      );
     }
   }
 
+  /// Each mention in the box is "@Name" between these invisible marks (first
+  /// strong isolate, pop isolate), so the "@" stays at the start of a Latin
+  /// name in Arabic text and of an Arabic name in English text. The server
+  /// drops them when it saves.
+  static const mentionStart = '\u2068', mentionEnd = '\u2069';
+
+  static final _marks = RegExp('[\u2068\u2069@]');
+
+  /// The name a mention range shows, without "@" and the marks.
+  String _shownName(String source, TextRange range) =>
+      source.substring(range.start, range.end).replaceAll(_marks, '');
+
   static const maxMentions = 10;
   final _mentions = <int, String>{};
+
+  /// People whose mention already lost a word (the next cut removes it).
+  final _trimmed = <int>{};
+
+  @override
+  set value(TextEditingValue newValue) {
+    final old = super.value;
+    if (newValue.text != old.text) {
+      final protectedValue = _protect(old.text, newValue);
+      super.value = protectedValue ?? newValue;
+      return;
+    }
+    super.value = _snap(old, newValue);
+  }
+
+  /// The two-step deletion of a mention; null when the edit leaves every
+  /// mention alone.
+  TextEditingValue? _protect(String before, TextEditingValue next) {
+    final after = next.text;
+    final removed = before.length - after.length;
+    if (removed <= 0 || _mentions.isEmpty) return null;
+    var start = next.selection.isValid ? next.selection.baseOffset : -1;
+    bool fits(int at) =>
+        at >= 0 &&
+        at <= after.length &&
+        before.substring(0, at) == after.substring(0, at) &&
+        before.substring(at + removed) == after.substring(at);
+    if (!fits(start)) {
+      start = 0;
+      while (start < after.length && before[start] == after[start]) {
+        start++;
+      }
+      if (!fits(start)) return null;
+    }
+    final end = start + removed;
+    final hits = [
+      for (final range in findMentionRanges(before, _names))
+        if (range.start < end &&
+            start < range.end &&
+            !(start <= range.start && range.end <= end))
+          range,
+    ];
+    if (hits.isEmpty) return null;
+    int? idOf(TextRange range) {
+      final shown = _shownName(before, range);
+      for (final entry in _mentions.entries) {
+        if (entry.value == shown) return entry.key;
+      }
+      return null;
+    }
+
+    var cutStart = start, cutEnd = end;
+    final first = hits.first;
+    final id = idOf(first);
+    var nameStart = first.start;
+    if (before[nameStart] == mentionStart) nameStart++;
+    if (before[nameStart] == '@') nameStart++;
+    final nameEnd = before[first.end - 1] == mentionEnd
+        ? first.end - 1
+        : first.end;
+    final words = before.substring(nameStart, nameEnd).split(' ');
+    if (hits.length == 1 &&
+        id != null &&
+        words.length > 1 &&
+        !_trimmed.contains(id) &&
+        start >= nameStart &&
+        end <= first.end) {
+      // The word holding the last removed character goes, with one space.
+      final point = end - 1;
+      var wordStart = nameStart, index = 0;
+      while (index < words.length - 1 &&
+          point >= wordStart + words[index].length) {
+        wordStart += words[index].length + 1;
+        index++;
+      }
+      final wordEnd = wordStart + words[index].length;
+      if (index == words.length - 1) {
+        cutStart = wordStart - 1;
+        cutEnd = wordEnd;
+      } else {
+        cutStart = wordStart;
+        cutEnd = wordEnd + 1;
+      }
+      _mentions[id] = [
+        for (var i = 0; i < words.length; i++)
+          if (i != index) words[i],
+      ].join(' ');
+      _trimmed.add(id);
+    } else {
+      for (final hit in hits) {
+        cutStart = cutStart < hit.start ? cutStart : hit.start;
+        cutEnd = cutEnd > hit.end ? cutEnd : hit.end;
+        final gone = idOf(hit);
+        if (gone != null) {
+          _mentions.remove(gone);
+          _trimmed.remove(gone);
+        }
+      }
+      // No double space where the mention was.
+      if (cutEnd < before.length &&
+          before[cutEnd] == ' ' &&
+          (cutStart == 0 || _space.hasMatch(before[cutStart - 1]))) {
+        cutEnd++;
+      }
+    }
+    final text = before.replaceRange(cutStart, cutEnd, '');
+    // After a shortened mention the caret goes past its end mark, so what
+    // is typed next is plain text.
+    final caret = cutStart < text.length && text[cutStart] == mentionEnd
+        ? cutStart + 1
+        : cutStart;
+    return TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(offset: caret),
+    );
+  }
+
+  /// A caret placed inside a mention moves to the end it was heading for.
+  TextEditingValue _snap(TextEditingValue old, TextEditingValue next) {
+    final selection = next.selection;
+    if (!selection.isValid || !selection.isCollapsed || _mentions.isEmpty) {
+      return next;
+    }
+    final caret = selection.baseOffset;
+    for (final range in findMentionRanges(next.text, _names)) {
+      if (range.start < caret && caret < range.end) {
+        final from = old.selection.isValid ? old.selection.baseOffset : -1;
+        final target = from >= range.end ? range.start : range.end;
+        return next.copyWith(
+          selection: TextSelection.collapsed(offset: target),
+        );
+      }
+    }
+    return next;
+  }
 
   /// Style for mentioned names; set by the field that shows this controller.
   TextStyle? highlight;
@@ -47,8 +214,7 @@ class MentionTextController extends TextEditingController
   /// Mentions whose name is still in the text.
   List<Json> get mentions {
     final present = {
-      for (final range in mentionRanges())
-        text.substring(range.start, range.end).replaceFirst('@', ''),
+      for (final range in mentionRanges()) _shownName(text, range),
     };
     return [
       for (final entry in _mentions.entries)
@@ -63,38 +229,67 @@ class MentionTextController extends TextEditingController
 
   bool get canMention => mentions.length < maxMentions;
 
-  /// Puts "Full Name " in place of the "@query" [range] and tracks the person.
+  /// Puts "@Full Name " in place of the "@query" [range] and tracks the person.
   void insertMention(TextRange range, int id, String name) {
     if (name.isEmpty || range.start < 0 || range.end > text.length) return;
-    final insert = '$name ';
+    final insert = '$mentionStart@$name$mentionEnd ';
     _mentions[id] = name;
-    this.value = TextEditingValue(
+    _trimmed.remove(id);
+    value = TextEditingValue(
       text: text.replaceRange(range.start, range.end, insert),
       selection: TextSelection.collapsed(offset: range.start + insert.length),
     );
   }
 
-  /// Starts a reply with the person's mention, like Facebook.
-  void startWith(int id, String name) {
+  /// Starts a reply with "@Name " of the person replied to, like Facebook,
+  /// in place of an earlier reply's mention of [replacing].
+  void startWith(int id, String name, {int? replacing}) {
     if (name.isEmpty) return;
-    final tag = '$name ';
+    var body = replacing == null ? text : _withoutLeading(replacing);
+    if (replacing != null && replacing != id) _forget(replacing);
+    final tag = '$mentionStart@$name$mentionEnd ';
+    if (body.startsWith(tag)) body = body.substring(tag.length);
+    body = body.trimLeft();
     _mentions[id] = name;
-    final body = text.startsWith(tag) ? text.substring(tag.length) : text;
-    this.value = TextEditingValue(
+    _trimmed.remove(id);
+    super.value = TextEditingValue(
       text: '$tag$body',
       selection: TextSelection.collapsed(offset: tag.length + body.length),
     );
   }
 
-  /// Removes a leading mention added by [startWith] when nothing else was typed.
-  void dropLeading(String name) {
-    if (name.isNotEmpty && text.trim() == name) clear();
+  /// Removes a leading mention of person [id] (in whatever length it is
+  /// shown now), e.g. when a reply is cancelled.
+  void dropLeading(int id) {
+    final next = _withoutLeading(id);
+    if (next == text) return;
+    _forget(id);
+    super.value = TextEditingValue(
+      text: next,
+      selection: TextSelection.collapsed(offset: next.length),
+    );
+  }
+
+  String _withoutLeading(int id) {
+    final name = _mentions[id];
+    if (name == null) return text;
+    final ranges = findMentionRanges(text, [name]);
+    if (ranges.isEmpty || text.substring(0, ranges.first.start).trim() != '') {
+      return text;
+    }
+    return text.substring(ranges.first.end).trimLeft();
+  }
+
+  void _forget(int id) {
+    _mentions.remove(id);
+    _trimmed.remove(id);
   }
 
   @override
   void clear() {
     super.clear();
     _mentions.clear();
+    _trimmed.clear();
   }
 
   /// Ranges of tracked names in the text (with a leading "@" when older
@@ -145,8 +340,8 @@ class MentionTextController extends TextEditingController
     }
     // Split at mention and composing boundaries, so keyboards that compose
     // words (Arabic, predictive text) keep their underline and caret.
-    final composing = withComposing && this.value.isComposingRangeValid
-        ? this.value.composing
+    final composing = withComposing && value.isComposingRangeValid
+        ? value.composing
         : TextRange.empty;
     final cuts = <int>{0, text.length};
     for (final range in ranges) {
@@ -199,9 +394,18 @@ List<TextRange> findMentionRanges(String text, Iterable<String> names) {
       final before = at > 0 ? text[at - 1] : '';
       final after = end < text.length ? text[end] : '';
       if (_wordChar.hasMatch(before) || _wordChar.hasMatch(after)) continue;
-      final start = before == '@' ? at - 1 : at;
-      if (!found.any((r) => r.start < end && start < r.end)) {
-        found.add(TextRange(start: start, end: end));
+      var start = before == '@' ? at - 1 : at;
+      var stop = end;
+      // The invisible marks around an "@Name" belong to the mention.
+      if (start > 0 && text[start - 1] == MentionTextController.mentionStart) {
+        start--;
+      }
+      if (stop < text.length &&
+          text[stop] == MentionTextController.mentionEnd) {
+        stop++;
+      }
+      if (!found.any((r) => r.start < stop && start < r.end)) {
+        found.add(TextRange(start: start, end: stop));
       }
     }
   }

@@ -6,6 +6,7 @@ import 'package:webview_flutter_android/webview_flutter_android.dart';
 import 'package:webview_flutter_wkwebview/webview_flutter_wkwebview.dart';
 
 import 'api.dart';
+import 'app_icons.dart';
 import 'image_cache.dart';
 import 'text_direction.dart';
 import 'web_home.dart' show webBorder, webMuted, webSecondary;
@@ -214,7 +215,9 @@ class _YouTubeButton extends StatelessWidget {
       borderRadius: BorderRadius.circular(14),
       boxShadow: const [BoxShadow(color: Color(0x59000000), blurRadius: 8)],
     ),
-    child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 34),
+    child: const Center(
+      child: SvgIcon(AppIcons.play, color: Colors.white, size: 34),
+    ),
   );
 }
 
