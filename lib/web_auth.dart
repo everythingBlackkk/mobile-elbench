@@ -8,6 +8,7 @@ import 'app_toast.dart';
 import 'main.dart';
 import 'screens.dart' show AuthHeader, NativePage;
 import 'web_style.dart';
+import 'app_spinner.dart';
 
 /// Student ID → e-mailed code → password, rendered natively. Used for
 /// sign-up (auth/signup.blade.php) and for "Forgot password"
@@ -367,9 +368,7 @@ class _WebSignupPageState extends State<WebSignupPage> {
                       if (_loading)
                         const Padding(
                           padding: EdgeInsets.all(28),
-                          child: Center(
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          ),
+                          child: Center(child: AppSpinner(strokeWidth: 2)),
                         )
                       else ...[
                         if (_error != null || _message != null)

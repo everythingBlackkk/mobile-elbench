@@ -11,6 +11,10 @@ import 'infinite_feed.dart';
 import 'text_direction.dart';
 import 'web_style.dart';
 import 'web_home.dart' show webAgo, webMuted;
+import 'app_spinner.dart';
+import 'app_refresh.dart';
+import 'link_preview.dart';
+import 'mentions.dart';
 
 class _ForumColors {
   _ForumColors(BuildContext context)
@@ -355,7 +359,7 @@ class _WebForumState extends State<WebForum> {
     final id = community['id'] ?? page.data['community_id'];
     final image = value(community['image_url'] ?? page.data['comm_img']);
     final questions = rows(page.data['questions']);
-    return RefreshIndicator.adaptive(
+    return AppRefreshIndicator(
       onRefresh: page.pullRefresh,
       child: ListView(
         padding: const EdgeInsets.fromLTRB(10, 24, 10, 110),
@@ -1222,7 +1226,7 @@ class _WebCommunityQuestionState extends State<WebCommunityQuestion> {
     final answers = rows(page.data['answers']);
     return Stack(
       children: [
-        RefreshIndicator.adaptive(
+        AppRefreshIndicator(
           onRefresh: page.pullRefresh,
           child: ListView(
             physics: const AlwaysScrollableScrollPhysics(),
@@ -1235,14 +1239,26 @@ class _WebCommunityQuestionState extends State<WebCommunityQuestion> {
               ),
               Padding(
                 padding: const EdgeInsets.only(top: 20, bottom: 16),
-                child: Text(
-                  value(question['content']).trim(),
-                  textDirection: contentDirection(value(question['content'])),
-                  style: TextStyle(
-                    fontSize: 16,
-                    height: 1.7,
-                    color: colors.text,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    MentionText(
+                      value(question['content']).trim(),
+                      mentions: const [],
+                      accent: c.settings.accent,
+                      onOpen: (_) {},
+                      style: TextStyle(
+                        fontSize: 16,
+                        height: 1.7,
+                        color: colors.text,
+                      ),
+                    ),
+                    if (object(question['link_preview']).isNotEmpty)
+                      LinkPreviewView(
+                        preview: object(question['link_preview']),
+                        api: c.api,
+                      ),
+                  ],
                 ),
               ),
               Row(
@@ -1379,7 +1395,7 @@ class _WebCommunityQuestionState extends State<WebCommunityQuestion> {
                                       ? const SizedBox(
                                           width: 18,
                                           height: 18,
-                                          child: CircularProgressIndicator(
+                                          child: AppSpinner(
                                             strokeWidth: 2,
                                             color: Colors.white,
                                           ),
@@ -1682,14 +1698,26 @@ class _QuestionAnswer extends StatelessWidget {
                     ),
                     Padding(
                       padding: const EdgeInsets.only(top: 6, bottom: 10),
-                      child: Text(
-                        value(item['content']).trim(),
-                        textDirection: contentDirection(value(item['content'])),
-                        style: TextStyle(
-                          fontSize: 15,
-                          height: 1.7,
-                          color: colors.text,
-                        ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          MentionText(
+                            value(item['content']).trim(),
+                            mentions: const [],
+                            accent: c.settings.accent,
+                            onOpen: (_) {},
+                            style: TextStyle(
+                              fontSize: 15,
+                              height: 1.7,
+                              color: colors.text,
+                            ),
+                          ),
+                          if (object(item['link_preview']).isNotEmpty)
+                            LinkPreviewView(
+                              preview: object(item['link_preview']),
+                              api: c.api,
+                            ),
+                        ],
                       ),
                     ),
                     _AnswerReactions(page: page, item: item),
@@ -1721,7 +1749,13 @@ class _AnswerReactionsState extends State<_AnswerReactions> {
   Widget build(BuildContext context) {
     final colors = _ForumColors(context);
     final selected = rows(widget.item['reactions']).firstOrNull?['type'];
-    const emojis = {'like': '👍', 'love': '❤️', 'funny': '😂'};
+    const emojis = {
+      'like': '👍',
+      'love': '❤️',
+      'funny': '😂',
+      'sad': '😭',
+      'care': '🥰',
+    };
     final total = emojis.keys.fold<int>(
       0,
       (sum, key) =>
@@ -1823,7 +1857,7 @@ class WebModerate extends StatelessWidget {
     final colors = _ForumColors(context);
     final community = object(page.data['community']);
     final questions = rows(page.data['pending_questions']);
-    return RefreshIndicator.adaptive(
+    return AppRefreshIndicator(
       onRefresh: page.pullRefresh,
       child: ListView(
         padding: const EdgeInsets.fromLTRB(10, 40, 10, 110),
@@ -2348,7 +2382,7 @@ class _WebCommunityNotificationsState extends State<WebCommunityNotifications> {
     final arabic = c.settings.language == 'ar';
     final notices = [...rows(page.data['notices']), ...older];
     final unread = int.tryParse(value(page.data['unread'])) ?? 0;
-    return RefreshIndicator.adaptive(
+    return AppRefreshIndicator(
       onRefresh: page.pullRefresh,
       child: ListView(
         controller: scroll,
@@ -2417,7 +2451,7 @@ class _WebCommunityNotificationsState extends State<WebCommunityNotifications> {
               child: Center(
                 child: SizedBox.square(
                   dimension: 22,
-                  child: CircularProgressIndicator(strokeWidth: 2.4),
+                  child: AppSpinner(strokeWidth: 2.4),
                 ),
               ),
             ),

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:ui' as ui;
 
+import 'package:elbench/app_spinner.dart';
 import 'package:elbench/api.dart';
 import 'package:elbench/image_cache.dart';
 import 'package:elbench/main.dart';
@@ -377,33 +378,18 @@ void main() {
         await tester.pump(const Duration(milliseconds: 200));
         expect(haptics, ['HapticFeedbackType.lightImpact']);
         expect(page.c.refreshEpoch, initialEpoch + 1);
-        if (platform == TargetPlatform.iOS) {
-          expect(find.byType(CupertinoActivityIndicator), findsOneWidget);
-          expect(find.byType(RefreshProgressIndicator), findsNothing);
-          expect(
-            tester
-                .widget<CupertinoActivityIndicator>(
-                  find.byType(CupertinoActivityIndicator),
-                )
-                .animating,
-            isTrue,
-          );
-        } else {
-          final spinner = find.byType(RefreshProgressIndicator);
-          expect(spinner, findsOneWidget);
-          expect(find.byType(CupertinoActivityIndicator), findsNothing);
-          expect(
-            tester.widget<RefreshProgressIndicator>(spinner).value,
-            isNull,
-          );
-          final theme = Theme.of(tester.element(spinner));
-          expect(theme.progressIndicatorTheme.strokeCap, StrokeCap.round);
-          expect(theme.progressIndicatorTheme.color, page.c.settings.accent);
-          expect(
-            theme.progressIndicatorTheme.refreshBackgroundColor,
-            Colors.white,
-          );
-        }
+        // One spinner on every platform: the app's chip, spinning.
+        expect(find.byKey(const ValueKey('app.refresh.chip')), findsOneWidget);
+        expect(find.byType(RefreshProgressIndicator), findsNothing);
+        expect(find.byType(CupertinoActivityIndicator), findsNothing);
+        final spinner = find.descendant(
+          of: find.byKey(const ValueKey('app.refresh.chip')),
+          matching: find.byType(AppSpinner),
+        );
+        expect(tester.widget<AppSpinner>(spinner).value, isNull);
+        final theme = Theme.of(tester.element(spinner));
+        expect(theme.progressIndicatorTheme.strokeCap, StrokeCap.round);
+        expect(theme.progressIndicatorTheme.color, page.c.settings.accent);
         api.refresh = null;
         pending.complete(
           api.envelope('schedule.index', {
@@ -411,6 +397,7 @@ void main() {
           }),
         );
         await tester.pumpAndSettle();
+        expect(find.byKey(const ValueKey('app.refresh.chip')), findsNothing);
         expect(find.byType(CupertinoActivityIndicator), findsNothing);
         expect(find.byType(RefreshProgressIndicator), findsNothing);
         expect(haptics, ['HapticFeedbackType.lightImpact']);

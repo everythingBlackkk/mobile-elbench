@@ -9,6 +9,7 @@ import 'image_cache.dart';
 import 'media_permissions.dart';
 import 'screens.dart';
 import 'upload_progress.dart';
+import 'app_spinner.dart';
 
 class ScheduleAppearanceAdminContent extends StatefulWidget {
   const ScheduleAppearanceAdminContent({super.key, required this.page});
@@ -317,7 +318,7 @@ class _ScheduleAppearanceAdminContentState
                 ? const SizedBox(
                     width: 18,
                     height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+                    child: AppSpinner(strokeWidth: 2),
                   )
                 : const Icon(Icons.add_photo_alternate_outlined),
             label: Text(
@@ -382,7 +383,7 @@ class _ScheduleAppearanceAdminContentState
               ? const SizedBox(
                   width: 18,
                   height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2),
+                  child: AppSpinner(strokeWidth: 2),
                 )
               : const Icon(Icons.check),
           label: Text(

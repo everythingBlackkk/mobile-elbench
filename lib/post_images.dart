@@ -40,8 +40,8 @@ const _heifBrands = {
   'hevx',
 };
 
-/// The format a file's first bytes announce (jpeg, png, webp or heif),
-/// whatever its name says; null for anything else, including GIF and SVG.
+/// The format a file's first bytes announce (jpeg, png, webp, heif or gif),
+/// whatever its name says; null for anything else, including SVG.
 String? sniffPostImage(List<int> head) {
   bool starts(List<int> bytes) =>
       head.length >= bytes.length &&
@@ -53,6 +53,7 @@ String? sniffPostImage(List<int> head) {
     return 'png';
   }
   if (ascii(0, 4) == 'RIFF' && ascii(8, 12) == 'WEBP') return 'webp';
+  if (ascii(0, 6) == 'GIF87a' || ascii(0, 6) == 'GIF89a') return 'gif';
   if (head.length >= 16 && ascii(4, 8) == 'ftyp') {
     final boxSize =
         (head[0] << 24) | (head[1] << 16) | (head[2] << 8) | head[3];
@@ -77,6 +78,7 @@ const _uploadExtensions = {
   'png': 'png',
   'webp': 'webp',
   'heif': 'heic',
+  'gif': 'gif',
 };
 
 /// One picture in the post composer: either already on the post (shown from
@@ -102,7 +104,12 @@ class PostImageDraft {
 
 /// Checks a picked file the way the server will: size, and a format that is
 /// readable and allowed. Returns the format, or throws [ApiFailure].
-Future<String> checkPostImage(XFile file, Translate t) async {
+Future<String> checkPostImage(
+  XFile file,
+  Translate t, {
+  bool allowGif = false,
+  bool gifOnly = false,
+}) async {
   final size = await file.length();
   if (size <= 12 || size > postImageMaxBytes) {
     throw ApiFailure(
@@ -117,6 +124,17 @@ Future<String> checkPostImage(XFile file, Translate t) async {
     head.addAll(chunk);
   }
   final family = sniffPostImage(head);
+  if (gifOnly && family != 'gif') {
+    throw ApiFailure(t('Choose a GIF file.', 'اختار ملف GIF.'));
+  }
+  if (family == 'gif' && !allowGif) {
+    throw ApiFailure(
+      t(
+        'Only members with a blue or gold verified badge can post GIFs.',
+        'الصور المتحركة (GIF) متاحة فقط لأصحاب علامة التوثيق الزرقاء أو الذهبية.',
+      ),
+    );
+  }
   if (family == null) {
     throw ApiFailure(
       t(
@@ -149,6 +167,25 @@ Future<XFile?> pickPostImage({required Translate t}) async {
         ),
       );
     }
+    throw ApiFailure(
+      t(
+        'Could not open the photo picker. Please try again.',
+        'تعذر فتح الصور. حاول مرة أخرى.',
+      ),
+    );
+  }
+}
+
+/// Opens the photo picker for one animated GIF, without the resizing that
+/// [pickPostImage] asks for: re-encoding would keep only its first frame.
+/// The server rebuilds the GIF safely.
+Future<XFile?> pickPostGif({required Translate t}) async {
+  try {
+    return await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      requestFullMetadata: false,
+    );
+  } on PlatformException {
     throw ApiFailure(
       t(
         'Could not open the photo picker. Please try again.',
@@ -268,7 +305,7 @@ class _PostImageTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final url = value(image['url']);
-    return Semantics(
+    final tile = Semantics(
       button: true,
       image: true,
       label: label,
@@ -308,7 +345,96 @@ class _PostImageTile extends StatelessWidget {
         ),
       ),
     );
+    if (image['animated'] != true) return tile;
+    // Animated GIFs carry a small label, as on other social apps.
+    return Stack(
+      children: [
+        tile,
+        PositionedDirectional(
+          start: 10,
+          bottom: 10,
+          child: IgnorePointer(
+            child: DecoratedBox(
+              key: ValueKey('post.image.gif.${image['id']}'),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: .62),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                child: Text(
+                  'GIF',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: .4,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
   }
+}
+
+/// The composer's GIF button, beside the photo button, for members who may
+/// post animated GIFs.
+class PostGifButton extends StatelessWidget {
+  const PostGifButton({
+    super.key,
+    required this.onTap,
+    required this.label,
+    required this.color,
+  });
+
+  final VoidCallback? onTap;
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    enabled: onTap != null,
+    label: label,
+    child: Tooltip(
+      message: label,
+      child: InkWell(
+        key: const ValueKey('post.editor.addGif'),
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: SizedBox(
+          width: 40,
+          height: 44,
+          child: Center(
+            child: Opacity(
+              opacity: onTap == null ? .4 : 1,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  border: Border.all(color: color, width: 1.6),
+                  borderRadius: BorderRadius.circular(5),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 3),
+                  child: Text(
+                    'GIF',
+                    style: TextStyle(
+                      color: color,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      height: 1.3,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
 }
 
 String? _key(Json image, String field) {

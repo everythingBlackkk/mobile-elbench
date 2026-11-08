@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:pdfx/pdfx.dart';
+import 'app_spinner.dart';
 
 /// Where each page sits in the scrolling document, at scale 1.
 /// Pages are as wide as the view (less [padding]) and keep their own shape.
@@ -398,7 +399,7 @@ class PdfPagesViewState extends State<PdfPagesView>
               child: SizedBox(
                 width: 22,
                 height: 22,
-                child: CircularProgressIndicator(strokeWidth: 2),
+                child: AppSpinner(strokeWidth: 2),
               ),
             )
           : Image(
@@ -415,7 +416,7 @@ class PdfPagesViewState extends State<PdfPagesView>
   @override
   Widget build(BuildContext context) {
     if (_document == null) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(child: AppSpinner());
     }
     return LayoutBuilder(
       builder: (context, constraints) {

@@ -9,6 +9,7 @@ import 'main.dart';
 import 'native_glass.dart';
 import 'screens.dart';
 import 'text_direction.dart';
+import 'app_refresh.dart';
 
 const _lectureBlue = Color(0xff3185c2);
 const _sectionOrange = Color(0xffce8b46);
@@ -414,7 +415,7 @@ class _WebScheduleState extends State<WebSchedule> {
     return ColoredBox(
       // Dark mode uses the same plain black as every other page.
       color: dark ? Colors.black : const Color(0xfff7f7fc),
-      child: RefreshIndicator.adaptive(
+      child: AppRefreshIndicator(
         onRefresh: () => p.pullRefresh(_currentPath),
         child: ListView(
           padding: const EdgeInsets.fromLTRB(18, 24, 18, 120),

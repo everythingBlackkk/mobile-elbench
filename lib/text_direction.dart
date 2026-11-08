@@ -13,13 +13,40 @@ final RegExp _anyLetterOrDigit = RegExp(r'\p{L}|\p{N}', unicode: true);
 /// post/comment that starts with Arabic right-aligns even in the English UI.
 /// Whitespace, punctuation, digits and emoji are skipped; anything else falls
 /// back to LTR.
-TextDirection contentDirection(String text) {
+TextDirection contentDirection(String text) =>
+    contentDirectionOrNull(text) ?? TextDirection.ltr;
+
+/// Like [contentDirection], but null when [text] has no letters or digits.
+TextDirection? contentDirectionOrNull(String text) {
   for (final code in text.runes) {
     final ch = String.fromCharCode(code);
     if (_arabicLetter.hasMatch(ch)) return TextDirection.rtl;
     if (_anyLetterOrDigit.hasMatch(ch)) return TextDirection.ltr;
   }
-  return TextDirection.ltr;
+  return null;
+}
+
+/// Direction of text that contains mentions: the mentioned names are skipped,
+/// so "Sara Adel شكرا" stays right-to-left. Text made only of mentions takes
+/// [fallback] (the app's own direction).
+TextDirection mentionAwareDirection(
+  String text,
+  Iterable<String> names,
+  TextDirection fallback,
+) {
+  var rest = text;
+  final sorted = names.where((n) => n.isNotEmpty).toList()
+    ..sort((a, b) => b.length.compareTo(a.length));
+  for (final name in sorted) {
+    rest = rest.replaceAll('@$name', ' ').replaceAll(name, ' ');
+  }
+  return contentDirectionOrNull(rest) ??
+      (rest.length == text.length ? contentDirection(text) : fallback);
+}
+
+/// A controller that decides its own text direction (see [AdaptiveTextField]).
+abstract interface class DirectionalTextController {
+  TextDirection textDirection(TextDirection fallback);
 }
 
 /// A [TextField] that follows the language being typed into it: it rebuilds
@@ -58,11 +85,26 @@ class _AdaptiveTextFieldState extends State<AdaptiveTextField> {
   TextEditingController get controller =>
       widget.controller ?? (_owned ??= TextEditingController());
 
+  TextDirection _measure() {
+    final current = controller;
+    return current is DirectionalTextController
+        ? (current as DirectionalTextController).textDirection(
+            Directionality.maybeOf(context) ?? TextDirection.ltr,
+          )
+        : contentDirection(current.text);
+  }
+
   @override
   void initState() {
     super.initState();
     _direction = contentDirection(controller.text);
     controller.addListener(_recheck);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _direction = _measure();
   }
 
   @override
@@ -76,8 +118,9 @@ class _AdaptiveTextFieldState extends State<AdaptiveTextField> {
   }
 
   void _recheck() {
-    final direction = contentDirection(controller.text);
-    if (direction != _direction && mounted) {
+    if (!mounted) return;
+    final direction = _measure();
+    if (direction != _direction) {
       setState(() => _direction = direction);
     }
   }

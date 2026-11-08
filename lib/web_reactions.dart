@@ -5,6 +5,7 @@ import 'app_menus.dart';
 import 'page_skeletons.dart';
 import 'screens.dart';
 import 'web_home.dart' show webMuted;
+import 'app_spinner.dart';
 
 /// A shared reaction control. Its anchored palette never relays out the feed.
 class WebReactionButton extends StatefulWidget {
@@ -40,7 +41,7 @@ class _WebReactionButtonState extends State<WebReactionButton> {
         anchorRect: above
             ? Rect.fromLTWH(anchor.left, anchor.top - 70, anchor.width, 0)
             : anchor,
-        menuWidth: 164,
+        menuWidth: 260,
         menuMaxHeight: 64,
         semanticLabel: ar ? 'اختر تفاعل' : 'Choose a reaction',
         items: [_ReactionPaletteEntry(selected: widget.selected, arabic: ar)],
@@ -119,10 +120,25 @@ class _WebReactionButtonState extends State<WebReactionButton> {
   }
 }
 
-String _emoji(String reaction) => switch (reaction) {
+String _emoji(String reaction) => reactionEmoji(reaction);
+
+/// Every reaction, in picker order. The server accepts the same list.
+const reactionTypes = ['like', 'love', 'funny', 'sad', 'care'];
+
+String reactionEmoji(String reaction) => switch (reaction) {
   'love' => '❤️',
   'funny' => '😂',
+  'sad' => '😭',
+  'care' => '🥰',
   _ => '👍',
+};
+
+String reactionName(String reaction, bool arabic) => switch (reaction) {
+  'love' => arabic ? 'أحببته' : 'Love',
+  'funny' => arabic ? 'مضحك' : 'Funny',
+  'sad' => arabic ? 'حزين' : 'Sad',
+  'care' => arabic ? 'أدعمك' : 'Care',
+  _ => arabic ? 'إعجاب' : 'Like',
 };
 
 class _ReactionPaletteEntry extends PopupMenuEntry<String> {
@@ -171,14 +187,14 @@ class _ReactionPaletteEntryState extends State<_ReactionPaletteEntry>
     height: 48,
     child: Row(
       children: [
-        for (final (i, type) in ['like', 'love', 'funny'].indexed)
+        for (final (i, type) in reactionTypes.indexed)
           Expanded(
             child: AnimatedBuilder(
               animation: _entrance,
               builder: (context, child) {
                 final t = Interval(
-                  i * .12,
-                  .76 + i * .12,
+                  i * .06,
+                  .76 + i * .06,
                 ).transform(_entrance.value);
                 final eased = Curves.easeOutCubic.transform(t);
                 return IgnorePointer(
@@ -198,11 +214,7 @@ class _ReactionPaletteEntryState extends State<_ReactionPaletteEntry>
               child: _ReactionChoice(
                 type: type,
                 selected: widget.selected == type,
-                label: switch (type) {
-                  'love' => widget.arabic ? 'أحببته' : 'Love',
-                  'funny' => widget.arabic ? 'مضحك' : 'Funny',
-                  _ => widget.arabic ? 'إعجاب' : 'Like',
-                },
+                label: reactionName(type, widget.arabic),
               ),
             ),
           ),
@@ -272,7 +284,7 @@ class _ReactionChoiceState extends State<_ReactionChoice> {
   }
 }
 
-const _reactionTypes = ['like', 'love', 'funny'];
+const _reactionTypes = reactionTypes;
 
 /// Total reactions on a post, comment or answer row.
 int reactionTotal(Json row) => _reactionTypes.fold<int>(
@@ -531,7 +543,7 @@ class _ReactionsSheetState extends State<_ReactionsSheet> {
             : const Center(
                 child: SizedBox.square(
                   dimension: 22,
-                  child: CircularProgressIndicator(strokeWidth: 2),
+                  child: AppSpinner(strokeWidth: 2),
                 ),
               ),
       );
@@ -682,14 +694,10 @@ class _ReactorRow extends StatelessWidget {
     final mine = value(row['user_id']) == value(c.user?['id'], '-');
     final destination = page.profilePath(person);
     final reaction = value(row['type']);
-    final reactionName = switch (reaction) {
-      'love' => c.t('Love', 'أحببته'),
-      'funny' => c.t('Funny', 'مضحك'),
-      _ => c.t('Like', 'إعجاب'),
-    };
+    final reactionLabel = reactionName(reaction, c.settings.language == 'ar');
     return Semantics(
       button: destination != null,
-      label: '$name${mine ? c.t(' (You)', ' (أنت)') : ''}, $reactionName',
+      label: '$name${mine ? c.t(' (You)', ' (أنت)') : ''}, $reactionLabel',
       excludeSemantics: true,
       child: InkWell(
         onTap: destination == null

@@ -15,6 +15,8 @@ import 'material_cache.dart';
 import 'pdf_pages.dart';
 import 'web_home.dart' show webAgo, webBorder, webMuted, webSecondary;
 import 'web_style.dart';
+import 'app_spinner.dart';
+import 'app_refresh.dart';
 
 /// The file types community admins may upload, matching the server's list.
 const materialExtensions = [
@@ -443,7 +445,7 @@ class _WebSubjectsState extends State<WebSubjects> {
                   child: saving
                       ? const SizedBox.square(
                           dimension: 20,
-                          child: CircularProgressIndicator(
+                          child: AppSpinner(
                             strokeWidth: 2,
                             color: Colors.white,
                           ),
@@ -1087,7 +1089,7 @@ class _WebMaterialsState extends State<WebMaterials> {
         ),
       ],
     );
-    return RefreshIndicator.adaptive(
+    return AppRefreshIndicator(
       onRefresh: p.pullRefresh,
       child: ListView(
         padding: const EdgeInsets.fromLTRB(10, 12, 10, 110),
@@ -1508,7 +1510,7 @@ class _WebMaterialViewerState extends State<WebMaterialViewer> {
     }
     // A row tapped in the list opens at once; its preview arrives with the
     // full page a moment later.
-    if (p.provisional) return const Center(child: CircularProgressIndicator());
+    if (p.provisional) return const Center(child: AppSpinner());
     final padding = EdgeInsets.fromLTRB(
       16,
       16,

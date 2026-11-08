@@ -15,6 +15,7 @@ import 'launch_experience.dart';
 import 'page_store.dart';
 import 'scroll_physics.dart';
 import 'web_materials.dart' show MaterialFiles;
+import 'app_spinner.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -306,7 +307,7 @@ class _ElBenchAppState extends State<ElBenchApp> with WidgetsBindingObserver {
             ),
           )
         : _initializing || controller.starting
-        ? const Scaffold(body: Center(child: CircularProgressIndicator()))
+        ? const Scaffold(body: Center(child: AppSpinner()))
         : controller.user == null
         ? widget.enableLaunchExperience && !_introDismissed
               ? IntroductionPage(
@@ -331,6 +332,21 @@ class _ElBenchAppState extends State<ElBenchApp> with WidgetsBindingObserver {
   }
 
   bool get _showLaunch => widget.enableLaunchExperience && !_launchReleased;
+}
+
+/// Links to one comment thread (from notifications) open the whole post with
+/// that thread expanded, so the other comments stay visible.
+String expandThreadLink(String path) {
+  final uri = Uri.parse(path);
+  final thread = uri.queryParameters['thread'];
+  if (thread == null || !RegExp(r'^/community/posts/\d+$').hasMatch(uri.path)) {
+    return path;
+  }
+  final query = {...uri.queryParameters}
+    ..remove('thread')
+    ..remove('page')
+    ..['expand'] = thread;
+  return uri.replace(queryParameters: query).toString();
 }
 
 class AppController extends ChangeNotifier {
@@ -968,7 +984,7 @@ class AppController extends ChangeNotifier {
     Json? seed,
   }) async {
     try {
-      path = retainedPath(api.safePath(path));
+      path = retainedPath(expandThreadLink(api.safePath(path)));
     } catch (_) {
       return;
     }

@@ -25,6 +25,7 @@ import 'web_profile.dart';
 import 'native_glass.dart';
 import 'web_settings.dart';
 import 'web_forum.dart';
+import 'web_reactions.dart';
 import 'web_materials.dart';
 import 'web_motion.dart';
 import 'web_profile_edit.dart';
@@ -37,6 +38,7 @@ import 'app_menus.dart';
 import 'refresh_wordmark.dart';
 import 'error_panel.dart';
 import 'infinite_feed.dart';
+import 'app_refresh.dart';
 
 export 'refresh_wordmark.dart' show ElBenchHeaderLogo;
 export 'error_panel.dart' show ErrorPanel;
@@ -494,16 +496,60 @@ class SharedNavigationChrome extends StatelessWidget {
                                   maintainState: true,
                                   maintainAnimation: true,
                                   maintainSize: true,
-                                  child: RepaintBoundary(
-                                    key: const ValueKey(
-                                      'navigation.sharedHeader',
+                                  // Home slides its top bar away with the
+                                  // dock: same signal, timing and curve.
+                                  child: ValueListenableBuilder<bool>(
+                                    valueListenable: controller.dockHidden,
+                                    child: RepaintBoundary(
+                                      key: const ValueKey(
+                                        'navigation.sharedHeader',
+                                      ),
+                                      child: ColoredBox(
+                                        color: page.effectiveProfileChrome
+                                            ? Colors.transparent
+                                            : page.chromeBackground(context),
+                                        child: page.header(
+                                          context,
+                                          active: true,
+                                        ),
+                                      ),
                                     ),
-                                    child: ColoredBox(
-                                      color: page.effectiveProfileChrome
-                                          ? Colors.transparent
-                                          : page.chromeBackground(context),
-                                      child: page.header(context, active: true),
-                                    ),
+                                    builder: (context, dockHidden, child) {
+                                      final hidden =
+                                          dockHidden &&
+                                          page.hidesHeaderOnScroll;
+                                      final reduce =
+                                          MediaQuery.disableAnimationsOf(
+                                            context,
+                                          ) ||
+                                          MediaQuery.of(
+                                            context,
+                                          ).accessibleNavigation;
+                                      return ExcludeFocus(
+                                        excluding: hidden,
+                                        child: ExcludeSemantics(
+                                          excluding: hidden,
+                                          child: IgnorePointer(
+                                            ignoring: hidden,
+                                            child: AnimatedSlide(
+                                              key: const ValueKey(
+                                                'navigation.headerSlide',
+                                              ),
+                                              offset: hidden
+                                                  ? const Offset(0, -1)
+                                                  : Offset.zero,
+                                              duration: reduce
+                                                  ? Duration.zero
+                                                  : const Duration(
+                                                      milliseconds: 280,
+                                                    ),
+                                              curve: Curves.easeOutCubic,
+                                              child: child,
+                                            ),
+                                          ),
+                                        ),
+                                      );
+                                    },
                                   ),
                                 ),
                               ),
@@ -1662,7 +1708,7 @@ class NativePageState extends State<NativePage> with RouteAware {
                 {'type': selected, 'user_id': c.user?['id']},
               ]
             : <Json>[],
-        for (final type in const ['like', 'love', 'funny'])
+        for (final type in reactionTypes)
           '${type}_count': int.tryParse(value(counts[type])) ?? 0,
       };
       setState(() {
@@ -1970,6 +2016,10 @@ class NativePageState extends State<NativePage> with RouteAware {
       screen == 'community.material' ||
       screen == 'quiz.attempt' ||
       screen.startsWith('ai.');
+
+  /// Pages whose top bar slides away while scrolling down (with the dock).
+  bool get hidesHeaderOnScroll => screen == 'community.index';
+
   Color chromeBackground(BuildContext context) => screen == 'content.hall'
       ? Theme.of(context).brightness == Brightness.dark
             ? const Color(0xff292313)
@@ -2223,7 +2273,15 @@ class NativePageState extends State<NativePage> with RouteAware {
     final body = error != null
         ? ErrorPanel(error: error!, retry: load, retrying: loading)
         : loading && envelope.isEmpty
-        ? PageSkeleton(screen: screen, path: path)
+        ? (hidesHeaderOnScroll
+              // The body runs under the top bar here; keep the skeleton below it.
+              ? SafeArea(
+                  left: false,
+                  right: false,
+                  bottom: false,
+                  child: PageSkeleton(screen: screen, path: path),
+                )
+              : PageSkeleton(screen: screen, path: path))
         : content();
     final modal = ModalRoute.of(context);
     final route = modal is WebPageRoute ? modal : null;
@@ -2234,7 +2292,8 @@ class NativePageState extends State<NativePage> with RouteAware {
           ? Colors.transparent
           : Theme.of(context).scaffoldBackgroundColor,
       extendBody: true,
-      extendBodyBehindAppBar: profilePage,
+      // Home's feed runs behind its top bar, which hides while scrolling.
+      extendBodyBehindAppBar: profilePage || hidesHeaderOnScroll,
       // The shared chrome is above Navigator. Non-profile routes paint their
       // own top bar surface and border so transitioning into or out of Profile
       // never leaves an uncolored gap above the outgoing body.
@@ -2244,12 +2303,15 @@ class NativePageState extends State<NativePage> with RouteAware {
               preferredSize: const Size.fromHeight(64),
               child: DecoratedBox(
                 decoration: BoxDecoration(
-                  color: profilePage
+                  color: profilePage || hidesHeaderOnScroll
                       ? Colors.transparent
                       : chromeBackground(context),
                   border: Border(
                     bottom: BorderSide(
-                      color: profilePage || screen == 'content.hall'
+                      color:
+                          profilePage ||
+                              hidesHeaderOnScroll ||
+                              screen == 'content.hall'
                           ? Colors.transparent
                           : Theme.of(context).colorScheme.outlineVariant,
                     ),
@@ -2416,7 +2478,7 @@ class NativePageState extends State<NativePage> with RouteAware {
         ),
       ],
     };
-    return RefreshIndicator.adaptive(
+    return AppRefreshIndicator(
       onRefresh: pullRefresh,
       child: ListView(
         padding: screen == 'content.menu'
@@ -2558,6 +2620,8 @@ class NativePageState extends State<NativePage> with RouteAware {
         ('like', '👍'),
         ('love', '❤️'),
         ('funny', '😂'),
+        ('sad', '😭'),
+        ('care', '🥰'),
       ])
         ActionChip(
           label: Text(
@@ -3836,6 +3900,12 @@ class NativePageState extends State<NativePage> with RouteAware {
     'post_reply' => c.t('Replied to your post', 'رد على منشورك'),
     'question_answer' => c.t('Answered your question', 'أجاب عن سؤالك'),
     'post_like' => c.t('Reacted to your post', 'تفاعل مع منشورك'),
+    'post_mention' => c.t('Mentioned you in a post', 'أشار إليك في منشور'),
+    'comment_mention' => c.t(
+      'Mentioned you in a comment',
+      'أشار إليك في تعليق',
+    ),
+    'comment_reply' => c.t('Replied to your comment', 'رد على تعليقك'),
     'comment_like' => c.t('Reacted to your comment', 'تفاعل مع تعليقك'),
     'answer_received' => c.t('Answered your question', 'أجاب عن سؤالك'),
     _ => value(item['details']),

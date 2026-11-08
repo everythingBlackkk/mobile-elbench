@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import 'api.dart';
 import 'error_artwork.dart';
+import 'app_spinner.dart';
 
 /// Shared recoverable page failure, including offline startup.
 class ErrorPanel extends StatefulWidget {
@@ -138,9 +139,7 @@ class _ErrorPanelState extends State<ErrorPanel> with WidgetsBindingObserver {
                               ? const SizedBox(
                                   width: 18,
                                   height: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
+                                  child: AppSpinner(strokeWidth: 2),
                                 )
                               : const Icon(Icons.refresh),
                           label: Text(

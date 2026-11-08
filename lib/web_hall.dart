@@ -6,6 +6,7 @@ import 'package:intl/intl.dart' show NumberFormat;
 import 'api.dart';
 import 'image_cache.dart';
 import 'screens.dart';
+import 'app_refresh.dart';
 
 /// Mobile Hall of Fame presentation; ranking data and refresh stay unchanged.
 class WebHall extends StatelessWidget {
@@ -31,7 +32,7 @@ class WebHall extends StatelessWidget {
           stops: const [0, .42, .8],
         ),
       ),
-      child: RefreshIndicator.adaptive(
+      child: AppRefreshIndicator(
         onRefresh: page.pullRefresh,
         child: ListView(
           padding: const EdgeInsets.fromLTRB(18, 12, 18, 128),

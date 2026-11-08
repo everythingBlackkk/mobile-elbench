@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:elbench/app_spinner.dart';
 import 'package:elbench/api.dart';
 import 'package:elbench/main.dart';
 import 'package:elbench/screens.dart';
@@ -216,6 +217,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
       expect(page.loading, isFalse);
       expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.byType(AppSpinner), findsNothing);
       expect(
         find.byKey(const ValueKey('activity.list.skeleton')),
         findsOneWidget,
@@ -309,6 +311,7 @@ void main() {
       expect(page.data['tab'], 'all');
       expect(find.text('Offline tab request.'), findsOneWidget);
       expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.byType(AppSpinner), findsNothing);
       await tester.tap(find.text('Retry'));
       await tester.pump();
       api.complete(1, count: 1);

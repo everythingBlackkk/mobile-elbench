@@ -14,6 +14,8 @@ import 'screens.dart';
 import 'text_direction.dart';
 import 'web_style.dart';
 import 'upload_progress.dart';
+import 'app_spinner.dart';
+import 'post_images.dart' show sniffPostImage;
 
 /// Native form with the same mobile layout and controls as profile-edit.css.
 class WebProfileEdit extends StatefulWidget {
@@ -90,6 +92,10 @@ class _WebProfileEditState extends State<WebProfileEdit> {
   String? _selected(dynamic input) => value(input).isEmpty ? null : '$input';
   Color get bannerColor => _parseColor(hex.text) ?? const Color(0xff2e855d);
   bool get canUpload => yes(page.c.user?['can_upload_media']);
+
+  /// Blue and gold badges may use an animated GIF as their profile photo
+  /// (never as a banner, which is always a cropped still).
+  bool get canUseGif => yes(page.c.user?['can_post_gifs']);
   String? errorFor(String key) {
     final errors = fieldErrors[key];
     return errors is List
@@ -277,7 +283,22 @@ class _WebProfileEditState extends State<WebProfileEdit> {
         );
       }
       final extension = picked.name.split('.').last.toLowerCase();
-      if (!['jpg', 'jpeg', 'png', 'webp'].contains(extension)) {
+      // Pickers may name a GIF without its extension, so its bytes decide.
+      final gif = sniffPostImage(data.take(16).toList()) == 'gif';
+      if (gif && (forBanner || !canUseGif)) {
+        throw ApiFailure(
+          forBanner
+              ? tr(
+                  'Choose a JPEG, PNG or WebP image for the banner.',
+                  'اختار صورة JPEG أو PNG أو WebP للغلاف.',
+                )
+              : tr(
+                  'Animated GIF photos are available for blue and gold badges.',
+                  'صور GIF المتحركة متاحة لأصحاب الشارة الزرقا والدهبية.',
+                ),
+        );
+      }
+      if (!gif && !['jpg', 'jpeg', 'png', 'webp'].contains(extension)) {
         throw ApiFailure(
           tr(
             'Choose a JPEG, PNG or WebP image.',
@@ -288,18 +309,24 @@ class _WebProfileEditState extends State<WebProfileEdit> {
       final codec = await ui.instantiateImageCodec(data);
       final frame = await codec.getNextFrame();
       final image = frame.image;
+      final maxSide = gif ? 2048 : 8192;
       final valid =
-          image.width <= 8192 &&
-          image.height <= 8192 &&
+          image.width <= maxSide &&
+          image.height <= maxSide &&
           image.width * image.height <= 16000000;
       image.dispose();
       codec.dispose();
       if (!valid) {
         throw ApiFailure(
-          tr(
-            'Choose an image up to 16 megapixels, with each side no larger than 8,192 pixels.',
-            'اختار صورة بحد أقصى ١٦ ميجابكسل، وكل ضلع ما يزيدش عن ٨٬١٩٢ بكسل.',
-          ),
+          gif
+              ? tr(
+                  'Choose a GIF up to 2,048 pixels on each side.',
+                  'اختار صورة GIF كل ضلع فيها ما يزيدش عن ٢٬٠٤٨ بكسل.',
+                )
+              : tr(
+                  'Choose an image up to 16 megapixels, with each side no larger than 8,192 pixels.',
+                  'اختار صورة بحد أقصى ١٦ ميجابكسل، وكل ضلع ما يزيدش عن ٨٬١٩٢ بكسل.',
+                ),
         );
       }
       if (!mounted) return;
@@ -308,7 +335,9 @@ class _WebProfileEditState extends State<WebProfileEdit> {
       } else {
         setState(() {
           avatarBytes = data;
-          avatarFilename = picked.name;
+          avatarFilename = gif && extension != 'gif'
+              ? 'avatar.gif'
+              : picked.name;
           error = null;
         });
       }
@@ -686,7 +715,7 @@ class _WebProfileEditState extends State<WebProfileEdit> {
       child: SizedBox(
         width: 24,
         height: 24,
-        child: CircularProgressIndicator(
+        child: AppSpinner(
           value: _uploadProgress,
           strokeWidth: 3,
           color: Colors.white,
@@ -1001,6 +1030,11 @@ class _WebProfileEditState extends State<WebProfileEdit> {
               ? tr(
                   'JPEG, PNG or WebP · Up to 5 MB. Your banner updates when you save.',
                   'JPEG أو PNG أو WebP · بحد أقصى ٥ ميجابايت. الغلاف هيتغير لما تحفظ.',
+                )
+              : canUseGif
+              ? tr(
+                  'JPEG, PNG, WebP or animated GIF · Up to 5 MB. Your photo updates when you save.',
+                  'JPEG أو PNG أو WebP أو GIF متحركة · بحد أقصى ٥ ميجابايت. صورتك هتتغير لما تحفظ.',
                 )
               : tr(
                   'JPEG, PNG or WebP · Up to 5 MB. Your photo updates when you save.',
@@ -1560,7 +1594,7 @@ class _EditButton extends StatelessWidget {
                 SizedBox(
                   width: 18,
                   height: 18,
-                  child: CircularProgressIndicator(
+                  child: AppSpinner(
                     strokeWidth: 2,
                     color: primary ? Colors.white : colors.text,
                   ),

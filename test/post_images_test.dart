@@ -186,7 +186,7 @@ void main() {
       ),
       isNull,
     );
-    expect(sniffPostImage(_gif), isNull);
+    expect(sniffPostImage(_gif), 'gif');
     expect(
       sniffPostImage(bytes('<svg xmlns="http://www.w3.org/2000/svg">')),
       isNull,
@@ -344,11 +344,16 @@ void main() {
         expect(calls.single.arguments['maxWidth'], postImageUploadSize);
         expect(calls.single.arguments['maxHeight'], postImageUploadSize);
         expect(calls.single.arguments['imageQuality'], postImageUploadQuality);
+        // Without a blue or gold badge a GIF is refused, with the reason.
         expect(
           find.text(
-            'Only PNG, JPG, WebP and iPhone (HEIC) photos can be added.',
+            'Only members with a blue or gold verified badge can post GIFs.',
           ),
           findsOneWidget,
+        );
+        expect(
+          find.byKey(const ValueKey('post.editor.addGif')),
+          findsNothing,
         );
         expect(
           find.byKey(ValueKey('post.editor.image.${gif.path}')),

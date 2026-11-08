@@ -16,10 +16,15 @@ import 'web_comments.dart';
 import 'web_schedule.dart';
 import 'web_reactions.dart';
 import 'comment_thread_rails.dart';
+import 'comment_threads.dart';
+import 'link_preview.dart';
+import 'mentions.dart';
 import 'floating_add.dart';
 import 'infinite_feed.dart';
 import 'post_images.dart';
 import 'upload_progress.dart';
+import 'app_spinner.dart';
+import 'app_refresh.dart';
 
 Color webMuted(BuildContext context) =>
     Theme.of(context).brightness == Brightness.dark
@@ -462,7 +467,14 @@ class _WebHomeState extends State<WebHome> {
                 }
               },
               child: ListView.custom(
-                padding: const EdgeInsets.fromLTRB(10, 40, 10, 180),
+                // The feed starts below the top bar, which it scrolls behind
+                // (the screen extends its body under the bar).
+                padding: EdgeInsets.fromLTRB(
+                  10,
+                  40 + MediaQuery.paddingOf(context).top,
+                  10,
+                  180,
+                ),
                 physics: const AlwaysScrollableScrollPhysics(),
                 // Build (and start loading photos for) posts about a screen
                 // ahead, so a fast fling doesn't reach unbuilt rows.
@@ -827,19 +839,86 @@ class WebPostDetail extends StatefulWidget {
 }
 
 class _WebPostDetailState extends State<WebPostDetail> {
-  final content = TextEditingController();
+  final content = MentionTextController();
+  late final threads = CommentThreads(
+    load: (path) => p.c.api.get(p.c.localized(path)),
+  );
+  Object? _shownComments;
+  String? _expandPending;
+  String? _justPosted;
   final focus = FocusNode();
   final focusedComment = GlobalKey();
   String? lastFocusedComment;
   bool focusScheduled = false;
   Json? sticker;
+  Json? replyTo;
+  bool mentionReplied = false;
   bool sending = false;
   String? error;
   NativePageState get p => widget.page;
+
+  /// Like Facebook, a reply starts with a mention of the person replied to.
+  /// "Replying to [@Name ×]": the mention is added when sending, unless
+  /// the × removed it. The text box itself starts empty.
+  void startReply(Json comment) {
+    setState(() {
+      replyTo = comment;
+      mentionReplied = '${comment['user_id']}' != '${p.c.user?['id']}';
+      error = null;
+    });
+    content.selection = TextSelection.collapsed(offset: content.text.length);
+    focus.requestFocus();
+  }
+
+  void cancelReply() => setState(() {
+    replyTo = null;
+    mentionReplied = false;
+  });
+
   String? get focusedCommentId {
     final uri = Uri.parse(p.path);
-    return uri.queryParameters['focus_comment'] ??
+    return _justPosted ??
+        uri.queryParameters['focus_comment'] ??
         RegExp(r'^comment-(\d+)$').firstMatch(uri.fragment)?.group(1);
+  }
+
+  /// Keeps open threads current when the comment list reloads, and opens
+  /// the thread a notification pointed at.
+  void syncThreads(List<Json> comments) {
+    if (identical(p.data['comments'], _shownComments)) return;
+    final first = _shownComments == null;
+    _shownComments = p.data['comments'];
+    final postId = '${object(p.data['post'])['id']}';
+    final focusId = focusedCommentId;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      for (final comment in comments) {
+        final id = '${comment['id']}';
+        final total = int.tryParse(value(comment['thread_replies_count'])) ?? 0;
+        final shown = rows(comment['thread_replies']).length;
+        final holdsFocus =
+            focusId != null &&
+            rows(
+              comment['thread_replies'],
+            ).any((reply) => '${reply['id']}' == focusId);
+        if (id == _expandPending || holdsFocus) {
+          if (id == _expandPending) _expandPending = null;
+          _expandPending = null;
+          threads.open(id, postId: postId, total: total, shown: shown);
+        } else if (!first && threads.isOpen(id) && total > shown) {
+          threads.fetch(id, postId: postId);
+        }
+      }
+    });
+  }
+
+  void _revealAfterThreadChange() {
+    final id = focusedCommentId;
+    if (id == null || lastFocusedComment == id) return;
+    // The thread rebuilds in the coming frame; look for the comment after it.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) revealFocusedComment();
+    });
   }
 
   void revealFocusedComment() {
@@ -852,19 +931,32 @@ class _WebPostDetailState extends State<WebPostDetail> {
       final target = focusedComment.currentContext;
       if (target == null) return;
       lastFocusedComment = id;
+      final reduce = MediaQuery.disableAnimationsOf(context);
       Scrollable.ensureVisible(
         target,
         alignment: .12,
-        duration: MediaQuery.disableAnimationsOf(context)
-            ? Duration.zero
-            : const Duration(milliseconds: 180),
+        duration: reduce ? Duration.zero : const Duration(milliseconds: 180),
       );
+      // A thread that just opened is still growing; follow it once it settles.
+      Future<void>.delayed(const Duration(milliseconds: 300), () {
+        final settled = focusedComment.currentContext;
+        if (!mounted || settled == null || !settled.mounted) return;
+        if (lastFocusedComment != id) return;
+        Scrollable.ensureVisible(
+          settled,
+          alignment: .12,
+          duration: reduce ? Duration.zero : const Duration(milliseconds: 160),
+        );
+      });
     });
   }
 
   @override
   void initState() {
     super.initState();
+    _expandPending = Uri.parse(p.path).queryParameters['expand'];
+    // Opening a thread can bring the focused reply into the list.
+    threads.addListener(_revealAfterThreadChange);
     if (Uri.parse(p.path).queryParameters['comment'] == '1') {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) focus.requestFocus();
@@ -875,6 +967,8 @@ class _WebPostDetailState extends State<WebPostDetail> {
   @override
   void dispose() {
     content.dispose();
+    threads.removeListener(_revealAfterThreadChange);
+    threads.dispose();
     focus.dispose();
     super.dispose();
   }
@@ -885,19 +979,43 @@ class _WebPostDetailState extends State<WebPostDetail> {
       sending = true;
       error = null;
     });
+    final postId = object(p.data['post'])['id'];
+    final parent = replyTo;
     try {
-      await p.c.action(
-        'POST',
-        '/community/posts/${object(p.data['post'])['id']}/comments',
-        {
-          'comment_content': content.text.trim(),
-          'comment_context': 'detail',
-          if (sticker != null) 'sticker_id': sticker!['id'],
-        },
-      );
+      final result = await p.c
+          .action('POST', '/community/posts/$postId/comments', {
+            'comment_content': content.text.trim(),
+            'comment_context': 'detail',
+            if (sticker != null) 'sticker_id': sticker!['id'],
+            if (parent != null) 'parent_id': parent['id'],
+            if (parent != null && mentionReplied) 'mention_replied': true,
+            if (content.mentionIds.isNotEmpty) 'mentions': content.mentionIds,
+          });
       content.clear();
-      if (mounted) setState(() => sticker = null);
+      if (mounted) {
+        setState(() {
+          sticker = null;
+          replyTo = null;
+          mentionReplied = false;
+        });
+      }
+      final root = parent == null
+          ? null
+          : value(parent['root_comment_id']).isNotEmpty &&
+                value(parent['root_comment_id']) != 'null'
+          ? value(parent['root_comment_id'])
+          : value(parent['id']);
+      final id = value(result['comment_id']);
+      // A new reply opens its thread in place and scrolls to it.
+      if (root != null && object(p.data['threadRoot']).isEmpty) {
+        threads.open(root, postId: '$postId', total: 0, shown: 0);
+        lastFocusedComment = null;
+        if (id.isNotEmpty) _justPosted = id;
+      }
       await p.load();
+      if (root != null && mounted) {
+        await threads.fetch(root, postId: '$postId');
+      }
     } catch (e) {
       if (mounted) setState(() => error = '$e');
     } finally {
@@ -979,6 +1097,7 @@ class _WebPostDetailState extends State<WebPostDetail> {
   Widget build(BuildContext context) {
     final comments = rows(p.data['comments']);
     final root = object(p.data['threadRoot']);
+    if (root.isEmpty) syncThreads(comments);
     revealFocusedComment();
     final loadedIds = comments.map((comment) => '${comment['id']}').toSet();
     final detached = root.isEmpty
@@ -998,11 +1117,13 @@ class _WebPostDetailState extends State<WebPostDetail> {
           focusedCommentId: focusedCommentId,
           focusedCommentKey: focusedComment,
           connectNext: connectNext,
+          onReply: startReply,
+          threads: root.isEmpty ? threads : null,
         );
     return Column(
       children: [
         Expanded(
-          child: RefreshIndicator.adaptive(
+          child: AppRefreshIndicator(
             onRefresh: p.pullRefresh,
             child: () {
               final items = <Widget>[
@@ -1096,6 +1217,52 @@ class _WebPostDetailState extends State<WebPostDetail> {
                       color: Theme.of(context).colorScheme.error,
                     ),
                   ),
+                if (replyTo != null)
+                  Padding(
+                    key: const ValueKey('comment.replying'),
+                    padding: const EdgeInsetsDirectional.only(
+                      start: 4,
+                      bottom: 4,
+                    ),
+                    child: Row(
+                      children: [
+                        Text(
+                          p.c.t('Replying to ', 'الرد على '),
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: webMuted(context),
+                          ),
+                        ),
+                        Flexible(
+                          child: _ReplyMentionChip(
+                            name: value(
+                              object(replyTo!['author'])['name'],
+                              p.c.t('Deleted user', 'عضو محذوف'),
+                            ),
+                            mention: mentionReplied,
+                            accent: p.c.settings.accent,
+                            removeLabel: p.c.t(
+                              'Remove the mention',
+                              'إزالة الإشارة',
+                            ),
+                            onRemove: sending
+                                ? null
+                                : () => setState(() => mentionReplied = false),
+                          ),
+                        ),
+                        const Spacer(),
+                        TextButton(
+                          key: const ValueKey('comment.replying.cancel'),
+                          onPressed: sending ? null : cancelReply,
+                          style: TextButton.styleFrom(
+                            minimumSize: const Size(0, 32),
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                          ),
+                          child: Text(p.c.t('Cancel', 'إلغاء')),
+                        ),
+                      ],
+                    ),
+                  ),
                 if (sticker != null)
                   Row(
                     children: [
@@ -1110,86 +1277,98 @@ class _WebPostDetailState extends State<WebPostDetail> {
                       ),
                     ],
                   ),
-                Row(
-                  children: [
-                    p.avatar(p.c.user ?? {}, radius: 18),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: AdaptiveTextField(
-                        controller: content,
-                        field: (direction) => TextField(
+                MentionField(
+                  controller: content,
+                  focusNode: focus,
+                  api: p.c.api,
+                  viewerId: p.c.user?['id'],
+                  accent: p.c.settings.accent,
+                  avatar: (person) => p.avatar(person, radius: 20),
+                  child: Row(
+                    children: [
+                      p.avatar(p.c.user ?? {}, radius: 18),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: AdaptiveTextField(
                           controller: content,
-                          textDirection: direction,
-                          focusNode: focus,
-                          minLines: 1,
-                          maxLines: 4,
-                          maxLength: 1000,
-                          style: const TextStyle(fontSize: 16, height: 1.35),
-                          decoration: InputDecoration(
-                            hintText: p.c.t(
-                              'Write a comment...',
-                              'اكتب تعليقًا...',
-                            ),
-                            counterText: '',
-                            filled: true,
-                            fillColor: webSecondary(context),
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 12,
-                            ),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(24),
-                              borderSide: BorderSide.none,
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(24),
-                              borderSide: BorderSide.none,
+                          field: (direction) => TextField(
+                            controller: content,
+                            textDirection: direction,
+                            focusNode: focus,
+                            minLines: 1,
+                            maxLines: 4,
+                            maxLength: 1000,
+                            style: const TextStyle(fontSize: 16, height: 1.35),
+                            decoration: InputDecoration(
+                              hintText: replyTo != null
+                                  ? p.c.t('Write a reply...', 'اكتب ردًا...')
+                                  : p.c.t(
+                                      'Write a comment...',
+                                      'اكتب تعليقًا...',
+                                    ),
+                              counterText: '',
+                              filled: true,
+                              fillColor: webSecondary(context),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(24),
+                                borderSide: BorderSide.none,
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(24),
+                                borderSide: BorderSide.none,
+                              ),
                             ),
                           ),
                         ),
                       ),
-                    ),
-                    SizedBox(
-                      width: 36,
-                      height: 44,
-                      child: IconButton(
-                        padding: EdgeInsets.zero,
-                        onPressed: chooseSticker,
-                        icon: Icon(
-                          Icons.sticky_note_2_outlined,
-                          size: 22,
-                          color: webMuted(context),
+                      SizedBox(
+                        width: 36,
+                        height: 44,
+                        child: IconButton(
+                          padding: EdgeInsets.zero,
+                          onPressed: chooseSticker,
+                          icon: Icon(
+                            Icons.sticky_note_2_outlined,
+                            size: 22,
+                            color: webMuted(context),
+                          ),
+                          tooltip: p.c.t('Stickers', 'الملصقات'),
                         ),
-                        tooltip: p.c.t('Stickers', 'الملصقات'),
                       ),
-                    ),
-                    const SizedBox(width: 6),
-                    SizedBox(
-                      width: 42,
-                      height: 42,
-                      child: IconButton.filled(
-                        onPressed: sending ? null : send,
-                        style: IconButton.styleFrom(
-                          backgroundColor: p.c.settings.accent,
-                        ),
-                        icon: sending
-                            ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
+                      const SizedBox(width: 6),
+                      SizedBox(
+                        width: 42,
+                        height: 42,
+                        child: IconButton.filled(
+                          onPressed: sending ? null : send,
+                          style: IconButton.styleFrom(
+                            backgroundColor: p.c.settings.accent,
+                          ),
+                          icon: sending
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: AppSpinner(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const WebIcon(
+                                  'send',
+                                  size: 23,
                                   color: Colors.white,
                                 ),
-                              )
-                            : const WebIcon(
-                                'send',
-                                size: 23,
-                                color: Colors.white,
-                              ),
-                        tooltip: p.c.t('Send comment', 'إرسال التعليق'),
+                          tooltip: replyTo != null
+                              ? p.c.t('Send reply', 'إرسال الرد')
+                              : p.c.t('Send comment', 'إرسال التعليق'),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -1209,10 +1388,16 @@ class WebThreadComment extends StatelessWidget {
     this.connectNext = false,
     this.focusedCommentId,
     this.focusedCommentKey,
+    this.onReply,
+    this.threads,
   });
   final NativePageState page;
   final Json comment;
   final int depth;
+  final ValueChanged<Json>? onReply;
+
+  /// Open/closed reply threads; null keeps every reply shown (thread view).
+  final CommentThreads? threads;
   final bool connectNext;
   final String? focusedCommentId;
   final GlobalKey? focusedCommentKey;
@@ -1222,10 +1407,61 @@ class WebThreadComment extends StatelessWidget {
     final endpoint =
         '/community/posts/${object(p.data['post'])['id']}/comments/${comment['id']}';
     final own = '${comment['user_id']}' == '${c.user?['id']}';
-    final replies = rows(comment['thread_replies']);
+    final postId = '${object(p.data['post'])['id']}';
+    final rootId = '${comment['id']}';
+    final threads = depth == 0 ? this.threads : null;
+    final replyCount =
+        int.tryParse(value(comment['thread_replies_count'])) ?? 0;
+    if (threads != null) {
+      return ListenableBuilder(
+        listenable: threads.of(rootId),
+        builder: (context, _) => _build(
+          context,
+          threads.replies(rootId, rows(comment['thread_replies'])),
+          threads: threads,
+          postId: postId,
+          replyCount: replyCount,
+          endpoint: endpoint,
+          own: own,
+          person: person,
+        ),
+      );
+    }
+    return _build(
+      context,
+      rows(comment['thread_replies']),
+      postId: postId,
+      replyCount: replyCount,
+      endpoint: endpoint,
+      own: own,
+      person: person,
+    );
+  }
+
+  Widget _build(
+    BuildContext context,
+    List<Json> replies, {
+    CommentThreads? threads,
+    required String postId,
+    required int replyCount,
+    required String endpoint,
+    required bool own,
+    required Json person,
+  }) {
+    final p = page, c = page.c;
+    final open = threads == null || threads.isOpen('${comment['id']}');
+    final shownReplies = open ? replies : const <Json>[];
+    final replies0 = shownReplies;
+    final loadedIds = {for (final reply in replies0) '${reply['id']}'};
+    // In an open thread, a reply whose parent is on another page still shows.
     final children = depth < 4
-        ? replies
-              .where((reply) => '${reply['parent_id']}' == '${comment['id']}')
+        ? replies0
+              .where(
+                (reply) =>
+                    '${reply['parent_id']}' == '${comment['id']}' ||
+                    (threads != null &&
+                        !loadedIds.contains('${reply['parent_id']}')),
+              )
               .toList()
         : <Json>[];
     Widget node(Json item, int nextDepth) => WebThreadComment(
@@ -1235,13 +1471,17 @@ class WebThreadComment extends StatelessWidget {
       depth: nextDepth,
       focusedCommentId: focusedCommentId,
       focusedCommentKey: focusedCommentKey,
+      onReply: onReply,
     );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         CommentThreadRail(
           key: ValueKey('comment.rail.${comment['id']}'),
-          visible: connectNext || children.isNotEmpty,
+          visible:
+              connectNext ||
+              children.isNotEmpty ||
+              (threads != null && replyCount > 0),
           color: webBorder(context),
           child: Padding(
             padding: const EdgeInsets.only(top: 6, bottom: 16),
@@ -1343,12 +1583,17 @@ class WebThreadComment extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       if (value(comment['content']).isNotEmpty)
-                        Text(
+                        MentionText(
                           value(comment['content']),
-                          textDirection: contentDirection(
-                            value(comment['content']),
-                          ),
+                          mentions: rows(comment['mentions']),
+                          accent: c.settings.accent,
+                          onOpen: (person) => c.open('/users/${person['id']}'),
                           style: const TextStyle(fontSize: 16, height: 1.6),
+                        ),
+                      if (object(comment['link_preview']).isNotEmpty)
+                        LinkPreviewView(
+                          preview: object(comment['link_preview']),
+                          api: c.api,
                         ),
                       if (value(comment['sticker_id']).isNotEmpty)
                         Padding(
@@ -1366,6 +1611,9 @@ class WebThreadComment extends StatelessWidget {
                         page: p,
                         comment: comment,
                         endpoint: '$endpoint/reactions',
+                        onReply: onReply == null
+                            ? null
+                            : () => onReply!(comment),
                       ),
                     ],
                   ),
@@ -1374,15 +1622,44 @@ class WebThreadComment extends StatelessWidget {
             ),
           ),
         ),
-        for (final (index, reply) in children.indexed)
-          CommentReplyBranch(
-            key: ValueKey('comment.branch.${reply['id']}'),
-            continues: index < children.length - 1 || connectNext,
-            color: webBorder(context),
-            child: node({...reply, 'thread_replies': replies}, depth + 1),
+        if (threads != null)
+          _ThreadReplies(
+            key: ValueKey('comment.thread.${comment['id']}'),
+            threads: threads,
+            rootId: '${comment['id']}',
+            postId: postId,
+            replyCount: replyCount,
+            shown: replies.length,
+            connectNext: connectNext,
+            page: p,
+            children: [
+              for (final (index, reply) in children.indexed)
+                CommentReplyBranch(
+                  key: ValueKey('comment.branch.${reply['id']}'),
+                  continues: true,
+                  color: webBorder(context),
+                  child: RevealReply(
+                    order: index,
+                    child: node({
+                      ...reply,
+                      'thread_replies': replies,
+                    }, depth + 1),
+                  ),
+                ),
+            ],
           ),
-        if ((int.tryParse(value(comment['thread_replies_count'])) ?? 0) >
-            replies.length)
+        if (threads == null)
+          for (final (index, reply) in children.indexed)
+            CommentReplyBranch(
+              key: ValueKey('comment.branch.${reply['id']}'),
+              continues: index < children.length - 1 || connectNext,
+              color: webBorder(context),
+              child: node({...reply, 'thread_replies': replies}, depth + 1),
+            ),
+        if (threads == null &&
+            depth == 0 &&
+            (int.tryParse(value(comment['thread_replies_count'])) ?? 0) >
+                replies.length)
           CommentThreadRail(
             visible: connectNext,
             color: webBorder(context),
@@ -1408,14 +1685,16 @@ class WebCommentReactions extends StatelessWidget {
     required this.page,
     required this.comment,
     required this.endpoint,
+    this.onReply,
   });
   final NativePageState page;
   final Json comment;
   final String endpoint;
+  final VoidCallback? onReply;
   @override
   Widget build(BuildContext context) {
     final selected = rows(comment['reactions']).firstOrNull?['type'];
-    final total = ['like', 'love', 'funny'].fold<int>(
+    final total = reactionTypes.fold<int>(
       0,
       (n, k) => n + (int.tryParse(value(comment['${k}_count'])) ?? 0),
     );
@@ -1438,6 +1717,21 @@ class WebCommentReactions extends StatelessWidget {
                 row: comment,
                 child: WebReactionSummary(row: comment, emojiSize: 14, gap: 5),
               ),
+            ),
+          if (onReply != null)
+            TextButton(
+              key: ValueKey('comment.reply.${comment['id']}'),
+              onPressed: onReply,
+              style: TextButton.styleFrom(
+                foregroundColor: webMuted(context),
+                minimumSize: const Size(0, 36),
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                textStyle: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              child: Text(page.c.t('Reply', 'رد')),
             ),
         ],
       ),
@@ -1502,7 +1796,7 @@ class _WebPostCardState extends State<WebPostCard> {
   Widget build(BuildContext context) {
     final c = p.c, detail = widget.detail;
     final selected = rows(post['reactions']).firstOrNull?['type'];
-    final total = ['like', 'love', 'funny'].fold<int>(
+    final total = reactionTypes.fold<int>(
       0,
       (n, k) => n + (int.tryParse(value(post['${k}_count'])) ?? 0),
     );
@@ -1642,9 +1936,11 @@ class _WebPostCardState extends State<WebPostCard> {
                   0,
                   images.isNotEmpty ? 12 : (detail ? 24 : 16),
                 ),
-                child: Text(
+                child: MentionText(
                   value(post['content']),
-                  textDirection: contentDirection(value(post['content'])),
+                  mentions: rows(post['mentions']),
+                  accent: c.settings.accent,
+                  onOpen: (person) => c.open('/users/${person['id']}'),
                   maxLines: detail ? null : 5,
                   overflow: detail ? null : TextOverflow.ellipsis,
                   style: TextStyle(
@@ -1656,6 +1952,15 @@ class _WebPostCardState extends State<WebPostCard> {
             )
           else
             SizedBox(height: detail ? 18 : 12),
+          // A post with its own photo shows that instead of a link preview.
+          if (images.isEmpty && object(post['link_preview']).isNotEmpty)
+            Padding(
+              padding: EdgeInsets.only(bottom: detail ? 16 : 12),
+              child: LinkPreviewView(
+                preview: object(post['link_preview']),
+                api: c.api,
+              ),
+            ),
           if (images.isNotEmpty)
             Padding(
               padding: EdgeInsets.only(bottom: detail ? 20 : 16),
@@ -1819,12 +2124,19 @@ class _WebPostCardState extends State<WebPostCard> {
                           errorBuilder: (_, _, _) => const SizedBox.shrink(),
                         ),
                       if (value(comment['content']).isNotEmpty)
-                        Text(
+                        MentionText(
                           value(comment['content']),
-                          textDirection: contentDirection(
-                            value(comment['content']),
-                          ),
+                          mentions: rows(comment['mentions']),
+                          accent: p.c.settings.accent,
+                          onOpen: (person) =>
+                              p.c.open('/users/${person['id']}'),
                           style: const TextStyle(fontSize: 14, height: 1.6),
+                        ),
+                      if (object(comment['link_preview']).isNotEmpty)
+                        LinkPreviewView(
+                          preview: object(comment['link_preview']),
+                          api: p.c.api,
+                          compact: true,
                         ),
                     ],
                   ),
@@ -1888,9 +2200,11 @@ class WebPostEditor extends StatefulWidget {
 }
 
 class _WebPostEditorState extends State<WebPostEditor> {
-  late final TextEditingController text = TextEditingController(
+  late final MentionTextController text = MentionTextController(
     text: value(widget.post?['content']),
+    mentions: rows(widget.post?['mentions']),
   );
+  final _focus = FocusNode();
   late String _lastText = text.text;
   late final ValueNotifier<bool> _hasText = ValueNotifier<bool>(
     text.text.trim().isNotEmpty,
@@ -1914,16 +2228,23 @@ class _WebPostEditorState extends State<WebPostEditor> {
   bool canPublish(bool hasText) =>
       !busy && pendingImages == 0 && (hasText || images.isNotEmpty);
 
-  Future<void> addImages() async {
+  Future<void> addImages({bool gif = false}) async {
     final c = widget.page.c;
     if (busy || images.length + pendingImages >= postImageLimit) return;
     setState(() => error = null);
     try {
-      final file = await pickPostImage(t: c.t);
+      final file = gif
+          ? await pickPostGif(t: c.t)
+          : await pickPostImage(t: c.t);
       if (!mounted || file == null) return;
       setState(() => pendingImages++);
       try {
-        final family = await checkPostImage(file, c.t);
+        final family = await checkPostImage(
+          file,
+          c.t,
+          allowGif: yes(c.user?['can_post_gifs']),
+          gifOnly: gif,
+        );
         if (mounted) images.add(PostImageDraft.picked(file, family));
       } finally {
         if (mounted) setState(() => pendingImages--);
@@ -1961,6 +2282,7 @@ class _WebPostEditorState extends State<WebPostEditor> {
     _hasText.dispose();
     _charCount.dispose();
     text.dispose();
+    _focus.dispose();
     super.dispose();
   }
 
@@ -1976,6 +2298,7 @@ class _WebPostEditorState extends State<WebPostEditor> {
         'content': text.text.trim(),
         'visibility': visibility,
         if (widget.post != null) 'post_id': widget.post!['id'],
+        if (text.mentionIds.isNotEmpty) 'mentions': text.mentionIds,
         ...await postImageFields(images, removedImages),
       };
       final method = widget.post == null ? 'POST' : 'PUT';
@@ -2111,31 +2434,43 @@ class _WebPostEditorState extends State<WebPostEditor> {
                           const SizedBox(height: 12),
                           Expanded(
                             child: RepaintBoundary(
-                              child: AdaptiveTextField(
+                              child: MentionField(
                                 controller: text,
-                                field: (direction) => TextField(
+                                focusNode: _focus,
+                                api: c.api,
+                                viewerId: c.user?['id'],
+                                accent: c.settings.accent,
+                                insideBottom: true,
+                                fullWidth: true,
+                                avatar: (person) =>
+                                    widget.page.avatar(person, radius: 20),
+                                child: AdaptiveTextField(
                                   controller: text,
-                                  textDirection: direction,
-                                  maxLength: 3000,
-                                  maxLines: null,
-                                  expands: true,
-                                  autofocus: true,
-                                  textAlignVertical: TextAlignVertical.top,
-                                  style: const TextStyle(
-                                    fontSize: 21,
-                                    height: 1.6,
-                                  ),
-                                  decoration: InputDecoration(
-                                    hintText: c.t(
-                                      'What’s on your mind?',
-                                      'إيه اللي في بالك؟',
+                                  field: (direction) => TextField(
+                                    controller: text,
+                                    focusNode: _focus,
+                                    textDirection: direction,
+                                    maxLength: 3000,
+                                    maxLines: null,
+                                    expands: true,
+                                    autofocus: true,
+                                    textAlignVertical: TextAlignVertical.top,
+                                    style: const TextStyle(
+                                      fontSize: 21,
+                                      height: 1.6,
                                     ),
-                                    filled: false,
-                                    border: InputBorder.none,
-                                    enabledBorder: InputBorder.none,
-                                    focusedBorder: InputBorder.none,
-                                    contentPadding: EdgeInsets.zero,
-                                    counterText: '',
+                                    decoration: InputDecoration(
+                                      hintText: c.t(
+                                        'What’s on your mind?',
+                                        'إيه اللي في بالك؟',
+                                      ),
+                                      filled: false,
+                                      border: InputBorder.none,
+                                      enabledBorder: InputBorder.none,
+                                      focusedBorder: InputBorder.none,
+                                      contentPadding: EdgeInsets.zero,
+                                      counterText: '',
+                                    ),
                                   ),
                                 ),
                               ),
@@ -2195,6 +2530,18 @@ class _WebPostEditorState extends State<WebPostEditor> {
                           ? null
                           : addImages,
                     ),
+                  // Animated GIFs are for blue and gold verified members.
+                  if (yes(c.user?['can_post_images']) &&
+                      yes(c.user?['can_post_gifs']))
+                    PostGifButton(
+                      label: c.t('Add a GIF', 'إضافة GIF'),
+                      color: webMuted(context),
+                      onTap:
+                          busy ||
+                              images.length + pendingImages >= postImageLimit
+                          ? null
+                          : () => addImages(gif: true),
+                    ),
                   const Spacer(),
                   RepaintBoundary(
                     child: ValueListenableBuilder<int>(
@@ -2213,6 +2560,188 @@ class _WebPostEditorState extends State<WebPostEditor> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Under a top-level comment: "View replies (N)", or its replies revealed
+/// with a short animation, more pages and "Hide replies".
+class _ThreadReplies extends StatelessWidget {
+  const _ThreadReplies({
+    super.key,
+    required this.threads,
+    required this.rootId,
+    required this.postId,
+    required this.replyCount,
+    required this.shown,
+    required this.connectNext,
+    required this.page,
+    required this.children,
+  });
+  final CommentThreads threads;
+  final String rootId, postId;
+  final int replyCount, shown;
+  final bool connectNext;
+  final NativePageState page;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = page.c;
+    final open = threads.isOpen(rootId);
+    final muted = webMuted(context);
+    final reduce = MediaQuery.disableAnimationsOf(context);
+    Widget link(
+      String key,
+      String label,
+      VoidCallback onTap, {
+      IconData? icon,
+    }) => CommentReplyBranch(
+      continues: connectNext,
+      color: webBorder(context),
+      child: Align(
+        alignment: AlignmentDirectional.centerStart,
+        child: TextButton.icon(
+          key: ValueKey('$key.$rootId'),
+          onPressed: onTap,
+          style: TextButton.styleFrom(
+            foregroundColor: muted,
+            minimumSize: const Size(0, 40),
+            padding: const EdgeInsetsDirectional.fromSTEB(4, 0, 10, 0),
+            textStyle: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          icon: Icon(icon ?? Icons.subdirectory_arrow_right, size: 18),
+          label: Text(label),
+        ),
+      ),
+    );
+    if (replyCount <= 0 && children.isEmpty) return const SizedBox.shrink();
+    final Widget body;
+    if (!open) {
+      body = link(
+        'comment.replies.open',
+        c.t('View replies ($replyCount)', 'عرض الردود ($replyCount)'),
+        () => threads.open(
+          rootId,
+          postId: postId,
+          total: replyCount,
+          shown: shown,
+        ),
+      );
+    } else {
+      body = Column(
+        key: ValueKey('comment.replies.$rootId'),
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ...children,
+          if (threads.isLoading(rootId))
+            CommentReplyBranch(
+              continues: true,
+              color: webBorder(context),
+              child: const Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: AppSpinner(strokeWidth: 2),
+                  ),
+                ),
+              ),
+            )
+          else if (threads.failed(rootId))
+            link(
+              'comment.replies.retry',
+              c.t(
+                'Couldn’t load replies. Retry',
+                'تعذّر تحميل الردود. أعد المحاولة',
+              ),
+              () => threads.fetch(rootId, postId: postId),
+              icon: Icons.refresh,
+            )
+          else if (threads.hasMore(rootId))
+            link(
+              'comment.replies.more',
+              c.t('View more replies', 'عرض المزيد من الردود'),
+              () => threads.fetch(rootId, postId: postId, reset: false),
+            ),
+          link(
+            'comment.replies.hide',
+            c.t('Hide replies', 'إخفاء الردود'),
+            () => threads.close(rootId),
+            icon: Icons.keyboard_arrow_up,
+          ),
+        ],
+      );
+    }
+    return AnimatedSize(
+      duration: reduce ? Duration.zero : const Duration(milliseconds: 240),
+      curve: Curves.easeOutCubic,
+      alignment: AlignmentDirectional.topStart,
+      child: body,
+    );
+  }
+}
+
+/// The person replied to: a green "@Name ×" while the reply will mention
+/// them; just the name once the × removed the mention.
+class _ReplyMentionChip extends StatelessWidget {
+  const _ReplyMentionChip({
+    required this.name,
+    required this.mention,
+    required this.accent,
+    required this.removeLabel,
+    required this.onRemove,
+  });
+  final String name, removeLabel;
+  final bool mention;
+  final Color accent;
+  final VoidCallback? onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = Text(
+      // Isolated so "@" stays at the start of Latin and Arabic names alike.
+      '\u2068${mention ? '@' : ''}$name\u2069',
+      key: const ValueKey('comment.replying.name'),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: TextStyle(
+        fontSize: 13,
+        fontWeight: FontWeight.w600,
+        color: mention ? accent : null,
+      ),
+    );
+    if (!mention) return label;
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 160),
+      padding: const EdgeInsetsDirectional.only(start: 8),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: .1),
+        borderRadius: BorderRadius.circular(99),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Flexible(child: label),
+          SizedBox(
+            width: 30,
+            height: 30,
+            child: IconButton(
+              key: const ValueKey('comment.replying.unmention'),
+              padding: EdgeInsets.zero,
+              iconSize: 16,
+              tooltip: removeLabel,
+              onPressed: onRemove,
+              icon: Icon(Icons.close, color: accent),
+            ),
+          ),
+        ],
       ),
     );
   }

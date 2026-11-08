@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:elbench/app_spinner.dart';
 import 'package:elbench/api.dart';
 import 'package:elbench/app_menus.dart';
 import 'package:elbench/main.dart';
@@ -193,6 +194,7 @@ void main() {
       expect(route.opaque, isFalse);
       expect(find.byType(WebHome), findsOneWidget);
       expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.byType(AppSpinner), findsNothing);
       hold.complete(api.envelope('people.index', {'people': []}));
       await tester.pumpAndSettle();
       expect(route.opaque, isTrue);
@@ -982,7 +984,14 @@ void main() {
         findsNothing,
       );
       expect(tester.element(find.byType(WebBottomNav)), same(element));
-      expect(tester.getRect(find.byKey(const ValueKey('header.back'))), header);
+      final headerFinder = find.byKey(const ValueKey('header.back'));
+      if (path == '/community') {
+        // Home's top bar leaves with the dock, fully above the screen.
+        expect(tester.getRect(headerFinder).bottom, lessThanOrEqualTo(0));
+        expect(headerFinder.hitTestable(), findsNothing);
+      } else {
+        expect(tester.getRect(headerFinder), header);
+      }
       await tester.drag(scroll, const Offset(0, 60));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 80));
@@ -990,6 +999,7 @@ void main() {
       expect(tester.getRect(dock).top, greaterThanOrEqualTo(original.top));
       await tester.pumpAndSettle();
       expect(tester.getRect(dock), original);
+      expect(tester.getRect(headerFinder), header);
       expect(
         find.byKey(const ValueKey('dock.home')).hitTestable(),
         findsOneWidget,

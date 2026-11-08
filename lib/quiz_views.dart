@@ -7,6 +7,7 @@ import 'app_menus.dart';
 import 'screens.dart';
 import 'text_direction.dart';
 import 'web_style.dart';
+import 'app_refresh.dart';
 
 class QuizScoreRing extends StatelessWidget {
   const QuizScoreRing({super.key, required this.score, this.average = false});
@@ -258,7 +259,7 @@ class WebQuizOverview extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 15),
       ),
     );
-    return RefreshIndicator.adaptive(
+    return AppRefreshIndicator(
       onRefresh: p.pullRefresh,
       child: ListView(
         padding: const EdgeInsets.fromLTRB(10, 20, 10, 112),
@@ -539,7 +540,7 @@ class WebQuizHistory extends StatelessWidget {
         d = p.data,
         scheme = Theme.of(context).colorScheme,
         params = Uri.parse(p.path).queryParameters;
-    return RefreshIndicator.adaptive(
+    return AppRefreshIndicator(
       onRefresh: p.pullRefresh,
       child: ListView(
         padding: const EdgeInsets.fromLTRB(10, 20, 10, 112),
@@ -1319,7 +1320,7 @@ class WebQuizAdmin extends StatelessWidget {
         scheme = Theme.of(context).colorScheme,
         stats = object(p.data['stats']),
         params = Uri.parse(p.path).queryParameters;
-    return RefreshIndicator.adaptive(
+    return AppRefreshIndicator(
       onRefresh: p.pullRefresh,
       child: ListView(
         padding: const EdgeInsets.fromLTRB(10, 20, 10, 112),

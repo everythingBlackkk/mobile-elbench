@@ -23,6 +23,10 @@ dependencies:
   url_launcher: ^6.3.2
   intl: ^0.20.2
   webview_flutter: ^4.14.1
+  # Already part of webview_flutter; named so the YouTube player can play on
+  # the first tap (no second "user gesture" inside the player).
+  webview_flutter_android: 4.14.1
+  webview_flutter_wkwebview: 3.26.2
   path_provider: ^2.1.5
   pdfx: ^2.11.0
   flutter_file_dialog: ^3.3.3

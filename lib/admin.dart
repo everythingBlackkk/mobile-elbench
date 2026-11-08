@@ -13,6 +13,8 @@ import 'screens.dart';
 import 'text_direction.dart';
 import 'web_style.dart';
 import 'upload_progress.dart';
+import 'app_spinner.dart';
+import 'app_refresh.dart';
 
 /// Native rendering of admin/index.blade.php and CSS/admin.css.
 class AdminContent extends StatelessWidget {
@@ -565,7 +567,7 @@ class AdminContent extends StatelessWidget {
         ),
       );
     }
-    return RefreshIndicator.adaptive(
+    return AppRefreshIndicator(
       onRefresh: p.pullRefresh,
       child: ListView(
         padding: const EdgeInsets.fromLTRB(10, 24, 10, 112),
@@ -1849,10 +1851,7 @@ class _AdminButton extends StatelessWidget {
                   SizedBox(
                     width: 12,
                     height: 12,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: foreground,
-                    ),
+                    child: AppSpinner(strokeWidth: 2, color: foreground),
                   ),
                   const SizedBox(width: 8),
                 ],
@@ -3662,7 +3661,7 @@ class WebAdminReportDetail extends StatelessWidget {
         ],
       ),
     );
-    return RefreshIndicator.adaptive(
+    return AppRefreshIndicator(
       onRefresh: page.pullRefresh,
       child: ListView(
         padding: const EdgeInsets.fromLTRB(10, 24, 10, 112),

@@ -11,6 +11,7 @@ import 'screens.dart';
 import 'text_direction.dart';
 import 'web_style.dart';
 import 'floating_add.dart';
+import 'app_refresh.dart';
 
 // Native equivalents of ask.css and notifications' shared timeline markup.
 class _Colors {
@@ -845,7 +846,7 @@ class WebInbox extends StatelessWidget {
       final reduceMotion =
           MediaQuery.disableAnimationsOf(context) ||
           MediaQuery.of(context).accessibleNavigation;
-      return RefreshIndicator.adaptive(
+      return AppRefreshIndicator(
         onRefresh: () => page.refreshFromPull(activity.refresh),
         child: ListView(
           controller: activity.scroll,
@@ -1134,7 +1135,7 @@ class WebAskDetail extends StatelessWidget {
     final owner = yes(page.data['isRecipient']);
     final answered = item['answered_at'] != null;
     final colors = _Colors(context), c = page.c;
-    return RefreshIndicator.adaptive(
+    return AppRefreshIndicator(
       onRefresh: page.pullRefresh,
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
@@ -1397,7 +1398,7 @@ class _WebNotificationsState extends State<WebNotifications> {
           MediaQuery.of(context).accessibleNavigation;
       return Stack(
         children: [
-          RefreshIndicator.adaptive(
+          AppRefreshIndicator(
             onRefresh: () => page.refreshFromPull(activity.refresh),
             child: ListView(
               controller: activity.scroll,
@@ -1785,6 +1786,12 @@ class _NotificationRow extends StatelessWidget {
 String _notificationLabel(NativePageState page, String type) => switch (type) {
   'post_reply' => page.c.t('replied to your post', 'رد على منشورك'),
   'post_like' => page.c.t('reacted to your post', 'تفاعل مع منشورك'),
+  'post_mention' => page.c.t('mentioned you in a post', 'أشار إليك في منشور'),
+  'comment_mention' => page.c.t(
+    'mentioned you in a comment',
+    'أشار إليك في تعليق',
+  ),
+  'comment_reply' => page.c.t('replied to your comment', 'رد على تعليقك'),
   'comment_like' => page.c.t('reacted to your comment', 'تفاعل مع تعليقك'),
   'question_answer' => page.c.t(
     'answered your community question',
@@ -1832,7 +1839,7 @@ class WebAnnouncement extends StatelessWidget {
     final item = object(page.data['announcement']);
     final author = object(item['author']);
     final canDelete = _canDeleteAnnouncement(page, item);
-    return RefreshIndicator.adaptive(
+    return AppRefreshIndicator(
       onRefresh: page.pullRefresh,
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),

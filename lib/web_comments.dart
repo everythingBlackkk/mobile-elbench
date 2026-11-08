@@ -4,6 +4,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'api.dart';
 import 'image_cache.dart';
 import 'screens.dart';
+import 'mentions.dart';
 import 'text_direction.dart';
 import 'web_style.dart' show svgColorFilter;
 
@@ -296,9 +297,11 @@ class WebCommentEditor extends StatefulWidget {
 }
 
 class _WebCommentEditorState extends State<WebCommentEditor> {
-  late final text = TextEditingController(
+  late final text = MentionTextController(
     text: value(widget.comment['content']),
+    mentions: rows(widget.comment['mentions']),
   );
+  final _focus = FocusNode();
   late String stickerId = value(widget.comment['sticker_id']);
   bool busy = false;
   String? error;
@@ -310,6 +313,7 @@ class _WebCommentEditorState extends State<WebCommentEditor> {
   @override
   void dispose() {
     text.dispose();
+    _focus.dispose();
     super.dispose();
   }
 
@@ -324,6 +328,7 @@ class _WebCommentEditorState extends State<WebCommentEditor> {
         'comment_content': text.text.trim(),
         // Explicit empty removes a sticker; omission would preserve it.
         'sticker_id': stickerId,
+        if (text.mentionIds.isNotEmpty) 'mentions': text.mentionIds,
       });
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
@@ -491,29 +496,40 @@ class _WebCommentEditorState extends State<WebCommentEditor> {
                     page.avatar(c.user ?? {}, radius: 21),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: AdaptiveTextField(
+                      child: MentionField(
                         controller: text,
-                        field: (direction) => TextField(
-                          key: const ValueKey('comment.editor.text'),
+                        focusNode: _focus,
+                        api: c.api,
+                        viewerId: c.user?['id'],
+                        accent: c.settings.accent,
+                        insideBottom: true,
+                        fullWidth: true,
+                        avatar: (person) => page.avatar(person, radius: 20),
+                        child: AdaptiveTextField(
                           controller: text,
-                          textDirection: direction,
-                          autofocus: true,
-                          maxLength: 1000,
-                          maxLines: null,
-                          expands: true,
-                          textAlignVertical: TextAlignVertical.top,
-                          style: TextStyle(
-                            fontSize: 16,
-                            height: 1.6,
-                            color: colors.text,
-                          ),
-                          decoration: const InputDecoration(
-                            border: InputBorder.none,
-                            enabledBorder: InputBorder.none,
-                            focusedBorder: InputBorder.none,
-                            filled: false,
-                            counterText: '',
-                            contentPadding: EdgeInsets.zero,
+                          field: (direction) => TextField(
+                            key: const ValueKey('comment.editor.text'),
+                            controller: text,
+                            focusNode: _focus,
+                            textDirection: direction,
+                            autofocus: true,
+                            maxLength: 1000,
+                            maxLines: null,
+                            expands: true,
+                            textAlignVertical: TextAlignVertical.top,
+                            style: TextStyle(
+                              fontSize: 16,
+                              height: 1.6,
+                              color: colors.text,
+                            ),
+                            decoration: const InputDecoration(
+                              border: InputBorder.none,
+                              enabledBorder: InputBorder.none,
+                              focusedBorder: InputBorder.none,
+                              filled: false,
+                              counterText: '',
+                              contentPadding: EdgeInsets.zero,
+                            ),
                           ),
                         ),
                       ),

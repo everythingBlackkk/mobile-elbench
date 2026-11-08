@@ -7,6 +7,7 @@ import 'app_menus.dart';
 import 'main.dart';
 import 'text_direction.dart';
 import 'upload_progress.dart';
+import 'app_spinner.dart';
 
 class FieldSpec {
   const FieldSpec(
@@ -380,7 +381,7 @@ class _ActionFormState extends State<ActionForm> {
                     ? const SizedBox(
                         width: 22,
                         height: 22,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                        child: AppSpinner(strokeWidth: 2),
                       )
                     : Text(widget.submit ?? c.t('Save', 'حفظ')),
               ),

@@ -17,6 +17,7 @@ import 'infinite_feed.dart';
 import 'text_direction.dart';
 import 'web_style.dart';
 import 'native_share.dart';
+import 'app_refresh.dart';
 
 /// Native counterpart of profile/{show,user}.blade.php and profile.css.
 /// The surrounding NativePage supplies the transparent mobile header and nav.
@@ -564,7 +565,7 @@ class _WebProfileState extends State<WebProfile>
       ),
     );
 
-    return RefreshIndicator.adaptive(
+    return AppRefreshIndicator(
       onRefresh: () => page.refreshFromPull(() {
         page.c.markAllStale();
         return fetchPanel(tab, force: true, refresh: true);
@@ -2174,7 +2175,7 @@ class _WebPeopleState extends State<WebPeople> {
     final bodyCount = searching
         ? 0
         : (people.isEmpty ? 1 : people.length) + (hasPagination ? 1 : 0);
-    return RefreshIndicator.adaptive(
+    return AppRefreshIndicator(
       onRefresh: () => page.refreshFromPull(() {
         page.c.markAllStale();
         return fetch(page.path, force: true);
